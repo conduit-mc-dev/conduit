@@ -1,0 +1,72 @@
+# ==============================
+# Conduit MC — .gitignore
+# ==============================
+
+# ---- Gradle / JVM ----
+.gradle/
+build/
+out/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/**/build/
+!**/src/**/out/
+
+# ---- Kotlin Multiplatform ----
+kotlin-js-store/
+
+# ---- IntelliJ IDEA / JetBrains ----
+.idea/
+*.iml
+*.ipr
+*.iws
+*.log
+
+# ---- VS Code ----
+.vscode/
+*.code-workspace
+
+# ---- macOS ----
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ---- Windows ----
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---- Linux ----
+*~
+.directory
+.Trash-*
+
+# ---- Compose Desktop output ----
+**/compose-desktop/
+**/jpackage/
+
+# ---- Local configuration / secrets ----
+*.env
+.env.*
+!.env.example
+local.properties
+secrets/
+*.key
+*.pem
+
+# ---- Runtime artifacts ----
+*.jar.log
+hs_err_pid*
+replay_pid*
+
+# ---- Minecraft-specific local test data ----
+# We may run a real server during development.
+# Keep it out of git.
+run/
+runs/
+test-server/
+test-data/
+mc-instance/
+
+# ---- CodeBuddy / editor local state (safe to ignore, not the whole .codebuddy folder) ----
+.codebuddy/cache/
+.codebuddy/teams/
