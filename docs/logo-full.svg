@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Conduit MC — Full lockup (icon + wordmark)
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  Layout: icon on the left, wordmark on the right.
+  Typeface: "Inter" preferred, with a safe system-font fallback stack.
+  The logo remains readable even when "Inter" is not available.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1120 320"
+     width="1120" height="320"
+     shape-rendering="crispEdges"
+     role="img"
+     aria-label="Conduit MC">
+  <title>Conduit MC</title>
+
+  <defs>
+    <!-- Inline font stack to avoid external requests; embed visual intent -->
+    <style>
+      .wordmark {
+        font-family: "Inter", "SF Pro Display", "Segoe UI",
+                     "Helvetica Neue", Arial, sans-serif;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .tag {
+        font-family: "Inter", "SF Pro Display", "Segoe UI",
+                     "Helvetica Neue", Arial, sans-serif;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+      }
+    </style>
+  </defs>
+
+  <!-- =============== Icon (copied from logo-icon.svg, scaled) =============== -->
+  <!--
+    Icon occupies x=0..320, y=0..320 (same as the standalone icon).
+    Then the wordmark sits at x=360 onward.
+  -->
+  <g>
+    <rect x="112" y="16" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="144" y="16" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="176" y="16" width="32" height="32" fill="#0B3D4E"/>
+
+    <rect x="80"  y="48" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="112" y="48" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="48" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="176" y="48" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="48" width="32" height="32" fill="#0B3D4E"/>
+
+    <rect x="48"  y="80" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="80"  y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="176" y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="80" width="32" height="32" fill="#0B3D4E"/>
+
+    <rect x="16"  y="112" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="48"  y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="80"  y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="112" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="176" y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="272" y="112" width="32" height="32" fill="#0B3D4E"/>
+
+    <rect x="16"  y="144" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="48"  y="144" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="80"  y="144" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="144" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="144" y="144" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="176" y="144" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="208" y="144" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="144" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="272" y="144" width="32" height="32" fill="#0B3D4E"/>
+
+    <rect x="16"  y="176" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="48"  y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="80"  y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="176" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="176" y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="272" y="176" width="32" height="32" fill="#0B3D4E"/>
+
+    <rect x="48"  y="208" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="80"  y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="176" y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="208" width="32" height="32" fill="#0B3D4E"/>
+
+    <rect x="80"  y="240" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="112" y="240" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="240" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="176" y="240" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="240" width="32" height="32" fill="#0B3D4E"/>
+
+    <rect x="112" y="272" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="144" y="272" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="176" y="272" width="32" height="32" fill="#0B3D4E"/>
+  </g>
+
+  <!-- =============== Wordmark =============== -->
+  <g transform="translate(360, 0)">
+    <!--
+      "Conduit" in deep teal, "MC" accent in cyan.
+      Using <tspan> so "MC" is positioned relative to "Conduit" by the
+      font metrics themselves — this avoids drift when the font falls
+      back from Inter to SF Pro / Segoe UI on systems without Inter.
+      A small dx creates a deliberate visual gap between the two words.
+    -->
+    <text x="0" y="180"
+          class="wordmark"
+          font-size="140"
+          fill="#0B3D4E">Conduit<tspan dx="12" fill="#2BCEE9">MC</tspan></text>
+
+    <!-- Tagline -->
+    <text x="4" y="230"
+          class="tag"
+          font-size="28"
+          fill="#547080">From your server, to your friends' desktops.</text>
+  </g>
+</svg>

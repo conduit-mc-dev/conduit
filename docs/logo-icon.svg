@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Conduit MC — Icon (pixel conduit core)
+  SPDX-License-Identifier: GPL-3.0-or-later
+  Designed as a 9×9 pixel block grid. Each <rect> is a 32×32 unit "pixel".
+  Total canvas: 288×288 units (9 * 32), with a little outer padding.
+  Colors:
+    Primary:   #2BCEE9  (Minecraft conduit beacon cyan)
+    Deep:      #0B3D4E  (deep teal outline)
+    Highlight: #E9FBFF  (center glow)
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 320 320"
+     width="320" height="320"
+     shape-rendering="crispEdges"
+     role="img"
+     aria-label="Conduit MC logo">
+  <title>Conduit MC</title>
+
+  <!-- background: transparent, so README can sit on any theme -->
+
+  <!--
+    Pixel grid (9x9), offset 16px padding.
+    Legend:
+      D = deep teal   (#0B3D4E)
+      C = cyan        (#2BCEE9)
+      H = highlight   (#E9FBFF)
+      . = transparent
+
+    Layout (reading left-to-right, top-to-bottom):
+
+      . . . D D D . . .
+      . . D C C C D . .
+      . D C C C C C D .
+      D C C C H C C C D
+      D C C H H H C C D
+      D C C C H C C C D
+      . D C C C C C D .
+      . . D C C C D . .
+      . . . D D D . . .
+
+    That gives a diamond/conduit-like silhouette with a bright core.
+  -->
+
+  <g>
+    <!-- Row 0 (y=16): . . . D D D . . . -->
+    <rect x="112" y="16" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="144" y="16" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="176" y="16" width="32" height="32" fill="#0B3D4E"/>
+
+    <!-- Row 1 (y=48): . . D C C C D . . -->
+    <rect x="80"  y="48" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="112" y="48" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="48" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="176" y="48" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="48" width="32" height="32" fill="#0B3D4E"/>
+
+    <!-- Row 2 (y=80): . D C C C C C D . -->
+    <rect x="48"  y="80" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="80"  y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="176" y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="80" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="80" width="32" height="32" fill="#0B3D4E"/>
+
+    <!-- Row 3 (y=112): D C C C H C C C D -->
+    <rect x="16"  y="112" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="48"  y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="80"  y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="112" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="176" y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="112" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="272" y="112" width="32" height="32" fill="#0B3D4E"/>
+
+    <!-- Row 4 (y=144): D C C H H H C C D -->
+    <rect x="16"  y="144" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="48"  y="144" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="80"  y="144" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="144" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="144" y="144" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="176" y="144" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="208" y="144" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="144" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="272" y="144" width="32" height="32" fill="#0B3D4E"/>
+
+    <!-- Row 5 (y=176): D C C C H C C C D -->
+    <rect x="16"  y="176" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="48"  y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="80"  y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="176" width="32" height="32" fill="#E9FBFF"/>
+    <rect x="176" y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="176" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="272" y="176" width="32" height="32" fill="#0B3D4E"/>
+
+    <!-- Row 6 (y=208): . D C C C C C D . -->
+    <rect x="48"  y="208" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="80"  y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="112" y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="176" y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="208" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="240" y="208" width="32" height="32" fill="#0B3D4E"/>
+
+    <!-- Row 7 (y=240): . . D C C C D . . -->
+    <rect x="80"  y="240" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="112" y="240" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="144" y="240" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="176" y="240" width="32" height="32" fill="#2BCEE9"/>
+    <rect x="208" y="240" width="32" height="32" fill="#0B3D4E"/>
+
+    <!-- Row 8 (y=272): . . . D D D . . . -->
+    <rect x="112" y="272" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="144" y="272" width="32" height="32" fill="#0B3D4E"/>
+    <rect x="176" y="272" width="32" height="32" fill="#0B3D4E"/>
+  </g>
+</svg>

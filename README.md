@@ -1,7 +1,6 @@
 <div align="center">
 
-<!-- Logo placeholder -->
-<img src="docs/logo.png" alt="Conduit MC" width="140" />
+<img src="docs/logo-icon.svg" alt="Conduit MC" width="160" />
 
 # Conduit MC
 
