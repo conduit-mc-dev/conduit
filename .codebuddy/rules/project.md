@@ -14,7 +14,7 @@ It is shared by both CodeBuddy and Claude Code.
 - **GitHub**: https://github.com/conduit-mc-dev/conduit
 - **Organization**: `conduit-mc-dev` (GitHub org)
 - **License**: GPLv3
-- **Status**: Early development — nothing runs yet
+- **Status**: Active development — Daemon skeleton complete, Desktop MVP in progress
 - **Language of tagline**: Bilingual EN / 简体中文
 
 ## What the project is
@@ -49,7 +49,9 @@ This keeps us out of re-distribution gray areas.
 - **Language**: Kotlin (one language for shared-core, Daemon, Desktop, and Web)
 - **Desktop UI**: Compose Multiplatform (Desktop target)
 - **Web UI** (future): Compose Multiplatform (WasmJS target)
-- **Server framework** (Daemon): Ktor
+- **Server framework** (Daemon): Ktor (server + client)
+- **DI**: Koin 4.2（KMP 全平台，Compose 集成）
+- **Desktop navigation**: JetBrains navigation-compose（官方维护，支持 Desktop + WasmJS）
 - **Integrations build format**: Modrinth `.mrpack`
 - **Auth**: Microsoft OAuth (official Minecraft login)
 - **Platforms**: Windows, macOS, Linux (Daemon also Docker-friendly)
@@ -63,7 +65,8 @@ checking with the user first.
 ```
 conduit-mc/
 ├── shared-core/        # Kotlin Multiplatform (JVM + WasmJS)
-│   └── API client, data models, mrpack, modrinth client, protocol
+│   └── data models, API client, Mojang/Modrinth client, loader install, mrpack, protocol
+│       Packages: core/api/, core/download/, core/loader/, core/mod/, core/pack/
 ├── daemon/             # Kotlin + Ktor, runs on VPS
 ├── desktop/            # Compose Desktop, unified management + launcher app
 │   └── server management, game launcher, mod sync, instance UI
@@ -75,7 +78,7 @@ conduit-mc/
 - `shared-core` is Kotlin Multiplatform from day one (JVM + WasmJS targets),
   so Desktop and Web share API client, data models, and business logic.
 - `web` is management-only (no launcher — browsers cannot launch local processes).
-- (Not yet scaffolded — this is the target layout.)
+- Scaffolded and partially implemented; see `docs/progress.md` for current state.
 
 ## What Conduit MC deliberately does NOT do
 

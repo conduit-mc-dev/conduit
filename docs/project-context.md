@@ -2,7 +2,7 @@
 
 > **这份文档是"前情提要"**。如果你（未来的 CodeBuddy / 贡献者 / 未来的自己）刚加入 Conduit MC 项目，从头读完这份文档，就能理解我们为什么做这些决定、走到了哪一步、下一步要往哪里去。
 >
-> 更新时间：2026-04-24
+> 更新时间：2026-04-25
 
 ---
 
@@ -130,7 +130,25 @@ MCSManager 和 Pterodactyl 都是 Web 面板，但：
 - Slogan（英）：*From your server, to your friends' desktops.*
 - Slogan（中）：**从你的服务器，到朋友的桌面。**
 
-### 7. 为什么不做 CurseForge 集成（MVP 阶段）？
+### 7. 为什么选 Koin（DI）和 navigation-compose（导航）？
+
+DI 和导航框架在 Desktop MVP 规划阶段确定（2026-04-25）。
+
+**Koin 4.2（DI）**：
+- KMP 生态事实标准（~10k stars），支持 JVM Desktop + WasmJS
+- 纯 Kotlin DSL，无代码生成，学习成本极低
+- Compose 集成（`koinViewModel()`），可选 KSP 编译期图验证
+- HMCL 没用 DI 框架（Java 静态单例），但 KMP 跨平台场景不适合静态单例
+
+**JetBrains navigation-compose 2.9（导航）**：
+- JetBrains 官方维护，跟 Compose Multiplatform 同步发布
+- 支持 Desktop + WasmJS（含浏览器历史集成）
+- 类型安全路由（`@Serializable` 目标类）、嵌套导航、深度链接、回退栈
+- 竞品排除：Voyager 半停更（最后发布 2024.10），Decompose 架构过重
+
+详细评估过程见 `docs/desktop-mvp-plan.md` 架构决策章节。
+
+### 8. 为什么不做 CurseForge 集成（MVP 阶段）？
 
 - CurseForge API 需要 API Key 申请，有审批门槛
 - 很多模组作者勾了 `allowDistribution=false`，第三方工具拿不到下载链接

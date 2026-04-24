@@ -1,8 +1,8 @@
 # Conduit MC — API Protocol Specification
 
 > Version: 0.1-draft \
-> Last updated: 2026-04-24 \
-> Status: Design — not yet implemented
+> Last updated: 2026-04-25 \
+> Status: Partially implemented — pairing flow + instance CRUD done; server lifecycle + WebSocket + mod management pending
 
 This document defines the communication protocol between the two Conduit MC
 components: **Daemon** and **Desktop**. The Desktop app is a unified application
