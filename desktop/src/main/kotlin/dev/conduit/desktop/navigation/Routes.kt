@@ -7,3 +7,6 @@ data object PairRoute
 
 @Serializable
 data object InstanceListRoute
+
+@Serializable
+data object CreateInstanceRoute

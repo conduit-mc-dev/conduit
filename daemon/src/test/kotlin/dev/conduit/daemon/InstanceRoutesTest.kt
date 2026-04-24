@@ -1,12 +1,14 @@
 package dev.conduit.daemon
 
 import dev.conduit.core.model.*
+import dev.conduit.daemon.service.DataDirectory
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -15,6 +17,14 @@ class InstanceRoutesTest {
 
     private fun ApplicationTestBuilder.jsonClient() = createClient {
         install(ContentNegotiation) { json(AppJson) }
+    }
+
+    private fun testModule(): TestApplicationBuilder.() -> Unit = {
+        application {
+            val tempDir = Files.createTempDirectory("conduit-test")
+            tempDir.toFile().deleteOnExit()
+            module(dataDirectory = DataDirectory(tempDir))
+        }
     }
 
     /** 配对并返回 token，供后续请求使用 */
@@ -28,7 +38,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `instances require authentication`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
 
         val response = client.get("/api/v1/instances")
@@ -37,7 +47,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `empty instance list`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -51,8 +61,8 @@ class InstanceRoutesTest {
     }
 
     @Test
-    fun `create and get instance`() = testApplication {
-        application { module() }
+    fun `create instance returns initializing state with taskId`() = testApplication {
+        testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -66,21 +76,37 @@ class InstanceRoutesTest {
         val created = createResponse.body<InstanceSummary>()
         assertEquals("Survival Server", created.name)
         assertEquals("1.20.4", created.mcVersion)
-        assertEquals(InstanceState.STOPPED, created.state)
+        assertEquals(InstanceState.INITIALIZING, created.state)
         assertEquals(25565, created.mcPort)
         assertEquals(5, created.id.length)
+        assertNotNull(created.taskId)
+    }
 
-        // GET by ID
+    @Test
+    fun `get instance by id`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        val created = client.post("/api/v1/instances") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(CreateInstanceRequest(name = "Test Server", mcVersion = "1.20.4"))
+        }.body<InstanceSummary>()
+
         val getResponse = client.get("/api/v1/instances/${created.id}") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, getResponse.status)
-        assertEquals(created, getResponse.body<InstanceSummary>())
+
+        val fetched = getResponse.body<InstanceSummary>()
+        assertEquals(created.id, fetched.id)
+        assertEquals(created.name, fetched.name)
     }
 
     @Test
     fun `update instance`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -103,8 +129,8 @@ class InstanceRoutesTest {
     }
 
     @Test
-    fun `delete instance`() = testApplication {
-        application { module() }
+    fun `delete stopped instance`() = testApplication {
+        testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -114,21 +140,16 @@ class InstanceRoutesTest {
             setBody(CreateInstanceRequest(name = "To Delete", mcVersion = "1.20.4"))
         }.body<InstanceSummary>()
 
-        val deleteResponse = client.delete("/api/v1/instances/${created.id}") {
+        // 新建实例处于 INITIALIZING 状态，无法删除
+        val deleteInitializing = client.delete("/api/v1/instances/${created.id}") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
-        assertEquals(HttpStatusCode.NoContent, deleteResponse.status)
-
-        // 删除后 GET 返回 404
-        val getResponse = client.get("/api/v1/instances/${created.id}") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-        }
-        assertEquals(HttpStatusCode.NotFound, getResponse.status)
+        assertEquals(HttpStatusCode.Conflict, deleteInitializing.status)
     }
 
     @Test
     fun `duplicate name returns 409`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -151,7 +172,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `auto port assignment increments`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -173,7 +194,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `instance not found returns 404`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 

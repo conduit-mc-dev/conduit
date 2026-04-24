@@ -4,12 +4,14 @@ import dev.conduit.core.model.PairConfirmRequest
 import dev.conduit.core.model.PairConfirmResponse
 import dev.conduit.core.model.PairInitiateResponse
 import dev.conduit.core.model.PairedDevice
+import dev.conduit.daemon.service.DataDirectory
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -20,9 +22,17 @@ class PairRoutesTest {
         install(ContentNegotiation) { json(AppJson) }
     }
 
+    private fun testModule(): TestApplicationBuilder.() -> Unit = {
+        application {
+            val tempDir = Files.createTempDirectory("conduit-test")
+            tempDir.toFile().deleteOnExit()
+            module(dataDirectory = DataDirectory(tempDir))
+        }
+    }
+
     @Test
     fun `setup mode allows initiate without auth`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
 
         val response = client.post("/api/v1/pair/initiate")
@@ -34,7 +44,7 @@ class PairRoutesTest {
 
     @Test
     fun `confirm pairing returns token`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
 
         val initResponse = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>()
@@ -54,7 +64,7 @@ class PairRoutesTest {
 
     @Test
     fun `invalid pair code returns 401`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
 
         client.post("/api/v1/pair/initiate")
@@ -68,7 +78,7 @@ class PairRoutesTest {
 
     @Test
     fun `initiate requires auth after first device paired`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
 
         // 配对第一台设备
@@ -85,7 +95,7 @@ class PairRoutesTest {
 
     @Test
     fun `initiate succeeds with valid token after pairing`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
 
         val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
@@ -102,7 +112,7 @@ class PairRoutesTest {
 
     @Test
     fun `list devices returns paired devices`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
 
         val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
@@ -123,7 +133,7 @@ class PairRoutesTest {
 
     @Test
     fun `revoke device removes it`() = testApplication {
-        application { module() }
+        testModule()()
         val client = jsonClient()
 
         val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code

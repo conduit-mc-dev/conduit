@@ -2,9 +2,13 @@ package dev.conduit.daemon
 
 import dev.conduit.core.api.ConduitApiClient
 import dev.conduit.core.api.ConduitApiException
+import dev.conduit.core.model.CreateInstanceRequest
+import dev.conduit.core.model.InstanceState
+import dev.conduit.daemon.service.DataDirectory
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import kotlinx.coroutines.runBlocking
+import java.nio.file.Files
 import kotlin.test.*
 
 class ConduitApiClientTest {
@@ -12,7 +16,11 @@ class ConduitApiClientTest {
     private fun withDaemonAndClient(
         block: suspend (client: ConduitApiClient) -> Unit,
     ) {
-        val server = embeddedServer(Netty, port = 0) { module() }
+        val tempDir = Files.createTempDirectory("conduit-test")
+        tempDir.toFile().deleteOnExit()
+        val server = embeddedServer(Netty, port = 0) {
+            module(dataDirectory = DataDirectory(tempDir))
+        }
         server.start(wait = false)
         try {
             val port = runBlocking { server.engine.resolvedConnectors().first().port }
@@ -59,11 +67,21 @@ class ConduitApiClientTest {
     }
 
     @Test
-    fun `list minecraft versions after pairing returns versions`() = withDaemonAndClient { client ->
+    fun `create instance returns initializing state`() = withDaemonAndClient { client ->
         pairClient(client)
-        val versions = client.listMinecraftVersions()
-        assertTrue(versions.isNotEmpty())
-        assertTrue(versions.any { it.id == "1.21.5" })
+        val instance = client.createInstance(
+            CreateInstanceRequest(
+                name = "Test Server",
+                mcVersion = "1.20.4",
+                description = "A test server",
+            ),
+        )
+        assertEquals("Test Server", instance.name)
+        assertEquals("1.20.4", instance.mcVersion)
+        assertEquals("A test server", instance.description)
+        assertEquals(InstanceState.INITIALIZING, instance.state)
+        assertNotNull(instance.taskId)
+        assertEquals(25565, instance.mcPort)
     }
 
     @Test

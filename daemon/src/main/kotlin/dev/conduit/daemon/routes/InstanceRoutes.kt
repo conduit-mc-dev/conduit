@@ -3,13 +3,14 @@ package dev.conduit.daemon.routes
 import dev.conduit.core.model.CreateInstanceRequest
 import dev.conduit.core.model.UpdateInstanceRequest
 import dev.conduit.daemon.ApiException
+import dev.conduit.daemon.service.ServerJarService
 import dev.conduit.daemon.store.InstanceStore
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
-fun Route.instanceRoutes(instanceStore: InstanceStore) {
+fun Route.instanceRoutes(instanceStore: InstanceStore, serverJarService: ServerJarService) {
     route("/api/v1/instances") {
         get {
             call.respond(instanceStore.list())
@@ -17,7 +18,9 @@ fun Route.instanceRoutes(instanceStore: InstanceStore) {
 
         post {
             val request = call.receive<CreateInstanceRequest>()
-            call.respond(HttpStatusCode.Created, instanceStore.create(request))
+            val summary = instanceStore.create(request)
+            serverJarService.startDownload(summary.id, request.mcVersion)
+            call.respond(HttpStatusCode.Created, summary)
         }
 
         get("/{id}") {

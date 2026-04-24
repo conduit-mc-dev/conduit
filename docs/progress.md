@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-26
+> 最新更新：2026-04-25
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目决策背景见 [`project-context.md`](./project-context.md)。
 
@@ -11,13 +11,13 @@
 
 ## Now（进行中）
 
-- [ ] Desktop MVP 迭代 2：创建实例 + server.jar 下载
+- [ ] Desktop MVP 迭代 3：服务器生命周期（启动 / 停止 / 控制台）
   - 详细方案见 [`desktop-mvp-plan.md`](./desktop-mvp-plan.md)
 
 ---
 
 ## Next（下一步）
-- [ ] Desktop MVP 迭代 3-6（服务器生命周期 / 配置管理 / 实时更新 / JVM 配置 + 打磨）
+- [ ] Desktop MVP 迭代 4-6（配置管理 / 实时更新 / JVM 配置 + 打磨）
 - [ ] Loader / Mod 管理里程碑（shared-core 复用层：Daemon + Desktop 启动器共用）
 - [ ] Web 管理面板（Compose WasmJS，Daemon 内置 serve）
 
@@ -25,6 +25,20 @@
 
 ## Done
 
+- [x] Desktop MVP 迭代 2：创建实例 + server.jar 下载
+  - shared-core：`MojangClient`（Ktor Client + CIO）获取 Mojang 版本清单 + 下载 server.jar（SHA-1 校验）
+  - shared-core：`MojangVersionManifest` / `MojangVersionDetail` / `MojangDownloadEntry` 等数据模型
+  - Daemon：`ServerJarService` 后台下载 + 二阶段实例创建（`INITIALIZING` → `STOPPED`）
+  - Daemon：`DataDirectory` 可配置数据目录（`CONDUIT_DATA_DIR` 环境变量）
+  - Daemon：`MinecraftRoutes` 改为真实 Mojang manifest 获取（101 个 release 版本）
+  - Daemon：`Application.module()` 参数化支持测试注入
+  - shared-core：`ConduitApiClient.createInstance()` 新增
+  - shared-core：`InstanceSummary` 新增 `taskId` + `statusMessage` 字段
+  - Desktop：创建实例屏幕（MC 版本下拉框 + 名称 + 描述 + 端口）
+  - Desktop：实例列表添加"创建实例"按钮 + 空状态引导
+  - Desktop：导航新增 `CreateInstanceRoute`
+  - 自动化测试：4 个新测试（MojangManifestParseTest 3 + ConduitApiClientTest 1），总计 26 个
+  - 手动验证：Daemon + Desktop 端到端创建实例 → 下载 server.jar（55MB）→ 状态转 stopped ✓
 - [x] Desktop MVP 迭代 1：端到端联通（配对 + 实例列表）
   - 架构：Koin 4.2（DI）+ JetBrains navigation-compose 2.9（导航）+ shared-core API Client 分层
   - shared-core：`ConduitApiClient`（Ktor Client + CIO）、`ConduitApiException`、`MinecraftVersion` 模型

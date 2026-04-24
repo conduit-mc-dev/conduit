@@ -66,6 +66,7 @@ runs/
 test-server/
 test-data/
 mc-instance/
+conduit-data/
 
 # ---- CodeBuddy / editor local state (safe to ignore, not the whole .codebuddy folder) ----
 .codebuddy/cache/

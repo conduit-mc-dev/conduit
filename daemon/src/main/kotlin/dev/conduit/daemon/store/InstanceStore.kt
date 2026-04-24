@@ -21,6 +21,8 @@ class InstanceStore {
         val jvmArgs: List<String>?,
         val javaPath: String?,
         val createdAt: Instant,
+        var taskId: String?,
+        var statusMessage: String?,
     ) {
         fun toSummary() = InstanceSummary(
             id = id,
@@ -33,6 +35,8 @@ class InstanceStore {
             playerCount = 0,
             maxPlayers = 20,
             createdAt = createdAt,
+            taskId = taskId,
+            statusMessage = statusMessage,
         )
     }
 
@@ -52,20 +56,37 @@ class InstanceStore {
         }
 
         val id = generateUniqueId()
+        val taskId = IdGenerator.generateTaskId()
         val instance = Instance(
             id = id,
             name = request.name,
             description = request.description,
-            state = InstanceState.STOPPED,
+            state = InstanceState.INITIALIZING,
             mcVersion = request.mcVersion,
             loader = null,
             mcPort = port,
             jvmArgs = request.jvmArgs,
             javaPath = request.javaPath,
             createdAt = Clock.System.now(),
+            taskId = taskId,
+            statusMessage = "Downloading server.jar...",
         )
         instances[id] = instance
         return instance.toSummary()
+    }
+
+    fun markInitialized(id: String) {
+        val instance = instances[id] ?: return
+        instance.state = InstanceState.STOPPED
+        instance.taskId = null
+        instance.statusMessage = null
+    }
+
+    fun markInitializationFailed(id: String, reason: String) {
+        val instance = instances[id] ?: return
+        instance.state = InstanceState.STOPPED
+        instance.taskId = null
+        instance.statusMessage = "Initialization failed: $reason"
     }
 
     fun list(): List<InstanceSummary> =

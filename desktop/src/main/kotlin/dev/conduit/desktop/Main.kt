@@ -10,8 +10,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.conduit.desktop.di.appModule
+import dev.conduit.desktop.navigation.CreateInstanceRoute
 import dev.conduit.desktop.navigation.InstanceListRoute
 import dev.conduit.desktop.navigation.PairRoute
+import dev.conduit.desktop.ui.instance.CreateInstanceScreen
 import dev.conduit.desktop.ui.instance.InstanceListScreen
 import dev.conduit.desktop.ui.pair.PairScreen
 import org.koin.compose.KoinApplication
@@ -38,7 +40,17 @@ fun main() = application {
                             )
                         }
                         composable<InstanceListRoute> {
-                            InstanceListScreen()
+                            InstanceListScreen(
+                                onCreateInstance = {
+                                    navController.navigate(CreateInstanceRoute)
+                                },
+                            )
+                        }
+                        composable<CreateInstanceRoute> {
+                            CreateInstanceScreen(
+                                onCreated = { navController.popBackStack() },
+                                onCancel = { navController.popBackStack() },
+                            )
                         }
                     }
                 }

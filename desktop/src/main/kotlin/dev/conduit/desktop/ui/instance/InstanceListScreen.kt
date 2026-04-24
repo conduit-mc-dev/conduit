@@ -16,6 +16,7 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun InstanceListScreen(
+    onCreateInstance: () -> Unit = {},
     viewModel: InstanceListViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -27,11 +28,16 @@ fun InstanceListScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("服务器实例", style = MaterialTheme.typography.headlineSmall)
-            TextButton(
-                onClick = viewModel::refresh,
-                enabled = !state.isLoading,
-            ) {
-                Text("刷新")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(
+                    onClick = viewModel::refresh,
+                    enabled = !state.isLoading,
+                ) {
+                    Text("刷新")
+                }
+                Button(onClick = onCreateInstance) {
+                    Text("创建实例")
+                }
             }
         }
 
@@ -60,11 +66,17 @@ fun InstanceListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = "暂无服务器实例",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "暂无服务器实例",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = onCreateInstance) {
+                            Text("创建第一个实例")
+                        }
+                    }
                 }
             }
             else -> {
@@ -106,6 +118,13 @@ private fun InstanceCard(instance: InstanceSummary) {
                     text = "MC ${instance.mcVersion} · 端口 ${instance.mcPort}",
                     style = MaterialTheme.typography.bodySmall,
                 )
+                instance.statusMessage?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
             }
 
             val (color, label) = when (instance.state) {

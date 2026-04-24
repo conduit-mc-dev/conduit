@@ -21,6 +21,8 @@ data class InstanceSummary(
     val playerCount: Int,
     val maxPlayers: Int,
     val createdAt: Instant,
+    val taskId: String? = null,
+    val statusMessage: String? = null,
 )
 
 @Serializable

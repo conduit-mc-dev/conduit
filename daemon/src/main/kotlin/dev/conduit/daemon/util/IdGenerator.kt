@@ -19,4 +19,9 @@ object IdGenerator {
 
     fun generatePairCode(): String =
         String.format("%06d", random.nextInt(1_000_000))
+
+    fun generateTaskId(): String = buildString(12) {
+        append("task_")
+        repeat(7) { append(BASE36[random.nextInt(BASE36.length)]) }
+    }
 }

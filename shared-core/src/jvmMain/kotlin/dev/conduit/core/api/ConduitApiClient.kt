@@ -58,6 +58,12 @@ class ConduitApiClient(
     suspend fun listInstances(): List<InstanceSummary> =
         get("/api/v1/instances")
 
+    suspend fun createInstance(request: CreateInstanceRequest): InstanceSummary =
+        post("/api/v1/instances") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
     suspend fun listMinecraftVersions(): List<MinecraftVersion> =
         get("/api/v1/minecraft/versions")
 
