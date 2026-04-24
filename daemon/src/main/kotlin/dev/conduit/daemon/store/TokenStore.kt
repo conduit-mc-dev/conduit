@@ -6,8 +6,8 @@ import dev.conduit.core.model.PairedDevice
 import dev.conduit.daemon.ApiException
 import dev.conduit.daemon.util.IdGenerator
 import io.ktor.http.*
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
+import kotlin.time.Clock
+import kotlin.time.Instant
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap

@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-25
+> 最新更新：2026-04-26
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目决策背景见 [`project-context.md`](./project-context.md)。
 
@@ -11,14 +11,13 @@
 
 ## Now（进行中）
 
-- [ ] Desktop MVP 迭代 1：端到端联通（配对 + 实例列表）
+- [ ] Desktop MVP 迭代 2：创建实例 + server.jar 下载
   - 详细方案见 [`desktop-mvp-plan.md`](./desktop-mvp-plan.md)
-  - 架构决策：Koin 4.2（DI）+ JetBrains navigation-compose 2.9（导航）+ shared-core 分层（学 HMCL）
 
 ---
 
 ## Next（下一步）
-- [ ] Desktop MVP 迭代 2-6（创建实例 / server.jar 下载 / 服务器生命周期 / 配置管理 / 实时更新）
+- [ ] Desktop MVP 迭代 3-6（服务器生命周期 / 配置管理 / 实时更新 / JVM 配置 + 打磨）
 - [ ] Loader / Mod 管理里程碑（shared-core 复用层：Daemon + Desktop 启动器共用）
 - [ ] Web 管理面板（Compose WasmJS，Daemon 内置 serve）
 
@@ -26,6 +25,15 @@
 
 ## Done
 
+- [x] Desktop MVP 迭代 1：端到端联通（配对 + 实例列表）
+  - 架构：Koin 4.2（DI）+ JetBrains navigation-compose 2.9（导航）+ shared-core API Client 分层
+  - shared-core：`ConduitApiClient`（Ktor Client + CIO）、`ConduitApiException`、`MinecraftVersion` 模型
+  - Daemon：`GET /api/v1/minecraft/versions` 桩端点（硬编码 10 个版本）
+  - Desktop：配对屏幕（连接 → 输入配对码 → 配对）→ 实例列表屏幕
+  - 依赖升级：kotlinx-datetime 0.6.2 → 0.7.1（`Instant` 迁移到 `kotlin.time`）
+  - 新增依赖：Koin BOM 4.2.1、navigation-compose 2.9.2、lifecycle-viewmodel-compose 2.9.6、Ktor Client CIO、kotlinx-coroutines-swing
+  - 自动化测试：7 个新测试（MinecraftRoutesTest 2 + ConduitApiClientTest 5），总计 22 个
+  - 手动验证：Daemon + Desktop 端到端配对 → 实例列表显示"暂无服务器实例" ✓
 - [x] Daemon 骨架（Ktor + 配对流程 + 实例 CRUD）
   - 基础设施：ContentNegotiation、StatusPages 错误信封、Bearer 认证、WebSocket、CORS
   - 配对流程：6 位配对码 → token 生成 → SHA-256 哈希存储 → 设备列表 / 撤销

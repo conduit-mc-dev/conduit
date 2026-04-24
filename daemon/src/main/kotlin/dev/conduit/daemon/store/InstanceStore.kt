@@ -4,8 +4,8 @@ import dev.conduit.core.model.*
 import dev.conduit.daemon.ApiException
 import dev.conduit.daemon.util.IdGenerator
 import io.ktor.http.*
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
+import kotlin.time.Clock
+import kotlin.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 class InstanceStore {

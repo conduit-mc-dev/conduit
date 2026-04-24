@@ -26,6 +26,7 @@ fun Application.module() {
         pairRoutes(tokenStore)
         authenticate("bearer") {
             instanceRoutes(instanceStore)
+            minecraftRoutes()
         }
     }
 }
