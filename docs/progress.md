@@ -11,12 +11,15 @@
 
 ## Now（进行中）
 
-（无）
+- [ ] Desktop MVP 迭代 1：端到端联通（配对 + 实例列表）
+  - 详细方案见 [`desktop-mvp-plan.md`](./desktop-mvp-plan.md)
+  - 架构决策：Koin 4.2（DI）+ JetBrains navigation-compose 2.9（导航）+ shared-core 分层（学 HMCL）
 
 ---
 
 ## Next（下一步）
-- [ ] Desktop MVP（统一管理 + 启动器）
+- [ ] Desktop MVP 迭代 2-6（创建实例 / server.jar 下载 / 服务器生命周期 / 配置管理 / 实时更新）
+- [ ] Loader / Mod 管理里程碑（shared-core 复用层：Daemon + Desktop 启动器共用）
 - [ ] Web 管理面板（Compose WasmJS，Daemon 内置 serve）
 
 ---
