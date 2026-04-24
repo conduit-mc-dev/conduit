@@ -11,7 +11,7 @@
 
 ## Now（进行中）
 
-- [ ] Daemon 骨架（Ktor + 配对流程 + 第一个接口）
+（无）
 
 ---
 
@@ -23,6 +23,13 @@
 
 ## Done
 
+- [x] Daemon 骨架（Ktor + 配对流程 + 实例 CRUD）
+  - 基础设施：ContentNegotiation、StatusPages 错误信封、Bearer 认证、WebSocket、CORS
+  - 配对流程：6 位配对码 → token 生成 → SHA-256 哈希存储 → 设备列表 / 撤销
+  - 实例 CRUD：创建 / 列出 / 获取 / 更新 / 删除，端口自动分配，名称唯一校验
+  - shared-core 数据模型：错误信封、配对 DTO、实例 DTO、WS 消息信封
+  - 自动化测试：14 个测试用例（ktor-server-test-host），覆盖认证 / 配对 / 实例全流程
+  - 数据存储为内存态，持久化留给下个里程碑
 - [x] Gradle 多模块脚手架（`shared-core` / `daemon` / `desktop` / `web`）
   - Gradle 9.3 wrapper + Kotlin 2.3.21 + Compose 1.10.3 + Ktor 3.4.3
   - `shared-core`：KMP 库（JVM + WasmJS），kotlinx.serialization + coroutines
