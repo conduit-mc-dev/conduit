@@ -24,19 +24,20 @@ Target scenario: the author rents a VPS, wants to run a modded MC server
 and invite friends. Today that flow is painful; Conduit MC turns it into
 one invite link that syncs mods to every friend's client.
 
-## Architecture (three components)
+## Architecture (two components)
 
-1. **Daemon** — runs on the VPS.
-   - Installs loaders (Forge/NeoForge/Fabric).
-   - Manages mods and the MC server process.
-   - Exposes a **private management API** (REST + WebSocket, token-auth) for Host Desktop.
-   - Exposes a **public read-only endpoint** (`server.json` + `.mrpack`) for Client Desktop.
-2. **Host Desktop** — the admin/owner's app.
-   - Connects to the Daemon.
-   - Searches Modrinth, builds modpacks, watches console, generates invite links.
-3. **Client Desktop** — the friends' app.
-   - Consumes invite links.
-   - Syncs mods via `.mrpack`, installs loader, launches the game, auto-joins.
+1. **Daemon** — runs on the VPS; a **server-side launcher** managing multiple MC instances.
+   - Manages **multiple independent instances**, each with its own loader, mods, config, and game port.
+   - Installs loaders (Forge/NeoForge/Fabric) per instance.
+   - Manages mods and the MC server process per instance.
+   - Exposes a **private management API** (REST + WebSocket, token-auth) for Desktop.
+   - Exposes **public read-only endpoints** (per-instance `server.json` + `.mrpack`) for Desktop.
+   - Supports **multiple paired devices** — the same owner can manage from different machines.
+   - Serves built-in **Web panel** (WasmJS static files) as a future lightweight management interface.
+2. **Desktop** — a unified app for both the server owner and friends.
+   - **Server Management**: pairs with Daemon, manages instances, searches Modrinth, builds modpacks, watches console, generates invite links. Only visible when paired.
+   - **Game Launcher**: consumes invite links (`conduit://host:port/instanceId`), syncs mods via `.mrpack`, installs loader, launches the game, auto-joins. Always available.
+   - Server owners use both; friends primarily use the launcher.
 
 **Key protocol choice**: the server never re-distributes mod jars.
 Mods are referenced by URL + hash in a `.mrpack`, and the player's
@@ -45,8 +46,9 @@ This keeps us out of re-distribution gray areas.
 
 ## Tech stack (hard constraints)
 
-- **Language**: Kotlin (one language for shared-core, Daemon, and both Desktops)
-- **Desktop UI**: Compose Multiplatform
+- **Language**: Kotlin (one language for shared-core, Daemon, Desktop, and Web)
+- **Desktop UI**: Compose Multiplatform (Desktop target)
+- **Web UI** (future): Compose Multiplatform (WasmJS target)
 - **Server framework** (Daemon): Ktor
 - **Integrations build format**: Modrinth `.mrpack`
 - **Auth**: Microsoft OAuth (official Minecraft login)
@@ -60,15 +62,20 @@ checking with the user first.
 
 ```
 conduit-mc/
-├── shared-core/        # Kotlin, shared business logic
-│   └── auth, mrpack, modrinth client, loader install, launch, protocol
+├── shared-core/        # Kotlin Multiplatform (JVM + WasmJS)
+│   └── API client, data models, mrpack, modrinth client, protocol
 ├── daemon/             # Kotlin + Ktor, runs on VPS
-├── host-desktop/       # Compose Desktop, admin app
-├── client-desktop/     # Compose Desktop, friends app
+├── desktop/            # Compose Desktop, unified management + launcher app
+│   └── server management, game launcher, mod sync, instance UI
+├── web/                # Compose WasmJS (future), management-only web panel
+│   └── served by Daemon as built-in static files
 └── docs/               # README assets, branding, design notes
 ```
 
-(Not yet scaffolded — this is the target layout.)
+- `shared-core` is Kotlin Multiplatform from day one (JVM + WasmJS targets),
+  so Desktop and Web share API client, data models, and business logic.
+- `web` is management-only (no launcher — browsers cannot launch local processes).
+- (Not yet scaffolded — this is the target layout.)
 
 ## What Conduit MC deliberately does NOT do
 
@@ -76,11 +83,13 @@ conduit-mc/
 - ❌ Host a paid cloud service — everything is self-hosted.
 - ❌ Support cracked / offline accounts as a headline feature.
 - ❌ Replace MCSManager or Pterodactyl — different target user (host+friend flow).
-- ❌ Offer a web panel in the MVP (can add later as read-only).
-- ❌ Target mobile apps in the early versions (PWA / web is fallback).
+- ❌ Web panel in the MVP (planned as a post-MVP WasmJS management panel, served by Daemon).
+- ❌ Target mobile apps in the early versions.
 
 ## When in doubt
 
+- See `docs/api-protocol.md` for the full API protocol specification
+  (REST endpoints, WebSocket, `server.json` schema, invite link format).
 - See `docs/project-context.md` for the full narrative of decisions
   taken so far (why Conduit, why VPS scenario, why not a web panel,
   why Compose Multiplatform, etc.).

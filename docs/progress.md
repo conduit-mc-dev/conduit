@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-20
+> 最新更新：2026-04-24
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目决策背景见 [`project-context.md`](./project-context.md)。
 
@@ -11,26 +11,27 @@
 
 ## Now（进行中）
 
-- [ ] **API 协议规范**（`docs/api-protocol.md`）
-  - Host ↔ Daemon REST + WebSocket 设计
-  - Client ↔ Daemon 公开端点设计
-  - `server.json` schema
-  - 邀请链接格式
-  - pair token 流程
+（无）
 
 ---
 
 ## Next（下一步）
 
-- [ ] Gradle 多模块脚手架（`shared-core` / `daemon` / `host-desktop` / `client-desktop`）
+- [ ] Gradle 多模块脚手架（`shared-core` / `daemon` / `desktop` / `web`）
 - [ ] Daemon 骨架（Ktor + 配对流程 + 第一个接口）
-- [ ] Host Desktop MVP（最小可用管理 UI）
-- [ ] Client Desktop MVP（邀请链接入服全流程）
+- [ ] Desktop MVP（统一管理 + 启动器）
+- [ ] Web 管理面板（Compose WasmJS，Daemon 内置 serve）
 
 ---
 
 ## Done
 
+- [x] API 协议规范（`docs/api-protocol.md`）
+  - Host ↔ Daemon REST + WebSocket 设计（多实例、多设备）
+  - Client ↔ Daemon 公开端点设计（按实例隔离）
+  - `server.json` schema
+  - 邀请链接格式（`conduit://host:port/instanceId`）
+  - pair token 流程（多设备配对）
 - [x] 项目定位拍板
 - [x] 技术栈选型（Kotlin + Compose Multiplatform + Ktor + GPLv3）
 - [x] 名字敲定（Conduit MC）

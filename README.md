@@ -37,25 +37,18 @@ Today, that means:
 
 ### What Conduit MC does
 
-Conduit MC is three things that talk to each other:
+Conduit MC is two things that talk to each other:
 
-1. **Daemon** — runs on your VPS. Installs loaders, manages mods, starts/stops the Minecraft server, exposes a small public endpoint.
-2. **Host Desktop** — your management app. Search Modrinth, build your modpack, watch the console, generate invite links.
-3. **Client Desktop** — what your friends install. One click on an invite link, everything syncs automatically, game launches, server joins.
+1. **Daemon** — runs on your VPS. Installs loaders, manages mods, starts/stops multiple Minecraft server instances, exposes management API and public endpoints.
+2. **Desktop** — one app for everyone. Server owners get **server management** (search Modrinth, build modpacks, watch console, generate invite links). Friends get a **game launcher** (click an invite link, sync mods, launch, join). Same app, different views.
 
 ```
 ┌─────────────────┐         ┌─────────────────┐
-│  Host Desktop   │◄───────►│     Daemon      │
-│  (you, at home) │  API    │   (on the VPS)  │
-└─────────────────┘         └────────┬────────┘
-                                     │
-                                     │ public endpoint
-                                     │ (server.json + .mrpack)
-                                     ▼
-                            ┌─────────────────┐
-                            │ Client Desktop  │
-                            │   (friends)     │
-                            └─────────────────┘
+│    Desktop      │◄───────►│     Daemon      │
+│  (you + friends)│  API    │   (on the VPS)  │
+│                 │◄────────│                 │
+│ manage + launch │ public  │ future: web UI  │
+└─────────────────┘ endpoint└─────────────────┘
 ```
 
 ### Why another Minecraft launcher?
@@ -74,11 +67,12 @@ Conduit MC exists because:
 ### Features
 
 - 🚀 **One-link server join** — friends click once, everything syncs
-- 📦 **Modrinth-first modpack management** — search, add, update mods from the host desktop
+- 📦 **Modrinth-first modpack management** — search, add, update mods from the same app
 - 🔄 **Automatic client-server sync** — if you add a mod, everyone gets it next launch
-- 🖥️ **Remote server control** — manage your VPS server from any desktop
+- 🖥️ **Remote server control** — manage your VPS server from any machine
+- 🌍 **Web panel (future)** — lightweight management via built-in WasmJS web UI
 - 🔐 **Microsoft OAuth** — proper account support, no login servers
-- 🌐 **Cross-platform** — Windows, macOS, Linux for both host and client
+- 🌐 **Cross-platform** — Windows, macOS, Linux
 - 🆓 **Free and open source** — GPLv3, forever
 
 ### Non-features (by design)
@@ -93,7 +87,7 @@ We deliberately do **not** try to:
 ### Tech stack
 
 - **Language:** Kotlin (100% shared logic across all components)
-- **UI:** Compose Multiplatform (Desktop)
+- **UI:** Compose Multiplatform (Desktop + future WasmJS web panel)
 - **Server framework:** Ktor (Daemon)
 - **Modpack format:** [Modrinth `.mrpack`](https://docs.modrinth.com/docs/modpacks/format_definition/) (standard, no vendor lock-in)
 
@@ -103,11 +97,11 @@ We deliberately do **not** try to:
 
 ### Roadmap
 
-- [ ] **v0.1** — Daemon + Host Desktop MVP, local only
-- [ ] **v0.2** — Client Desktop, invite link flow
-- [ ] **v0.3** — Modrinth mod search & management in Host Desktop
-- [ ] **v0.4** — Read-only web dashboard (mobile-friendly)
-- [ ] **v0.5** — HTTPS auto-cert, backups, multi-instance
+- [ ] **v0.1** — Daemon + Desktop MVP (management + launcher)
+- [ ] **v0.2** — Invite link flow, full mod sync
+- [ ] **v0.3** — Modrinth mod search & management in Desktop
+- [ ] **v0.4** — Built-in Web panel (WasmJS, management-only)
+- [ ] **v0.5** — HTTPS auto-cert, backups
 - [ ] **v1.0** — Stable API, docs, plugin surface
 
 ### Contributing
@@ -148,13 +142,12 @@ Standing on the shoulders of giants:
 
 **Conduit MC 把这一切变成一条链接。**
 
-### 它由三部分组成
+### 它由两部分组成
 
 | 组件 | 跑在哪 | 干什么 |
 |---|---|---|
-| **Daemon** | 你的 VPS | 装加载器、管模组、起服务端、对外暴露一个小接口 |
-| **Host Desktop** | 你的电脑 | 搜 Modrinth 模组、搭整合包、看控制台、生成邀请链接 |
-| **Client Desktop** | 朋友的电脑 | 点链接 → 自动同步模组 → 启动游戏 → 自动进服 |
+| **Daemon** | 你的 VPS | 装加载器、管模组、起服务端、对外暴露 API；未来内置 Web 管理面板 |
+| **Desktop** | 你和朋友的电脑 | 统一应用：**服务器管理**（搜模组、搭整合包、看控制台、生邀请链接）+ **游戏启动器**（点链接同步模组、启动游戏、自动进服） |
 
 ### 为什么再做一个 MC 工具？
 
@@ -164,8 +157,8 @@ Standing on the shoulders of giants:
 
 ### 技术选型
 
-- **Kotlin** 一套语言贯穿所有组件
-- **Compose Multiplatform** 跨桌面 UI
+- **Kotlin** 一套语言贯穿所有组件（shared-core / daemon / desktop / web）
+- **Compose Multiplatform** 桌面 UI + 未来 WasmJS Web 面板
 - **Ktor** 作为 Daemon 的服务框架
 - **Modrinth `.mrpack`** 作为整合包标准格式
 
@@ -175,11 +168,11 @@ Standing on the shoulders of giants:
 
 ### 开发路线
 
-- [ ] **v0.1** — Daemon + Host Desktop MVP，支持本机
-- [ ] **v0.2** — Client Desktop 玩家端、邀请链接全流程
-- [ ] **v0.3** — Host Desktop 接入 Modrinth 模组搜索/管理
-- [ ] **v0.4** — 只读 Web 仪表盘（手机浏览器可看）
-- [ ] **v0.5** — HTTPS 自动证书、备份、多实例
+- [ ] **v0.1** — Daemon + Desktop MVP（管理 + 启动器）
+- [ ] **v0.2** — 邀请链接全流程、完整模组同步
+- [ ] **v0.3** — Desktop 接入 Modrinth 模组搜索/管理
+- [ ] **v0.4** — 内置 Web 管理面板（WasmJS，仅管理功能）
+- [ ] **v0.5** — HTTPS 自动证书、备份
 - [ ] **v1.0** — 稳定 API、文档、插件接入
 
 ### 开源协议
