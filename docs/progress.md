@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-24
+> 最新更新：2026-04-25
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目决策背景见 [`project-context.md`](./project-context.md)。
 
@@ -11,14 +11,11 @@
 
 ## Now（进行中）
 
-（无）
+- [ ] Daemon 骨架（Ktor + 配对流程 + 第一个接口）
 
 ---
 
 ## Next（下一步）
-
-- [ ] Gradle 多模块脚手架（`shared-core` / `daemon` / `desktop` / `web`）
-- [ ] Daemon 骨架（Ktor + 配对流程 + 第一个接口）
 - [ ] Desktop MVP（统一管理 + 启动器）
 - [ ] Web 管理面板（Compose WasmJS，Daemon 内置 serve）
 
@@ -26,6 +23,14 @@
 
 ## Done
 
+- [x] Gradle 多模块脚手架（`shared-core` / `daemon` / `desktop` / `web`）
+  - Gradle 9.3 wrapper + Kotlin 2.3.21 + Compose 1.10.3 + Ktor 3.4.3
+  - `shared-core`：KMP 库（JVM + WasmJS），kotlinx.serialization + coroutines
+  - `daemon`：Ktor Netty 服务器，端口 9147，`/public/health` 端点可用
+  - `desktop`：Compose Desktop 窗口，含原生打包配置（Dmg/Msi/Deb）
+  - `web`：Compose WasmJS 桩模块，可编译但无业务逻辑
+  - 版本目录（`gradle/libs.versions.toml`）集中管理所有依赖版本
+  - `./gradlew build` 全模块编译通过
 - [x] API 协议规范（`docs/api-protocol.md`）
   - Host ↔ Daemon REST + WebSocket 设计（多实例、多设备）
   - Client ↔ Daemon 公开端点设计（按实例隔离）
