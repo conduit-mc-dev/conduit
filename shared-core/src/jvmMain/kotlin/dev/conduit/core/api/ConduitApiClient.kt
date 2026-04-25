@@ -110,6 +110,110 @@ class ConduitApiClient(
             setBody(SendCommandRequest(command = command))
         }
 
+    // --- 配置 ---
+
+    suspend fun getDaemonConfig(): DaemonConfig =
+        get("/api/v1/config/daemon")
+
+    suspend fun updateDaemonConfig(request: UpdateDaemonConfigRequest): DaemonConfig =
+        put("/api/v1/config/daemon") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    suspend fun getJvmConfig(instanceId: String): JvmConfig =
+        get("/api/v1/instances/$instanceId/config/jvm")
+
+    suspend fun updateJvmConfig(instanceId: String, request: UpdateJvmConfigRequest): JvmConfig =
+        put("/api/v1/instances/$instanceId/config/jvm") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    // --- 邀请 ---
+
+    suspend fun getInvite(instanceId: String): InviteInfo =
+        get("/api/v1/instances/$instanceId/invite")
+
+    suspend fun updateInvite(instanceId: String, request: UpdateInviteRequest): InviteInfo =
+        put("/api/v1/instances/$instanceId/invite") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    // --- Mod 管理 ---
+
+    suspend fun listMods(instanceId: String): List<InstalledMod> =
+        get("/api/v1/instances/$instanceId/mods")
+
+    suspend fun installMod(instanceId: String, request: InstallModRequest): InstalledMod =
+        post("/api/v1/instances/$instanceId/mods") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    suspend fun removeMod(instanceId: String, modId: String): Unit =
+        request(HttpMethod.Delete, "/api/v1/instances/$instanceId/mods/$modId")
+
+    suspend fun updateMod(instanceId: String, modId: String, request: UpdateModRequest): InstalledMod =
+        put("/api/v1/instances/$instanceId/mods/$modId") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    suspend fun toggleMod(instanceId: String, modId: String, request: ToggleModRequest): InstalledMod =
+        request(HttpMethod.Patch, "/api/v1/instances/$instanceId/mods/$modId") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    suspend fun checkModUpdates(instanceId: String): ModUpdatesResponse =
+        get("/api/v1/instances/$instanceId/mods/updates")
+
+    // --- Modrinth ---
+
+    suspend fun searchModrinth(query: String, mcVersion: String? = null, loader: String? = null): ModrinthSearchResponse {
+        val params = buildString {
+            append("q=$query")
+            mcVersion?.let { append("&mcVersion=$it") }
+            loader?.let { append("&loader=$it") }
+        }
+        return get("/api/v1/modrinth/search?$params")
+    }
+
+    suspend fun getModrinthProjectVersions(projectId: String, mcVersion: String? = null): List<ModrinthVersionInfo> {
+        val params = mcVersion?.let { "?mcVersion=$it" } ?: ""
+        return get("/api/v1/modrinth/project/$projectId/versions$params")
+    }
+
+    // --- Java ---
+
+    suspend fun listJavaInstallations(): List<JavaInstallation> =
+        get("/api/v1/java/installations")
+
+    suspend fun setDefaultJava(request: SetDefaultJavaRequest): JavaInstallation =
+        put("/api/v1/java/default") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    // --- 文件管理 ---
+
+    suspend fun getServerProperties(instanceId: String): Map<String, String> =
+        get("/api/v1/instances/$instanceId/config/server-properties")
+
+    suspend fun updateServerProperties(instanceId: String, changes: Map<String, String>): ServerPropertiesUpdateResponse =
+        put("/api/v1/instances/$instanceId/config/server-properties") {
+            contentType(ContentType.Application.Json)
+            setBody(changes)
+        }
+
+    suspend fun listFiles(instanceId: String, path: String = ""): DirectoryListing =
+        get("/api/v1/instances/$instanceId/files?path=$path")
+
+    suspend fun deleteFile(instanceId: String, path: String): Unit =
+        request(HttpMethod.Delete, "/api/v1/instances/$instanceId/files/content?path=$path")
+
     // --- 内部 HTTP helpers ---
 
     private suspend inline fun <reified T> get(

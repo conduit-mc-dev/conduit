@@ -26,6 +26,7 @@ class InstanceStore {
         val mcPort: Int,
         val jvmArgs: List<String>?,
         val javaPath: String?,
+        val publicEndpointEnabled: Boolean,
         val createdAt: Instant,
         val taskId: String?,
         val statusMessage: String?,
@@ -73,6 +74,7 @@ class InstanceStore {
             mcPort = port,
             jvmArgs = request.jvmArgs,
             javaPath = request.javaPath,
+            publicEndpointEnabled = true,
             createdAt = Clock.System.now(),
             taskId = taskId,
             statusMessage = "Downloading server.jar...",
@@ -182,13 +184,54 @@ class InstanceStore {
     }
 
     fun getProcessConfig(id: String): ProcessConfig {
-        val instance = instances[id]
-            ?: throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
+        val instance = requireInstance(id)
         return ProcessConfig(
             jvmArgs = instance.jvmArgs ?: emptyList(),
             javaPath = instance.javaPath ?: "java",
             mcPort = instance.mcPort,
         )
+    }
+
+    fun getJvmArgs(id: String): List<String>? = requireInstance(id).jvmArgs
+
+    fun getJavaPath(id: String): String? = requireInstance(id).javaPath
+
+    data class JvmConfigData(val jvmArgs: List<String>?, val javaPath: String?)
+
+    fun getJvmConfigData(id: String): JvmConfigData {
+        val instance = requireInstance(id)
+        return JvmConfigData(jvmArgs = instance.jvmArgs, javaPath = instance.javaPath)
+    }
+
+    fun updateJvmConfig(id: String, updateJvmArgs: Boolean, jvmArgs: List<String>?, updateJavaPath: Boolean, javaPath: String?) {
+        computeInstance(id) { instance ->
+            instance.copy(
+                jvmArgs = if (updateJvmArgs) jvmArgs else instance.jvmArgs,
+                javaPath = if (updateJavaPath) javaPath else instance.javaPath,
+            )
+        }
+    }
+
+    fun isPublicEndpointEnabled(id: String): Boolean = requireInstance(id).publicEndpointEnabled
+
+    fun setPublicEndpointEnabled(id: String, enabled: Boolean) {
+        computeInstance(id) { it.copy(publicEndpointEnabled = enabled) }
+    }
+
+    fun setLoader(id: String, loader: LoaderInfo?) {
+        computeInstance(id) { it.copy(loader = loader) }
+    }
+
+    fun getLoader(id: String): LoaderInfo? = requireInstance(id).loader
+
+    private fun requireInstance(id: String): Instance =
+        instances[id] ?: throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
+
+    private fun computeInstance(id: String, transform: (Instance) -> Instance) {
+        instances.compute(id) { _, existing ->
+            if (existing == null) throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
+            transform(existing)
+        }
     }
 
     private fun generateUniqueId(): String {

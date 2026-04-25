@@ -21,6 +21,9 @@ data class WsMessage(
         const val PONG = "pong"
         const val INSTANCE_CREATED = "instance.created"
         const val INSTANCE_DELETED = "instance.deleted"
+        const val PACK_DIRTY = "pack.dirty"
+        const val TASK_PROGRESS = "task.progress"
+        const val TASK_COMPLETED = "task.completed"
 
         const val CHANNEL_CONSOLE = "console"
         const val CHANNEL_STATS = "stats"
