@@ -79,7 +79,7 @@ Conduit MC exists because:
 
 We deliberately do **not** try to:
 
-- ❌ Compete with CurseForge as a mod marketplace — we use their API respectfully, and Modrinth as our primary source
+- ❌ Compete with CurseForge as a mod marketplace — Modrinth is our primary and only mod source in the MVP
 - ❌ Build a hosted cloud service — your server, your rules, your data
 - ❌ Support offline/cracked accounts as a headline feature — the project is safer without it
 - ❌ Replace MCSManager or Pterodactyl — they're great at what they do, we focus on the host+friend experience
@@ -93,7 +93,7 @@ We deliberately do **not** try to:
 
 ### Status
 
-**🚧 Early development.** Nothing runs yet. Follow this repo to see it come to life.
+**🚧 Early development.** Daemon and Desktop MVP are functional — pairing, instance creation, and server.jar download work end-to-end. Not yet ready for general use.
 
 ### Roadmap
 
@@ -164,7 +164,7 @@ Standing on the shoulders of giants:
 
 ### 当前状态
 
-**🚧 早期开发中。** 还没东西能跑。关注本仓库见证它诞生。
+**🚧 早期开发中。** Daemon 和 Desktop MVP 已可运行——配对、创建实例、下载 server.jar 端到端跑通。尚未达到日常使用标准。
 
 ### 开发路线
 

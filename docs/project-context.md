@@ -1,6 +1,9 @@
 # Conduit MC — Project Context
 
-> **这份文档是"前情提要"**。如果你（未来的 CodeBuddy / 贡献者 / 未来的自己）刚加入 Conduit MC 项目，从头读完这份文档，就能理解我们为什么做这些决定、走到了哪一步、下一步要往哪里去。
+> **这份文档是"前情提要"**，面向人类读者（维护者、贡献者、未来的自己），记录决策背景和完整叙事。AI 工具的执行约束见 `.codebuddy/rules/project.md`——两份文档在架构、non-goals 等内容上有意重叠，各自服务不同受众。
+>
+> 从头读完这份文档，就能理解我们为什么做这些决定、走到了哪一步、下一步要往哪里去。
+> 想看当前进度：[`docs/progress.md`](./progress.md)。读完还有疑问，翻 git log（commit message 写得还算详细）。
 >
 > 更新时间：2026-04-25
 
@@ -134,19 +137,10 @@ MCSManager 和 Pterodactyl 都是 Web 面板，但：
 
 DI 和导航框架在 Desktop MVP 规划阶段确定（2026-04-25）。
 
-**Koin 4.2（DI）**：
-- KMP 生态事实标准（~10k stars），支持 JVM Desktop + WasmJS
-- 纯 Kotlin DSL，无代码生成，学习成本极低
-- Compose 集成（`koinViewModel()`），可选 KSP 编译期图验证
-- HMCL 没用 DI 框架（Java 静态单例），但 KMP 跨平台场景不适合静态单例
+- **Koin 4.2**：KMP 生态事实标准，纯 Kotlin DSL 无代码生成，Compose 集成（`koinViewModel()`）。HMCL 的 Java 静态单例模式不适用于 KMP 跨平台场景。
+- **JetBrains navigation-compose 2.9**：官方维护，支持 Desktop + WasmJS，类型安全路由。竞品 Voyager 半停更、Decompose 架构过重。
 
-**JetBrains navigation-compose 2.9（导航）**：
-- JetBrains 官方维护，跟 Compose Multiplatform 同步发布
-- 支持 Desktop + WasmJS（含浏览器历史集成）
-- 类型安全路由（`@Serializable` 目标类）、嵌套导航、深度链接、回退栈
-- 竞品排除：Voyager 半停更（最后发布 2024.10），Decompose 架构过重
-
-详细评估过程见 `docs/desktop-mvp-plan.md` 架构决策章节。
+详细评估和依赖清单见 [`docs/desktop-mvp-plan.md` 架构决策章节](./desktop-mvp-plan.md)。
 
 ### 8. 为什么不做 CurseForge 集成（MVP 阶段）？
 
@@ -199,15 +193,6 @@ DI 和导航框架在 Desktop MVP 规划阶段确定（2026-04-25）。
 ---
 
 ## 八、为未来的"接棒者"
-
-如果你是未来的 AI 助手（新对话加入）或者未来的贡献者：
-
-- **先读这份文档**，再读 README
-- 想看当前进度：[`docs/progress.md`](./progress.md)
-- 读完还有疑问，翻 git log（commit message 写得还算详细）
-- 有两份文件互补：
-  - `.codebuddy/rules/project.md` —— AI 工具的执行约束（单一真相源）
-  - `docs/project-context.md` —— 这份，给人的叙事背景
 
 项目尚处早期，一切仍有调整空间——但上述每个决策都有其充分的理由，修改前请先理解其背景。
 
