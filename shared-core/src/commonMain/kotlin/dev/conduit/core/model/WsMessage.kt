@@ -13,31 +13,43 @@ data class WsMessage(
 ) {
     companion object {
         const val CONSOLE_OUTPUT = "console.output"
-        const val STATE_CHANGED = "state_changed"
+        const val STATE_CHANGED = "server.state_changed"
+        const val SERVER_STATS = "server.stats"
         const val SUBSCRIBE = "subscribe"
         const val UNSUBSCRIBE = "unsubscribe"
+        const val PING = "ping"
+        const val PONG = "pong"
+        const val INSTANCE_CREATED = "instance.created"
+        const val INSTANCE_DELETED = "instance.deleted"
+
+        const val CHANNEL_CONSOLE = "console"
+        const val CHANNEL_STATS = "stats"
+        val DEFAULT_CHANNELS = listOf(CHANNEL_CONSOLE, CHANNEL_STATS)
     }
 }
 
 @Serializable
 data class ConsoleOutputPayload(
     val line: String,
+    val level: String = "info",
 )
 
 @Serializable
 data class StateChangedPayload(
-    val state: InstanceState,
-    val statusMessage: String? = null,
+    val oldState: InstanceState,
+    val newState: InstanceState,
 )
 
 @Serializable
 data class SubscribeRequest(
     val type: String = WsMessage.SUBSCRIBE,
     val instanceId: String,
+    val channels: List<String> = WsMessage.DEFAULT_CHANNELS,
 )
 
 @Serializable
 data class UnsubscribeRequest(
     val type: String = WsMessage.UNSUBSCRIBE,
     val instanceId: String,
+    val channels: List<String> = WsMessage.DEFAULT_CHANNELS,
 )

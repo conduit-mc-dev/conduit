@@ -2,6 +2,7 @@ package dev.conduit.daemon.routes
 
 import dev.conduit.core.model.PairConfirmRequest
 import dev.conduit.daemon.ApiException
+import dev.conduit.daemon.service.RateLimiter
 import dev.conduit.daemon.store.TokenStore
 import io.ktor.http.*
 import io.ktor.server.auth.*
@@ -9,7 +10,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
-fun Route.pairRoutes(tokenStore: TokenStore) {
+fun Route.pairRoutes(tokenStore: TokenStore, rateLimiter: RateLimiter) {
     route("/api/v1/pair") {
         post("/initiate") {
             if (tokenStore.hasDevices()) {
@@ -23,6 +24,7 @@ fun Route.pairRoutes(tokenStore: TokenStore) {
         }
 
         post("/confirm") {
+            rateLimiter.check(call.request.local.remoteHost)
             val request = call.receive<PairConfirmRequest>()
             call.respond(tokenStore.confirmPairing(request.code, request.deviceName))
         }

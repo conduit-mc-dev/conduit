@@ -145,6 +145,8 @@ class InstanceRoutesTest {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.Conflict, deleteInitializing.status)
+        val error = deleteInitializing.body<ErrorResponse>()
+        assertEquals("INSTANCE_INITIALIZING", error.error.code)
     }
 
     @Test

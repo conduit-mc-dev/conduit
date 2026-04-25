@@ -38,15 +38,16 @@ fun Application.module(
         dataDirectory = dataDirectory,
         scope = appScope,
     )
+    val rateLimiter = RateLimiter()
 
     configurePlugins(tokenStore)
 
     routing {
         publicRoutes()
-        pairRoutes(tokenStore)
+        pairRoutes(tokenStore, rateLimiter)
         wsRoutes(broadcaster, tokenStore, AppJson)
         authenticate("bearer") {
-            instanceRoutes(instanceStore, serverJarService, dataDirectory)
+            instanceRoutes(instanceStore, serverJarService, dataDirectory, broadcaster, AppJson)
             minecraftRoutes(mojangClient)
             serverRoutes(instanceStore, processManager, eulaService)
         }

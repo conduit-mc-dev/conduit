@@ -133,7 +133,7 @@ class InstanceStore {
         instances.compute(id) { _, existing ->
             if (existing == null) throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
             if (existing.state != InstanceState.STOPPED) {
-                throw ApiException(HttpStatusCode.Conflict, "INVALID_STATE", "Instance must be stopped to retry download")
+                throw ApiException(HttpStatusCode.Conflict, "INSTANCE_RUNNING", "Instance must be stopped to retry download")
             }
             val updated = existing.copy(
                 state = InstanceState.INITIALIZING,
@@ -150,8 +150,12 @@ class InstanceStore {
         val instance = instances[id]
             ?: throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
 
-        if (instance.state != InstanceState.STOPPED) {
-            throw ApiException(HttpStatusCode.Conflict, "INSTANCE_RUNNING", "Instance must be stopped before deletion")
+        when (instance.state) {
+            InstanceState.STOPPED -> {} // allow
+            InstanceState.INITIALIZING ->
+                throw ApiException(HttpStatusCode.Conflict, "INSTANCE_INITIALIZING", "Instance is still initializing")
+            else ->
+                throw ApiException(HttpStatusCode.Conflict, "INSTANCE_RUNNING", "Instance must be stopped before deletion")
         }
 
         instances.remove(id)

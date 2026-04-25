@@ -35,17 +35,28 @@ class MojangClient : Closeable {
     @Volatile
     private var cachedManifest: MojangVersionManifest? = null
 
+    @Volatile
+    var cachedAt: kotlin.time.Instant? = null
+        private set
+
     suspend fun fetchManifest(forceRefresh: Boolean = false): MojangVersionManifest {
         if (!forceRefresh) cachedManifest?.let { return it }
         val manifest: MojangVersionManifest = client.get(MOJANG_VERSION_MANIFEST_URL).body()
         cachedManifest = manifest
+        cachedAt = kotlin.time.Clock.System.now()
         return manifest
     }
 
-    suspend fun listReleases(forceRefresh: Boolean = false): List<MinecraftVersion> {
+    suspend fun listVersions(type: String = "release", forceRefresh: Boolean = false): List<MinecraftVersion> {
         val manifest = fetchManifest(forceRefresh)
         return manifest.versions
-            .filter { it.type == "release" }
+            .let { versions ->
+                when (type) {
+                    "release" -> versions.filter { it.type == "release" }
+                    "snapshot" -> versions.filter { it.type == "snapshot" }
+                    else -> versions
+                }
+            }
             .map { MinecraftVersion(id = it.id, type = it.type, releaseTime = it.releaseTime) }
     }
 

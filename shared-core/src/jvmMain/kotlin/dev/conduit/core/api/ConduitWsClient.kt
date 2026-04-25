@@ -60,13 +60,13 @@ class ConduitWsClient(
         }
     }
 
-    suspend fun subscribe(instanceId: String) {
-        val msg = json.encodeToString(SubscribeRequest(instanceId = instanceId))
+    suspend fun subscribe(instanceId: String, channels: List<String> = WsMessage.DEFAULT_CHANNELS) {
+        val msg = json.encodeToString(SubscribeRequest(instanceId = instanceId, channels = channels))
         session?.send(Frame.Text(msg))
     }
 
-    suspend fun unsubscribe(instanceId: String) {
-        val msg = json.encodeToString(UnsubscribeRequest(instanceId = instanceId))
+    suspend fun unsubscribe(instanceId: String, channels: List<String> = WsMessage.DEFAULT_CHANNELS) {
+        val msg = json.encodeToString(UnsubscribeRequest(instanceId = instanceId, channels = channels))
         session?.send(Frame.Text(msg))
     }
 

@@ -14,6 +14,7 @@ import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class ServerRoutesTest {
@@ -69,6 +70,7 @@ class ServerRoutesTest {
 
         val eula = response.body<EulaResponse>()
         assertFalse(eula.accepted)
+        assertEquals("https://aka.ms/MinecraftEULA", eula.eulaUrl)
     }
 
     @Test
@@ -105,11 +107,12 @@ class ServerRoutesTest {
         assertEquals(HttpStatusCode.Conflict, response.status)
 
         val error = response.body<ErrorResponse>()
-        assertEquals("EULA_NOT_ACCEPTED", error.error.code)
+        // 新实例处于 INITIALIZING 状态，优先返回 INSTANCE_INITIALIZING
+        assertEquals("INSTANCE_INITIALIZING", error.error.code)
     }
 
     @Test
-    fun `server status endpoint returns state and eula`() = testApplication {
+    fun `server status endpoint returns full status`() = testApplication {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
@@ -122,7 +125,11 @@ class ServerRoutesTest {
 
         val status = response.body<ServerStatusResponse>()
         assertEquals(InstanceState.INITIALIZING, status.state)
-        assertFalse(status.eulaAccepted)
+        assertEquals("1.20.4", status.mcVersion)
+        assertEquals(0, status.playerCount)
+        assertEquals(20, status.maxPlayers)
+        assertTrue(status.players.isEmpty())
+        assertEquals(0, status.uptime)
     }
 
     @Test
@@ -147,6 +154,9 @@ class ServerRoutesTest {
             setBody(SendCommandRequest(command = "list"))
         }
         assertEquals(HttpStatusCode.Conflict, response.status)
+
+        val error = response.body<ErrorResponse>()
+        assertEquals("SERVER_NOT_RUNNING", error.error.code)
     }
 
     @Test
@@ -179,7 +189,7 @@ class ServerRoutesTest {
         val client = wsClient()
 
         client.webSocket("/api/v1/ws?token=$token") {
-            send(Frame.Text("""{"type":"subscribe","instanceId":"test123"}"""))
+            send(Frame.Text("""{"type":"subscribe","instanceId":"test123","channels":["console","stats"]}"""))
             @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
             assertTrue(incoming.isEmpty)
         }

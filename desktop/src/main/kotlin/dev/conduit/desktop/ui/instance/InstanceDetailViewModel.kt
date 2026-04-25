@@ -90,8 +90,7 @@ class InstanceDetailViewModel(
                             val payload = json.decodeFromJsonElement<StateChangedPayload>(msg.payload)
                             _state.value = _state.value.copy(
                                 instance = _state.value.instance?.copy(
-                                    state = payload.state,
-                                    statusMessage = payload.statusMessage,
+                                    state = payload.newState,
                                 ),
                             )
                         } catch (e: Exception) {
@@ -134,8 +133,11 @@ class InstanceDetailViewModel(
             }
             _state.value = _state.value.copy(isActionInProgress = true, error = null)
             try {
-                val updated = apiClient.startServer(instanceId)
-                _state.value = _state.value.copy(instance = updated, isActionInProgress = false)
+                val status = apiClient.startServer(instanceId)
+                _state.value = _state.value.copy(
+                    instance = _state.value.instance?.copy(state = status.state),
+                    isActionInProgress = false,
+                )
             } catch (e: ConduitApiException) {
                 if (e.errorResponse?.error?.code == "EULA_NOT_ACCEPTED") {
                     _state.value = _state.value.copy(showEulaDialog = true, isActionInProgress = false)
@@ -158,8 +160,11 @@ class InstanceDetailViewModel(
         viewModelScope.launch {
             _state.value = _state.value.copy(isActionInProgress = true, error = null)
             try {
-                val updated = apiClient.stopServer(instanceId)
-                _state.value = _state.value.copy(instance = updated, isActionInProgress = false)
+                val status = apiClient.stopServer(instanceId)
+                _state.value = _state.value.copy(
+                    instance = _state.value.instance?.copy(state = status.state),
+                    isActionInProgress = false,
+                )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isActionInProgress = false,

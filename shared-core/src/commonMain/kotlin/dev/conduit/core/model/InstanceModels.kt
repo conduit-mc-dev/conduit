@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 data class LoaderInfo(
     val type: LoaderType,
     val version: String,
+    val mcVersion: String? = null,
 )
 
 @Serializable

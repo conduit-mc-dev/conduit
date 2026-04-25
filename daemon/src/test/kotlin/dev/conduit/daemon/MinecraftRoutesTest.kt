@@ -1,6 +1,6 @@
 package dev.conduit.daemon
 
-import dev.conduit.core.model.MinecraftVersion
+import dev.conduit.core.model.MinecraftVersionsResponse
 import dev.conduit.core.model.PairConfirmRequest
 import dev.conduit.core.model.PairInitiateResponse
 import dev.conduit.core.model.PairConfirmResponse
@@ -14,6 +14,7 @@ import io.ktor.server.testing.*
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class MinecraftRoutesTest {
@@ -48,7 +49,7 @@ class MinecraftRoutesTest {
     }
 
     @Test
-    fun `minecraft versions returns list from Mojang`() = testApplication {
+    fun `minecraft versions returns wrapped response from Mojang`() = testApplication {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
@@ -58,8 +59,27 @@ class MinecraftRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, response.status)
 
-        val versions = response.body<List<MinecraftVersion>>()
-        assertTrue(versions.isNotEmpty())
-        assertTrue(versions.all { it.type == "release" })
+        val body = response.body<MinecraftVersionsResponse>()
+        assertTrue(body.versions.isNotEmpty())
+        assertTrue(body.versions.all { it.type == "release" })
+        assertNotNull(body.cachedAt)
+    }
+
+    @Test
+    fun `minecraft versions supports type filter`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        val response = client.get("/api/v1/minecraft/versions?type=all") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+
+        val body = response.body<MinecraftVersionsResponse>()
+        assertTrue(body.versions.isNotEmpty())
+        // "all" 应该包含非 release 类型（snapshot 等）
+        val types = body.versions.map { it.type }.toSet()
+        assertTrue(types.size > 1, "Expected multiple version types with type=all, got: $types")
     }
 }

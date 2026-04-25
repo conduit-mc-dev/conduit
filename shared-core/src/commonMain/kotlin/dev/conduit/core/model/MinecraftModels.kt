@@ -8,3 +8,9 @@ data class MinecraftVersion(
     val type: String,
     val releaseTime: String,
 )
+
+@Serializable
+data class MinecraftVersionsResponse(
+    val versions: List<MinecraftVersion>,
+    val cachedAt: String,
+)

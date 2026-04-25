@@ -1,9 +1,6 @@
 package dev.conduit.daemon.routes
 
-import dev.conduit.core.model.AcceptEulaRequest
-import dev.conduit.core.model.SendCommandRequest
-import dev.conduit.core.model.ServerStatusResponse
-import dev.conduit.core.model.EulaResponse
+import dev.conduit.core.model.*
 import dev.conduit.daemon.ApiException
 import dev.conduit.daemon.service.EulaService
 import dev.conduit.daemon.service.ServerProcessManager
@@ -21,11 +18,7 @@ fun Route.serverRoutes(
     route("/api/v1/instances/{id}/server") {
         get("/status") {
             val id = call.requireInstanceId()
-            val summary = instanceStore.get(id)
-            call.respond(ServerStatusResponse(
-                state = summary.state,
-                eulaAccepted = eulaService.isAccepted(id),
-            ))
+            call.respond(buildServerStatus(id, instanceStore, processManager))
         }
 
         get("/eula") {
@@ -46,30 +39,87 @@ fun Route.serverRoutes(
 
         post("/start") {
             val id = call.requireInstanceId()
+            val summary = instanceStore.get(id)
+
+            when (summary.state) {
+                InstanceState.INITIALIZING ->
+                    throw ApiException(HttpStatusCode.Conflict, "INSTANCE_INITIALIZING", "Instance is still initializing")
+                InstanceState.RUNNING -> {
+                    // 幂等：已运行则返回当前状态
+                    call.respond(buildServerStatus(id, instanceStore, processManager))
+                    return@post
+                }
+                InstanceState.STARTING, InstanceState.STOPPING ->
+                    throw ApiException(HttpStatusCode.Conflict, "SERVER_ALREADY_RUNNING", "Server is in a transitional state")
+                InstanceState.STOPPED -> {} // proceed
+            }
+
             if (!eulaService.isAccepted(id)) {
                 throw ApiException(HttpStatusCode.Conflict, "EULA_NOT_ACCEPTED", "EULA must be accepted before starting the server")
             }
             processManager.start(id)
-            call.respond(instanceStore.get(id))
+            call.respond(buildServerStatus(id, instanceStore, processManager))
         }
 
         post("/stop") {
             val id = call.requireInstanceId()
             processManager.stop(id)
-            call.respond(instanceStore.get(id))
+            call.respond(buildServerStatus(id, instanceStore, processManager))
+        }
+
+        post("/restart") {
+            val id = call.requireInstanceId()
+            val summary = instanceStore.get(id)
+
+            if (!eulaService.isAccepted(id)) {
+                throw ApiException(HttpStatusCode.Conflict, "EULA_NOT_ACCEPTED", "EULA must be accepted before starting the server")
+            }
+
+            when (summary.state) {
+                InstanceState.INITIALIZING ->
+                    throw ApiException(HttpStatusCode.Conflict, "INSTANCE_INITIALIZING", "Instance is still initializing")
+                InstanceState.STARTING, InstanceState.STOPPING ->
+                    throw ApiException(HttpStatusCode.Conflict, "SERVER_ALREADY_RUNNING", "Server is in a transitional state")
+                InstanceState.RUNNING -> {
+                    processManager.stop(id)
+                    processManager.awaitProcessExit(id)
+                    processManager.start(id)
+                }
+                InstanceState.STOPPED -> processManager.start(id)
+            }
+            call.respond(buildServerStatus(id, instanceStore, processManager))
         }
 
         post("/kill") {
             val id = call.requireInstanceId()
             processManager.kill(id)
-            call.respond(instanceStore.get(id))
+            call.respond(buildServerStatus(id, instanceStore, processManager))
         }
 
         post("/command") {
             val id = call.requireInstanceId()
             val request = call.receive<SendCommandRequest>()
             processManager.sendCommand(id, request.command)
-            call.respond(HttpStatusCode.NoContent)
+            call.respond(HttpStatusCode.OK, CommandAcceptedResponse())
         }
     }
+}
+
+private fun buildServerStatus(
+    id: String,
+    instanceStore: InstanceStore,
+    processManager: ServerProcessManager,
+): ServerStatusResponse {
+    val summary = instanceStore.get(id)
+    return ServerStatusResponse(
+        state = summary.state,
+        playerCount = summary.playerCount,
+        maxPlayers = summary.maxPlayers,
+        players = emptyList(),
+        uptime = processManager.getUptimeSeconds(id),
+        mcVersion = summary.mcVersion,
+        loader = summary.loader,
+        memory = null,
+        tps = null,
+    )
 }

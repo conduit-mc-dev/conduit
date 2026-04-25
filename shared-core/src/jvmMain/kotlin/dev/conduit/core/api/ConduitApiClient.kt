@@ -78,7 +78,7 @@ class ConduitApiClient(
 
     // --- Minecraft 版本 ---
 
-    suspend fun listMinecraftVersions(): List<MinecraftVersion> =
+    suspend fun listMinecraftVersions(): MinecraftVersionsResponse =
         get("/api/v1/minecraft/versions")
 
     // --- 服务器生命周期 ---
@@ -95,21 +95,20 @@ class ConduitApiClient(
             setBody(AcceptEulaRequest(accepted = true))
         }
 
-    suspend fun startServer(id: String): InstanceSummary =
+    suspend fun startServer(id: String): ServerStatusResponse =
         post("/api/v1/instances/$id/server/start")
 
-    suspend fun stopServer(id: String): InstanceSummary =
+    suspend fun stopServer(id: String): ServerStatusResponse =
         post("/api/v1/instances/$id/server/stop")
 
-    suspend fun killServer(id: String): InstanceSummary =
+    suspend fun killServer(id: String): ServerStatusResponse =
         post("/api/v1/instances/$id/server/kill")
 
-    suspend fun sendCommand(id: String, command: String) {
-        post<Unit>("/api/v1/instances/$id/server/command") {
+    suspend fun sendCommand(id: String, command: String): CommandAcceptedResponse =
+        post("/api/v1/instances/$id/server/command") {
             contentType(ContentType.Application.Json)
             setBody(SendCommandRequest(command = command))
         }
-    }
 
     // --- 内部 HTTP helpers ---
 

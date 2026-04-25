@@ -7,9 +7,13 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
+import kotlin.time.Clock
 
 private val log = LoggerFactory.getLogger("dev.conduit.daemon.routes.WsRoutes")
 
@@ -29,11 +33,27 @@ fun Route.wsRoutes(broadcaster: WsBroadcaster, tokenStore: TokenStore, json: Jso
                         val text = frame.readText()
                         val msg = json.parseToJsonElement(text).jsonObject
                         val type = msg["type"]?.jsonPrimitive?.content ?: continue
-                        val instanceId = msg["instanceId"]?.jsonPrimitive?.content ?: continue
 
                         when (type) {
-                            WsMessage.SUBSCRIBE -> broadcaster.subscribe(this, instanceId)
-                            WsMessage.UNSUBSCRIBE -> broadcaster.unsubscribe(this, instanceId)
+                            WsMessage.SUBSCRIBE, WsMessage.UNSUBSCRIBE -> {
+                                val instanceId = msg["instanceId"]?.jsonPrimitive?.content ?: continue
+                                val channels = msg["channels"]?.jsonArray
+                                    ?.map { it.jsonPrimitive.content }
+                                    ?: WsMessage.DEFAULT_CHANNELS
+                                if (type == WsMessage.SUBSCRIBE) {
+                                    broadcaster.subscribe(this, instanceId, channels)
+                                } else {
+                                    broadcaster.unsubscribe(this, instanceId, channels)
+                                }
+                            }
+                            WsMessage.PING -> {
+                                val pong = WsMessage(
+                                    type = WsMessage.PONG,
+                                    payload = json.encodeToJsonElement(buildJsonObject {}),
+                                    timestamp = Clock.System.now(),
+                                )
+                                send(Frame.Text(json.encodeToString(WsMessage.serializer(), pong)))
+                            }
                         }
                     } catch (e: Exception) {
                         log.debug("Failed to parse WS message", e)
