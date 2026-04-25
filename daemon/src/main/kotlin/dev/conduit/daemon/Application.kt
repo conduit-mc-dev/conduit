@@ -2,8 +2,7 @@ package dev.conduit.daemon
 
 import dev.conduit.core.download.MojangClient
 import dev.conduit.daemon.routes.*
-import dev.conduit.daemon.service.DataDirectory
-import dev.conduit.daemon.service.ServerJarService
+import dev.conduit.daemon.service.*
 import dev.conduit.daemon.store.InstanceStore
 import dev.conduit.daemon.store.TokenStore
 import io.ktor.server.application.*
@@ -28,11 +27,16 @@ fun Application.module(
 ) {
     dataDirectory.ensureDirectories()
 
+    val appScope = CoroutineScope(coroutineContext + SupervisorJob())
+    val broadcaster = WsBroadcaster(AppJson)
+    val eulaService = EulaService(dataDirectory)
+    val processManager = ServerProcessManager(instanceStore, dataDirectory, broadcaster, appScope, AppJson)
+
     val serverJarService = ServerJarService(
         mojangClient = mojangClient,
         instanceStore = instanceStore,
         dataDirectory = dataDirectory,
-        scope = CoroutineScope(coroutineContext + SupervisorJob()),
+        scope = appScope,
     )
 
     configurePlugins(tokenStore)
@@ -40,9 +44,11 @@ fun Application.module(
     routing {
         publicRoutes()
         pairRoutes(tokenStore)
+        wsRoutes(broadcaster, tokenStore, AppJson)
         authenticate("bearer") {
-            instanceRoutes(instanceStore, serverJarService)
+            instanceRoutes(instanceStore, serverJarService, dataDirectory)
             minecraftRoutes(mojangClient)
+            serverRoutes(instanceStore, processManager, eulaService)
         }
     }
 }

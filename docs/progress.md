@@ -11,13 +11,12 @@
 
 ## Now（进行中）
 
-- [ ] Desktop MVP 迭代 3：服务器生命周期（启动 / 停止 / 控制台）
+- [ ] Desktop MVP 迭代 4-6（配置管理 / 实时更新 / JVM 配置 + 打磨）
   - 详细方案见 [`desktop-mvp-plan.md`](./desktop-mvp-plan.md)
 
 ---
 
 ## Next（下一步）
-- [ ] Desktop MVP 迭代 4-6（配置管理 / 实时更新 / JVM 配置 + 打磨）
 - [ ] Loader / Mod 管理里程碑（shared-core 复用层：Daemon + Desktop 启动器共用）
 - [ ] Web 管理面板（Compose WasmJS，Daemon 内置 serve）
 
@@ -25,6 +24,21 @@
 
 ## Done
 
+- [x] Desktop MVP 迭代 3：服务器生命周期（启动 / 停止 / 控制台）
+  - Daemon：`ServerProcessManager`（子进程管理 + 状态检测 + stdin/stdout）
+  - Daemon：`EulaService`（eula.txt 读写 + 目录自动创建）
+  - Daemon：`ServerRoutes`（status/eula/start/stop/kill/command 六个端点）
+  - Daemon：`WsBroadcaster` + `WsRoutes`（WebSocket 广播 + subscribe/unsubscribe + token 认证）
+  - Daemon：`InstanceStore` 线程安全重构（`var` → `val` + `compute()` + `copy()` 原子替换）
+  - shared-core：`ServerModels`（ServerStatusResponse / EulaResponse / AcceptEulaRequest / SendCommandRequest）
+  - shared-core：`WsMessage` 扩展（常量 + payload 类型：ConsoleOutputPayload / StateChangedPayload）
+  - shared-core：`ConduitApiClient` 新增 8 个生命周期方法 + 204 NoContent 支持
+  - shared-core：`ConduitWsClient`（Ktor WebSocket 客户端 + SharedFlow 消息流）
+  - Desktop：`InstanceDetailScreen`（控制台 LazyColumn + 命令输入 + EULA 对话框 + 状态操作按钮）
+  - Desktop：`InstanceDetailViewModel`（REST + WebSocket 编排，1000 行控制台缓冲）
+  - Desktop：实例列表 Card 点击导航 → 详情页
+  - 自动化测试：9 个新测试（ServerRoutesTest），总计 35 个
+  - 手动验证：Daemon 端到端 配对 → 创建 → EULA 检查(false) → 启动被拒(409) → 接受 EULA → 启动(starting→running) → /list 命令(204) → /stop(stopping→stopped) ✓
 - [x] Desktop MVP 迭代 2：创建实例 + server.jar 下载
   - shared-core：`MojangClient`（Ktor Client + CIO）获取 Mojang 版本清单 + 下载 server.jar（SHA-1 校验）
   - shared-core：`MojangVersionManifest` / `MojangVersionDetail` / `MojangDownloadEntry` 等数据模型

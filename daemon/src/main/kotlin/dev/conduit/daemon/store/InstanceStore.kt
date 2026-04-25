@@ -8,21 +8,27 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
+data class ProcessConfig(
+    val jvmArgs: List<String>,
+    val javaPath: String,
+    val mcPort: Int,
+)
+
 class InstanceStore {
 
     private data class Instance(
         val id: String,
-        var name: String,
-        var description: String?,
-        var state: InstanceState,
+        val name: String,
+        val description: String?,
+        val state: InstanceState,
         val mcVersion: String,
         val loader: LoaderInfo?,
-        var mcPort: Int,
+        val mcPort: Int,
         val jvmArgs: List<String>?,
         val javaPath: String?,
         val createdAt: Instant,
-        var taskId: String?,
-        var statusMessage: String?,
+        val taskId: String?,
+        val statusMessage: String?,
     ) {
         fun toSummary() = InstanceSummary(
             id = id,
@@ -76,17 +82,19 @@ class InstanceStore {
     }
 
     fun markInitialized(id: String) {
-        val instance = instances[id] ?: return
-        instance.state = InstanceState.STOPPED
-        instance.taskId = null
-        instance.statusMessage = null
+        instances.compute(id) { _, existing ->
+            existing?.copy(state = InstanceState.STOPPED, taskId = null, statusMessage = null)
+        }
     }
 
     fun markInitializationFailed(id: String, reason: String) {
-        val instance = instances[id] ?: return
-        instance.state = InstanceState.STOPPED
-        instance.taskId = null
-        instance.statusMessage = "Initialization failed: $reason"
+        instances.compute(id) { _, existing ->
+            existing?.copy(
+                state = InstanceState.STOPPED,
+                taskId = null,
+                statusMessage = "Initialization failed: $reason",
+            )
+        }
     }
 
     fun list(): List<InstanceSummary> =
@@ -99,23 +107,43 @@ class InstanceStore {
     }
 
     fun update(id: String, request: UpdateInstanceRequest): InstanceSummary {
-        val instance = instances[id]
-            ?: throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
-
-        request.name?.let { newName ->
-            validateName(newName)
-            if (instances.values.any { it.id != id && it.name.equals(newName, ignoreCase = true) }) {
-                throw ApiException(HttpStatusCode.Conflict, "INSTANCE_NAME_CONFLICT", "Instance name already exists")
+        var result: InstanceSummary? = null
+        instances.compute(id) { _, existing ->
+            if (existing == null) throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
+            var updated: Instance = existing
+            request.name?.let { newName ->
+                validateName(newName)
+                if (instances.values.any { it.id != id && it.name.equals(newName, ignoreCase = true) }) {
+                    throw ApiException(HttpStatusCode.Conflict, "INSTANCE_NAME_CONFLICT", "Instance name already exists")
+                }
+                updated = updated.copy(name = newName)
             }
-            instance.name = newName
+            request.description?.let { desc ->
+                validateDescription(desc)
+                updated = updated.copy(description = desc)
+            }
+            result = updated.toSummary()
+            updated
         }
+        return result ?: throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
+    }
 
-        request.description?.let { desc ->
-            validateDescription(desc)
-            instance.description = desc
+    fun resetToInitializing(id: String): InstanceSummary {
+        var result: InstanceSummary? = null
+        instances.compute(id) { _, existing ->
+            if (existing == null) throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
+            if (existing.state != InstanceState.STOPPED) {
+                throw ApiException(HttpStatusCode.Conflict, "INVALID_STATE", "Instance must be stopped to retry download")
+            }
+            val updated = existing.copy(
+                state = InstanceState.INITIALIZING,
+                taskId = IdGenerator.generateTaskId(),
+                statusMessage = "Downloading server.jar...",
+            )
+            result = updated.toSummary()
+            updated
         }
-
-        return instance.toSummary()
+        return result!!
     }
 
     fun delete(id: String) {
@@ -127,6 +155,36 @@ class InstanceStore {
         }
 
         instances.remove(id)
+    }
+
+    fun transitionState(id: String, from: InstanceState, to: InstanceState, statusMessage: String? = null): InstanceSummary {
+        var result: InstanceSummary? = null
+        instances.compute(id) { _, existing ->
+            if (existing == null) throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
+            if (existing.state != from) {
+                throw ApiException(HttpStatusCode.Conflict, "INVALID_STATE", "Instance is ${existing.state}, expected $from")
+            }
+            val updated = existing.copy(state = to, statusMessage = statusMessage)
+            result = updated.toSummary()
+            updated
+        }
+        return result!!
+    }
+
+    fun forceState(id: String, to: InstanceState, statusMessage: String? = null) {
+        instances.compute(id) { _, existing ->
+            existing?.copy(state = to, statusMessage = statusMessage)
+        }
+    }
+
+    fun getProcessConfig(id: String): ProcessConfig {
+        val instance = instances[id]
+            ?: throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
+        return ProcessConfig(
+            jvmArgs = instance.jvmArgs ?: emptyList(),
+            javaPath = instance.javaPath ?: "java",
+            mcPort = instance.mcPort,
+        )
     }
 
     private fun generateUniqueId(): String {

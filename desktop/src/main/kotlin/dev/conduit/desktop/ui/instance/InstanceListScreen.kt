@@ -17,6 +17,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun InstanceListScreen(
     onCreateInstance: () -> Unit = {},
+    onInstanceClick: (String) -> Unit = {},
     viewModel: InstanceListViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -84,7 +85,7 @@ fun InstanceListScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(state.instances, key = { it.id }) { instance ->
-                        InstanceCard(instance)
+                        InstanceCard(instance, onClick = { onInstanceClick(instance.id) })
                     }
                 }
             }
@@ -93,8 +94,9 @@ fun InstanceListScreen(
 }
 
 @Composable
-private fun InstanceCard(instance: InstanceSummary) {
+private fun InstanceCard(instance: InstanceSummary, onClick: () -> Unit = {}) {
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(

@@ -93,7 +93,7 @@ We deliberately do **not** try to:
 
 ### Status
 
-**🚧 Early development.** Daemon and Desktop MVP are functional — pairing, instance creation, and server.jar download work end-to-end. Not yet ready for general use.
+**🚧 Early development.** Daemon and Desktop MVP are functional — pairing, instance creation, server.jar download, and server lifecycle (start/stop/console) work end-to-end. Not yet ready for general use.
 
 ### Roadmap
 

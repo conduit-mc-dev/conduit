@@ -2,7 +2,7 @@
 
 > Version: 0.1-draft \
 > Last updated: 2026-04-25 \
-> Status: Partially implemented — pairing flow + instance CRUD done; server lifecycle + WebSocket + mod management pending
+> Status: Partially implemented — pairing flow + instance CRUD + server lifecycle + WebSocket done; mod management pending
 
 This document defines the communication protocol between the two Conduit MC
 components: **Daemon** and **Desktop**. The Desktop app is a unified application

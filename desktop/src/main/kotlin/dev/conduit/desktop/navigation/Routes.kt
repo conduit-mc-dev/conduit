@@ -10,3 +10,6 @@ data object InstanceListRoute
 
 @Serializable
 data object CreateInstanceRoute
+
+@Serializable
+data class InstanceDetailRoute(val instanceId: String)

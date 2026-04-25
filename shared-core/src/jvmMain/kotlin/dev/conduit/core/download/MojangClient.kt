@@ -4,6 +4,7 @@ import dev.conduit.core.model.MinecraftVersion
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -22,6 +23,11 @@ class MojangClient : Closeable {
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json { ignoreUnknownKeys = true })
+        }
+        install(HttpTimeout) {
+            connectTimeoutMillis = 15_000
+            socketTimeoutMillis = 60_000
+            requestTimeoutMillis = 30_000
         }
         expectSuccess = true
     }
@@ -61,7 +67,12 @@ class MojangClient : Closeable {
         val digest = MessageDigest.getInstance("SHA-1")
         var bytesWritten = 0L
 
-        client.prepareGet(serverDownload.url).execute { response ->
+        client.prepareGet(serverDownload.url) {
+            timeout {
+                requestTimeoutMillis = 600_000
+                socketTimeoutMillis = 120_000
+            }
+        }.execute { response ->
             response.bodyAsChannel().toInputStream().use { input ->
                 destination.outputStream().buffered().use { out ->
                     val buffer = ByteArray(8192)

@@ -43,8 +43,12 @@ class ConduitApiClient(
         this.token = token
     }
 
+    // --- 公共端点 ---
+
     suspend fun health(): Map<String, String> =
         get("/public/health")
+
+    // --- 配对 ---
 
     suspend fun initiatePairing(): PairInitiateResponse =
         post("/api/v1/pair/initiate")
@@ -55,8 +59,13 @@ class ConduitApiClient(
             setBody(PairConfirmRequest(code = code, deviceName = deviceName))
         }
 
+    // --- 实例 CRUD ---
+
     suspend fun listInstances(): List<InstanceSummary> =
         get("/api/v1/instances")
+
+    suspend fun getInstance(id: String): InstanceSummary =
+        get("/api/v1/instances/$id")
 
     suspend fun createInstance(request: CreateInstanceRequest): InstanceSummary =
         post("/api/v1/instances") {
@@ -64,8 +73,45 @@ class ConduitApiClient(
             setBody(request)
         }
 
+    suspend fun retryDownload(id: String): InstanceSummary =
+        post("/api/v1/instances/$id/retry-download")
+
+    // --- Minecraft 版本 ---
+
     suspend fun listMinecraftVersions(): List<MinecraftVersion> =
         get("/api/v1/minecraft/versions")
+
+    // --- 服务器生命周期 ---
+
+    suspend fun getServerStatus(id: String): ServerStatusResponse =
+        get("/api/v1/instances/$id/server/status")
+
+    suspend fun getEula(id: String): EulaResponse =
+        get("/api/v1/instances/$id/server/eula")
+
+    suspend fun acceptEula(id: String): EulaResponse =
+        put("/api/v1/instances/$id/server/eula") {
+            contentType(ContentType.Application.Json)
+            setBody(AcceptEulaRequest(accepted = true))
+        }
+
+    suspend fun startServer(id: String): InstanceSummary =
+        post("/api/v1/instances/$id/server/start")
+
+    suspend fun stopServer(id: String): InstanceSummary =
+        post("/api/v1/instances/$id/server/stop")
+
+    suspend fun killServer(id: String): InstanceSummary =
+        post("/api/v1/instances/$id/server/kill")
+
+    suspend fun sendCommand(id: String, command: String) {
+        post<Unit>("/api/v1/instances/$id/server/command") {
+            contentType(ContentType.Application.Json)
+            setBody(SendCommandRequest(command = command))
+        }
+    }
+
+    // --- 内部 HTTP helpers ---
 
     private suspend inline fun <reified T> get(
         path: String,
@@ -76,6 +122,11 @@ class ConduitApiClient(
         path: String,
         block: HttpRequestBuilder.() -> Unit = {},
     ): T = request(HttpMethod.Post, path, block)
+
+    private suspend inline fun <reified T> put(
+        path: String,
+        block: HttpRequestBuilder.() -> Unit = {},
+    ): T = request(HttpMethod.Put, path, block)
 
     private suspend inline fun <reified T> request(
         method: HttpMethod,
@@ -94,6 +145,10 @@ class ConduitApiClient(
                 null
             }
             throw ConduitApiException(response.status.value, errorBody)
+        }
+        if (response.status == HttpStatusCode.NoContent) {
+            @Suppress("UNCHECKED_CAST")
+            return Unit as T
         }
         return response.body()
     }

@@ -9,11 +9,14 @@ import androidx.compose.ui.window.rememberWindowState
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import dev.conduit.desktop.di.appModule
 import dev.conduit.desktop.navigation.CreateInstanceRoute
+import dev.conduit.desktop.navigation.InstanceDetailRoute
 import dev.conduit.desktop.navigation.InstanceListRoute
 import dev.conduit.desktop.navigation.PairRoute
 import dev.conduit.desktop.ui.instance.CreateInstanceScreen
+import dev.conduit.desktop.ui.instance.InstanceDetailScreen
 import dev.conduit.desktop.ui.instance.InstanceListScreen
 import dev.conduit.desktop.ui.pair.PairScreen
 import org.koin.compose.KoinApplication
@@ -44,12 +47,22 @@ fun main() = application {
                                 onCreateInstance = {
                                     navController.navigate(CreateInstanceRoute)
                                 },
+                                onInstanceClick = { instanceId ->
+                                    navController.navigate(InstanceDetailRoute(instanceId))
+                                },
                             )
                         }
                         composable<CreateInstanceRoute> {
                             CreateInstanceScreen(
                                 onCreated = { navController.popBackStack() },
                                 onCancel = { navController.popBackStack() },
+                            )
+                        }
+                        composable<InstanceDetailRoute> { backStackEntry ->
+                            val route = backStackEntry.toRoute<InstanceDetailRoute>()
+                            InstanceDetailScreen(
+                                instanceId = route.instanceId,
+                                onBack = { navController.popBackStack() },
                             )
                         }
                     }
