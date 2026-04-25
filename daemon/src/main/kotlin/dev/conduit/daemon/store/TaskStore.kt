@@ -25,6 +25,7 @@ class TaskStore(
     private val tasks = ConcurrentHashMap<String, TaskState>()
 
     fun create(instanceId: String, type: String, message: String): String {
+        evictCompleted()
         val taskId = IdGenerator.generateTaskId()
         tasks[taskId] = TaskState(
             taskId = taskId,
@@ -63,4 +64,9 @@ class TaskStore(
 
     fun getByInstance(instanceId: String, type: String): TaskState? =
         tasks.values.firstOrNull { it.instanceId == instanceId && it.type == type && it.status == "running" }
+
+    private fun evictCompleted() {
+        if (tasks.size <= 100) return
+        tasks.entries.removeIf { it.value.status in listOf("done", "error") }
+    }
 }

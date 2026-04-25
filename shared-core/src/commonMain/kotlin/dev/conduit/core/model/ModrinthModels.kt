@@ -47,6 +47,7 @@ data class ModrinthVersionInfo(
 data class ModrinthVersionFile(
     val fileName: String,
     val fileSize: Long,
+    val url: String? = null,
     val hashes: ModrinthFileHashes? = null,
 )
 

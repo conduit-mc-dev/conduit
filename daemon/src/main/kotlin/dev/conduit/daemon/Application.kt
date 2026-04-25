@@ -45,7 +45,7 @@ fun Application.module(
     val fileService = FileService(dataDirectory)
     val serverPropertiesService = ServerPropertiesService(dataDirectory)
     val modrinthClient = ModrinthClient()
-    val javaDetector = JavaDetector(daemonConfigStore)
+    val javaDetector = JavaDetector()
     val modStore = dev.conduit.daemon.store.ModStore()
     val modService = ModService(modStore, modrinthClient, instanceStore, dataDirectory, broadcaster, AppJson)
     val taskStore = dev.conduit.daemon.store.TaskStore(broadcaster, AppJson)

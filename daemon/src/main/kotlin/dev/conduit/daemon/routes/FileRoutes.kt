@@ -83,7 +83,6 @@ fun Route.fileRoutes(
             if (!resolved.exists() || resolved.isDirectory()) {
                 throw ApiException(HttpStatusCode.NotFound, "FILE_NOT_FOUND", "File not found")
             }
-            val contentType = fileService.inferContentType(resolved)
             call.respondFile(resolved.toFile())
         }
 

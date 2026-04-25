@@ -4,6 +4,7 @@ import dev.conduit.core.model.*
 import dev.conduit.daemon.ApiException
 import dev.conduit.daemon.store.InstanceStore
 import dev.conduit.daemon.store.TaskStore
+import org.slf4j.LoggerFactory
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.*
@@ -26,6 +27,7 @@ class LoaderService(
     private val scope: CoroutineScope,
 ) : Closeable {
 
+    private val log = LoggerFactory.getLogger(LoaderService::class.java)
     private val json = Json { ignoreUnknownKeys = true }
 
     private val client = HttpClient(CIO) {
@@ -48,14 +50,18 @@ class LoaderService(
             if (fabricVersions.isNotEmpty()) {
                 loaders.add(AvailableLoader(type = LoaderType.FABRIC, versions = fabricVersions))
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            log.warn("Failed to fetch Fabric versions for MC {}", mcVersion, e)
+        }
 
         try {
             val quiltVersions = fetchQuiltVersions(mcVersion)
             if (quiltVersions.isNotEmpty()) {
                 loaders.add(AvailableLoader(type = LoaderType.QUILT, versions = quiltVersions))
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            log.warn("Failed to fetch Quilt versions for MC {}", mcVersion, e)
+        }
 
         return loaders
     }

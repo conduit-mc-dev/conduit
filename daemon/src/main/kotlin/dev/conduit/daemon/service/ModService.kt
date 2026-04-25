@@ -1,6 +1,5 @@
 package dev.conduit.daemon.service
 
-import dev.conduit.core.download.ModrinthApiException
 import dev.conduit.core.download.ModrinthClient
 import dev.conduit.core.model.*
 import dev.conduit.daemon.ApiException
@@ -34,33 +33,23 @@ class ModService(
             throw ApiException(HttpStatusCode.Conflict, "MOD_ALREADY_INSTALLED", "This version is already installed")
         }
 
-        val version = try {
-            modrinthClient.getVersion(versionId)
-        } catch (e: ModrinthApiException) {
-            throw ApiException(HttpStatusCode.BadGateway, "MODRINTH_API_ERROR", "Failed to fetch version info")
-        }
+        val version = modrinthClient.getVersion(versionId)
 
         val file = version.files.firstOrNull()
             ?: throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Version has no files")
+        val downloadUrl = file.url
+            ?: throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Version file has no download URL")
 
         val modsDir = dataDirectory.modsDir(instanceId)
         modsDir.createDirectories()
         val destination = modsDir.resolve(file.fileName)
 
         try {
-            modrinthClient.downloadFile(
-                version.files.first().let { f ->
-                    "https://cdn.modrinth.com/data/${version.versionId}/versions/${version.versionId}/${f.fileName}"
-                },
-                destination,
-            )
+            modrinthClient.downloadFile(downloadUrl, destination)
         } catch (e: Exception) {
             destination.deleteIfExists()
-            throw ApiException(HttpStatusCode.BadGateway, "MODRINTH_API_ERROR", "Failed to download mod file")
+            throw e
         }
-
-        val bytes = destination.readBytes()
-        val hashes = computeHashes(bytes)
 
         val mod = InstalledMod(
             id = IdGenerator.generateInstanceId(),
@@ -71,9 +60,9 @@ class ModService(
             version = version.versionNumber,
             fileName = file.fileName,
             env = ModEnvSupport(),
-            hashes = hashes,
-            downloadUrl = null,
-            fileSize = bytes.size.toLong(),
+            hashes = ModHashes(sha1 = file.hashes?.sha1, sha512 = file.hashes?.sha512),
+            downloadUrl = downloadUrl,
+            fileSize = file.fileSize,
             enabled = true,
         )
         modStore.add(instanceId, mod)
@@ -143,38 +132,27 @@ class ModService(
             throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Custom mods cannot be updated via Modrinth")
         }
 
-        val version = try {
-            modrinthClient.getVersion(newVersionId)
-        } catch (e: ModrinthApiException) {
-            throw ApiException(HttpStatusCode.BadGateway, "MODRINTH_API_ERROR", "Failed to fetch version info")
-        }
+        val version = modrinthClient.getVersion(newVersionId)
 
         val file = version.files.firstOrNull()
             ?: throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Version has no files")
+        val downloadUrl = file.url
+            ?: throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Version file has no download URL")
 
         val modsDir = dataDirectory.modsDir(instanceId)
         modsDir.resolve(mod.fileName).deleteIfExists()
 
         val destination = modsDir.resolve(file.fileName)
-        try {
-            modrinthClient.downloadFile(
-                "https://cdn.modrinth.com/data/${version.versionId}/versions/${version.versionId}/${file.fileName}",
-                destination,
-            )
-        } catch (e: Exception) {
-            throw ApiException(HttpStatusCode.BadGateway, "MODRINTH_API_ERROR", "Failed to download mod file")
-        }
-
-        val bytes = destination.readBytes()
-        val hashes = computeHashes(bytes)
+        modrinthClient.downloadFile(downloadUrl, destination)
 
         val updated = mod.copy(
             modrinthVersionId = newVersionId,
             name = version.name,
             version = version.versionNumber,
             fileName = file.fileName,
-            hashes = hashes,
-            fileSize = bytes.size.toLong(),
+            hashes = ModHashes(sha1 = file.hashes?.sha1, sha512 = file.hashes?.sha512),
+            downloadUrl = downloadUrl,
+            fileSize = file.fileSize,
         )
         modStore.update(instanceId, modId, updated)
         broadcastPackDirty(instanceId, "mod_updated", updated.name)

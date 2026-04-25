@@ -1,6 +1,5 @@
 package dev.conduit.daemon.routes
 
-import dev.conduit.core.download.ModrinthApiException
 import dev.conduit.core.download.ModrinthClient
 import dev.conduit.daemon.ApiException
 import io.ktor.http.*
@@ -17,12 +16,8 @@ fun Route.modrinthRoutes(modrinthClient: ModrinthClient) {
             val offset = call.queryParameters["offset"]?.toIntOrNull() ?: 0
             val limit = call.queryParameters["limit"]?.toIntOrNull() ?: 20
 
-            try {
-                val result = modrinthClient.search(query, mcVersion, loader, offset, limit)
-                call.respond(result)
-            } catch (e: ModrinthApiException) {
-                throw ApiException(HttpStatusCode.BadGateway, "MODRINTH_API_ERROR", "Modrinth API error: ${e.statusCode}")
-            }
+            val result = modrinthClient.search(query, mcVersion, loader, offset, limit)
+            call.respond(result)
         }
 
         get("/project/{projectId}/versions") {
@@ -31,12 +26,8 @@ fun Route.modrinthRoutes(modrinthClient: ModrinthClient) {
             val mcVersion = call.queryParameters["mcVersion"]
             val loader = call.queryParameters["loader"]
 
-            try {
-                val versions = modrinthClient.getProjectVersions(projectId, mcVersion, loader)
-                call.respond(versions)
-            } catch (e: ModrinthApiException) {
-                throw ApiException(HttpStatusCode.BadGateway, "MODRINTH_API_ERROR", "Modrinth API error: ${e.statusCode}")
-            }
+            val versions = modrinthClient.getProjectVersions(projectId, mcVersion, loader)
+            call.respond(versions)
         }
     }
 }

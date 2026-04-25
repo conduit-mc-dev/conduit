@@ -9,6 +9,7 @@ import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.serialization.kotlinx.json.*
+import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.Closeable
@@ -83,14 +84,20 @@ class ModrinthClient : Closeable {
     suspend fun downloadFile(url: String, destination: Path): Long {
         destination.parent?.createDirectories()
         var bytesWritten = 0L
-        val response = client.get(url) {
+        client.prepareGet(url) {
             timeout { requestTimeoutMillis = 600_000 }
-        }
-        checkResponse(response)
-        destination.outputStream().buffered().use { out ->
-            val bytes = response.body<ByteArray>()
-            out.write(bytes)
-            bytesWritten = bytes.size.toLong()
+        }.execute { response ->
+            checkResponse(response)
+            response.bodyAsChannel().toInputStream().use { input ->
+                destination.outputStream().buffered().use { out ->
+                    val buffer = ByteArray(8192)
+                    var read: Int
+                    while (input.read(buffer).also { read = it } != -1) {
+                        out.write(buffer, 0, read)
+                        bytesWritten += read
+                    }
+                }
+            }
         }
         return bytesWritten
     }
@@ -186,12 +193,14 @@ private data class ModrinthRawVersion(
 @Serializable
 private data class ModrinthRawFile(
     val filename: String = "",
+    val url: String? = null,
     val size: Long = 0,
     val hashes: Map<String, String> = emptyMap(),
 ) {
     fun toVersionFile() = ModrinthVersionFile(
         fileName = filename,
         fileSize = size,
+        url = url,
         hashes = ModrinthFileHashes(sha1 = hashes["sha1"], sha512 = hashes["sha512"]),
     )
 }

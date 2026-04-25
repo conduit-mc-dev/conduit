@@ -1,5 +1,6 @@
 package dev.conduit.daemon
 
+import dev.conduit.core.download.ModrinthApiException
 import dev.conduit.core.model.ErrorBody
 import dev.conduit.core.model.ErrorResponse
 import dev.conduit.daemon.store.TokenStore
@@ -31,6 +32,12 @@ fun Application.configurePlugins(tokenStore: TokenStore) {
             call.respond(
                 cause.httpStatus,
                 ErrorResponse(ErrorBody(cause.code, cause.message, cause.details))
+            )
+        }
+        exception<ModrinthApiException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadGateway,
+                ErrorResponse(ErrorBody("MODRINTH_API_ERROR", "Modrinth API error: ${cause.statusCode}"))
             )
         }
         exception<Throwable> { call, cause ->

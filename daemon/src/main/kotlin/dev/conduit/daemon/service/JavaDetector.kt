@@ -1,21 +1,17 @@
 package dev.conduit.daemon.service
 
 import dev.conduit.core.model.JavaInstallation
-import dev.conduit.daemon.store.DaemonConfigStore
 import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.isExecutable
 
-class JavaDetector(private val daemonConfigStore: DaemonConfigStore) {
+class JavaDetector {
 
     fun detectInstallations(): List<JavaInstallation> {
-        val defaultJava = daemonConfigStore.get().let { null } // no defaultJavaPath in config yet
         val candidates = findCandidates()
         val installations = candidates.mapNotNull { path -> probeJava(path) }
-        val currentDefault = daemonConfigStore.get().let { config ->
-            installations.firstOrNull()?.path
-        }
+        val currentDefault = installations.firstOrNull()?.path
         return installations.map { it.copy(isDefault = it.path == currentDefault) }
     }
 
