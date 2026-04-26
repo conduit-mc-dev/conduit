@@ -2,6 +2,7 @@ package dev.conduit.daemon
 
 import dev.conduit.core.model.*
 import dev.conduit.daemon.service.DataDirectory
+import dev.conduit.daemon.store.BuildState
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
@@ -75,7 +76,7 @@ class PackRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, statusResp.status)
         val status = statusResp.body<BuildStatusResponse>()
-        assertEquals("done", status.state)
+        assertEquals(BuildState.DONE.value, status.state)
 
         val packResp = client.get("/api/v1/instances/${instance.id}/pack") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -102,7 +103,7 @@ class PackRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, response.status)
         val status = response.body<BuildStatusResponse>()
-        assertEquals("idle", status.state)
+        assertEquals(BuildState.IDLE.value, status.state)
     }
 
     @Test

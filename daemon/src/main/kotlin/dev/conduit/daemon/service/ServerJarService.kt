@@ -19,7 +19,7 @@ class ServerJarService(
 
     fun startDownload(instanceId: String, mcVersion: String, taskId: String) {
         scope.launch {
-            taskStore.register(taskId, instanceId, "server_jar_download", "Downloading server.jar...")
+            taskStore.create(instanceId, TaskStore.TYPE_SERVER_JAR_DOWNLOAD, "Downloading server.jar...", taskId = taskId)
             try {
                 val destination = dataDirectory.serverJarPath(instanceId)
                 log.info("Downloading server.jar for instance {} (MC {})", instanceId, mcVersion)

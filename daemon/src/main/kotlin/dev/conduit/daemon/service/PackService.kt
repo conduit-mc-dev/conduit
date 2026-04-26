@@ -4,6 +4,7 @@ import dev.conduit.core.model.*
 import dev.conduit.daemon.ApiException
 import dev.conduit.daemon.store.InstanceStore
 import dev.conduit.daemon.store.ModStore
+import dev.conduit.daemon.store.BuildState
 import dev.conduit.daemon.store.PackStore
 import dev.conduit.daemon.store.TaskStore
 import io.ktor.http.*
@@ -45,15 +46,15 @@ class PackService(
 
     fun build(instanceId: String, versionId: String?, summary: String?): String {
         val existing = packStore.getOrCreate(instanceId)
-        if (existing.buildState == "building") {
+        if (existing.buildState == BuildState.BUILDING) {
             throw ApiException(HttpStatusCode.Conflict, "PACK_BUILD_IN_PROGRESS", "A build is already in progress")
         }
 
         val newVersionId = versionId ?: incrementVersion(existing.versionId)
-        val taskId = taskStore.create(instanceId, "pack_build", "Building pack...")
+        val taskId = taskStore.create(instanceId, TaskStore.TYPE_PACK_BUILD, "Building pack...")
 
         packStore.update(instanceId) {
-            it.copy(buildState = "building", buildProgress = 0.0, buildMessage = "Starting build...")
+            it.copy(buildState = BuildState.BUILDING, buildProgress = 0.0, buildMessage = "Starting build...")
         }
 
         scope.launch {
@@ -85,7 +86,7 @@ class PackService(
                         dirty = false,
                         fileSize = mrpackBytes.size.toLong(),
                         sha256 = sha256,
-                        buildState = "done",
+                        buildState = BuildState.DONE,
                         buildProgress = 1.0,
                         buildMessage = "Build complete",
                     )
@@ -93,7 +94,7 @@ class PackService(
                 taskStore.complete(taskId, success = true, "Pack built successfully")
             } catch (e: Exception) {
                 packStore.update(instanceId) {
-                    it.copy(buildState = "error", buildMessage = "Build failed: ${e.message}")
+                    it.copy(buildState = BuildState.ERROR, buildMessage = "Build failed: ${e.message}")
                 }
                 taskStore.complete(taskId, success = false, "Build failed: ${e.message}")
             }
@@ -105,7 +106,7 @@ class PackService(
     fun getBuildStatus(instanceId: String): BuildStatusResponse {
         val pack = packStore.get(instanceId)
         return BuildStatusResponse(
-            state = pack?.buildState ?: "idle",
+            state = (pack?.buildState ?: BuildState.IDLE).value,
             progress = pack?.buildProgress ?: 0.0,
             message = pack?.buildMessage ?: "",
         )

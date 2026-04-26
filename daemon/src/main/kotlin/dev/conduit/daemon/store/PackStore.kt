@@ -2,6 +2,13 @@ package dev.conduit.daemon.store
 
 import java.util.concurrent.ConcurrentHashMap
 
+enum class BuildState(val value: String) {
+    IDLE("idle"),
+    BUILDING("building"),
+    DONE("done"),
+    ERROR("error"),
+}
+
 data class PackMeta(
     val instanceId: String,
     val versionId: String = "0.0.1",
@@ -9,7 +16,7 @@ data class PackMeta(
     val dirty: Boolean = true,
     val fileSize: Long = 0,
     val sha256: String? = null,
-    val buildState: String = "idle",
+    val buildState: BuildState = BuildState.IDLE,
     val buildProgress: Double = 0.0,
     val buildMessage: String = "",
 )

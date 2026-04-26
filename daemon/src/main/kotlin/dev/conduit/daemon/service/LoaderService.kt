@@ -75,7 +75,7 @@ class LoaderService(
             throw ApiException(HttpStatusCode.Conflict, "LOADER_ALREADY_INSTALLED", "Uninstall the current loader first")
         }
 
-        val taskId = taskStore.create(instanceId, "loader_install", "Installing ${type.name} $version...")
+        val taskId = taskStore.create(instanceId, TaskStore.TYPE_LOADER_INSTALL, "Installing ${type.name} $version...")
         scope.launch {
             try {
                 taskStore.updateProgress(taskId, 0.1, "Downloading installer...")

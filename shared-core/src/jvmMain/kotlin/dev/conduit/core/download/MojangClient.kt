@@ -13,6 +13,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.serialization.json.Json
 import java.io.Closeable
+import kotlin.time.Duration.Companion.hours
 import java.nio.file.Path
 import java.security.MessageDigest
 import kotlin.io.path.createDirectories
@@ -47,7 +48,13 @@ class MojangClient(
         private set
 
     suspend fun fetchManifest(forceRefresh: Boolean = false): MojangVersionManifest {
-        if (!forceRefresh) cachedManifest?.let { return it }
+        if (!forceRefresh) {
+            val cached = cachedManifest
+            val age = cachedAt
+            if (cached != null && age != null && (kotlin.time.Clock.System.now() - age) < MANIFEST_TTL) {
+                return cached
+            }
+        }
         val manifest: MojangVersionManifest = client.get(mirrorUrl(MOJANG_VERSION_MANIFEST_URL)).body()
         cachedManifest = manifest
         cachedAt = kotlin.time.Clock.System.now()
@@ -86,7 +93,7 @@ class MojangClient(
         val url = mirrorUrl(serverDownload.url)
 
         var lastException: Exception? = null
-        repeat(3) { attempt ->
+        repeat(MAX_RETRIES) { attempt ->
             try {
                 return doDownload(url, destination, serverDownload.sha1, serverDownload.size, onProgress)
             } catch (e: ClientRequestException) {
@@ -95,7 +102,7 @@ class MojangClient(
             } catch (e: Exception) {
                 lastException = e
             }
-            if (attempt < 2) {
+            if (attempt < MAX_RETRIES - 1) {
                 destination.deleteIfExists()
                 kotlinx.coroutines.delay(1000)
             }
@@ -154,6 +161,9 @@ class MojangClient(
     }
 
     companion object {
+        private const val MAX_RETRIES = 3
+        private val MANIFEST_TTL = 1.hours
+
         private val MOJANG_DOMAINS = listOf(
             "https://piston-data.mojang.com",
             "https://launchermeta.mojang.com",

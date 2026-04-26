@@ -4,6 +4,7 @@ import dev.conduit.core.model.InstallLoaderRequest
 import dev.conduit.core.model.TaskResponse
 import dev.conduit.daemon.service.LoaderService
 import dev.conduit.daemon.store.InstanceStore
+import dev.conduit.daemon.store.TaskStore
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -39,7 +40,7 @@ fun Route.loaderRoutes(
             val taskId = loaderService.install(id, request.type, request.version)
             call.respond(
                 HttpStatusCode.Accepted,
-                TaskResponse(taskId = taskId, type = "loader_install", message = "Installing ${request.type.name} ${request.version}...")
+                TaskResponse(taskId = taskId, type = TaskStore.TYPE_LOADER_INSTALL, message = "Installing ${request.type.name} ${request.version}...")
             )
         }
 

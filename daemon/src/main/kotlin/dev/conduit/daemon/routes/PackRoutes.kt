@@ -4,6 +4,7 @@ import dev.conduit.core.model.BuildPackRequest
 import dev.conduit.core.model.TaskResponse
 import dev.conduit.daemon.service.PackService
 import dev.conduit.daemon.store.InstanceStore
+import dev.conduit.daemon.store.TaskStore
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -31,7 +32,7 @@ fun Route.packRoutes(
             val taskId = packService.build(id, request.versionId, request.summary)
             call.respond(
                 HttpStatusCode.Accepted,
-                TaskResponse(taskId = taskId, type = "pack_build", message = "Building pack...")
+                TaskResponse(taskId = taskId, type = TaskStore.TYPE_PACK_BUILD, message = "Building pack...")
             )
         }
 

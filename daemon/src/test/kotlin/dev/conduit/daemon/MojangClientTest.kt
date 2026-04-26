@@ -11,9 +11,19 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.test.*
 
 class MojangClientTest {
+
+    private inline fun <T> withTempDir(block: (Path) -> T): T {
+        val dir = Files.createTempDirectory("conduit-test")
+        try {
+            return block(dir)
+        } finally {
+            dir.toFile().deleteRecursively()
+        }
+    }
 
     private val jarContent = "fake-server-jar-content".toByteArray()
     private val jarSha1 = "0a08e2d523081e88ffef01e923c6f2de074108e7"
@@ -120,13 +130,11 @@ class MojangClientTest {
             }
         }
 
-        val tempDir = Files.createTempDirectory("conduit-test")
-        tempDir.toFile().deleteOnExit()
-
-        val bytes = MojangClient(httpClient = client).downloadServerJar("1.20.4", tempDir.resolve("server.jar"))
-
-        assertEquals(jarContent.size.toLong(), bytes)
-        assertEquals(3, jarCallCount)
+        withTempDir { tempDir ->
+            val bytes = MojangClient(httpClient = client).downloadServerJar("1.20.4", tempDir.resolve("server.jar"))
+            assertEquals(jarContent.size.toLong(), bytes)
+            assertEquals(3, jarCallCount)
+        }
     }
 
     @Test
@@ -145,13 +153,12 @@ class MojangClientTest {
             }
         }
 
-        val tempDir = Files.createTempDirectory("conduit-test")
-        tempDir.toFile().deleteOnExit()
-
-        assertFailsWith<Exception> {
-            MojangClient(httpClient = client).downloadServerJar("1.20.4", tempDir.resolve("server.jar"))
+        withTempDir { tempDir ->
+            assertFailsWith<Exception> {
+                MojangClient(httpClient = client).downloadServerJar("1.20.4", tempDir.resolve("server.jar"))
+            }
+            assertEquals(1, jarCallCount)
         }
-        assertEquals(1, jarCallCount)
     }
 
     // --- Progress Callback Test ---
@@ -160,17 +167,16 @@ class MojangClientTest {
     fun `downloadServerJar calls onProgress`() = runTest {
         val client = mockClient { request -> routeStandard(request) }
 
-        val tempDir = Files.createTempDirectory("conduit-test")
-        tempDir.toFile().deleteOnExit()
+        withTempDir { tempDir ->
+            val progressCalls = mutableListOf<Pair<Long, Long>>()
+            MojangClient(httpClient = client).downloadServerJar("1.20.4", tempDir.resolve("server.jar")) { bytesWritten, totalBytes ->
+                progressCalls.add(bytesWritten to totalBytes)
+            }
 
-        val progressCalls = mutableListOf<Pair<Long, Long>>()
-        MojangClient(httpClient = client).downloadServerJar("1.20.4", tempDir.resolve("server.jar")) { bytesWritten, totalBytes ->
-            progressCalls.add(bytesWritten to totalBytes)
+            assertTrue(progressCalls.isNotEmpty())
+            assertEquals(jarContent.size.toLong(), progressCalls.last().first)
+            assertEquals(jarContent.size.toLong(), progressCalls.last().second)
         }
-
-        assertTrue(progressCalls.isNotEmpty())
-        assertEquals(jarContent.size.toLong(), progressCalls.last().first)
-        assertEquals(jarContent.size.toLong(), progressCalls.last().second)
     }
 
     // --- Hot Switch Test ---
