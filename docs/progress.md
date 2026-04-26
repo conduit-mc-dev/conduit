@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-26（shared-core 测试基础设施 + 架构评估）
+> 最新更新：2026-04-26（开源项目调研）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -18,19 +18,28 @@
 ## Next（下一步）
 
 1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
-2. [ ] Forge/NeoForge 安装支持（MVP 前）— `LoaderService.kt` 当前 Forge/NeoForge throw stub，需实现安装器
-3. [ ] Player 追踪（MVP 前）— 解析 stdout join/leave 日志，更新 playerCount/players，发射 `server.players_changed` WS 事件
-4. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+2. [ ] Forge/NeoForge 安装支持（MVP 前）— `LoaderService.kt:108-110` 当前 throw stub，需实现 `--installServer` subprocess 模式。调研结论：不复制 HMCL/Prism 的客户端 pipeline，直接调用官方 installer JAR。详见 `architecture-notes.md` "Forge/NeoForge 服务端安装" 章节
+3. [ ] Player 追踪（MVP 前）— MVP 用 stdout 日志解析（`joinPattern`/`leavePattern`），未来用 MC Ping 补充。详见 `architecture-notes.md` "Player 追踪" 章节
+4. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
+5. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
 
 ### 延迟项（MVP 后）
 
 - [ ] Memory/TPS 监控 — 需 RCON 基础设施，实现 `memory`/`tps` 字段和 `server.stats` WS 事件
 - [ ] `maxPlayers` 从 `server.properties` 实时读取（当前硬编码 20）
+- [ ] ModStore 持久化 — 当前纯内存，daemon 重启丢失。参考 MCSManager 的 JAR 元数据扫描 + mtime/size 缓存
+- [ ] Modrinth 批量更新检查 — 改用 `POST /v2/version_files/update` 替代逐个查询
+- [ ] UI/UX 设计参考文档 — 独立文件，参考 GDLauncher + MCSManager/Pelican 面板布局
 
 ---
 
 ## Done
 
+- [x] 开源项目调研（2026-04-26）
+  - 调研 PrismLauncher、MCSManager、Pelican Wings 三个项目（加已有的 HMCL 共四个），clone 到 `~/Documents/`
+  - `architecture-notes.md` 新增 "开源项目调研" 章节：项目概览、Forge 服务端安装方案、Player 追踪三方案对比、进程生命周期改进（崩溃恢复 + power lock）、Mod 管理改进方向（持久化 + 依赖解析 + 批量更新）
+  - 更新 Next 任务描述：Forge/NeoForge、Player 追踪、新增进程改进任务，延迟项新增 ModStore 持久化和批量更新检查
+  - UI/UX 设计参考标记为 TODO，后续独立出文档
 - [x] shared-core 测试基础设施 + 架构评估（2026-04-26）
   - **架构评估文档**：新增 `docs/architecture-notes.md`，记录代码组织评估、HMCL 对比借鉴、包内文件组织决策
   - **shared-core 测试基础设施**：`build.gradle.kts` 新增 `jvmTest` source set（kotlin-test, ktor-client-mock, coroutines-test）；`libs.versions.toml` 新增 `kotlinx-coroutines-test`
