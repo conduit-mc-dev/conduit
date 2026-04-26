@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-26
+> 最新更新：2026-04-26（下载可靠性改进完成）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,18 +11,30 @@
 
 ## Now（进行中）
 
-- [x] ~~Daemon 全端点自动化测试覆盖~~ → 已完成（92 → 117 测试）
+- [x] ~~下载可靠性改进~~ → 已完成（镜像 + 重试 + 进度广播 + mock 测试 + 代码质量修复）
 
 ---
 
 ## Next（下一步）
 
-- [ ] Desktop MVP 迭代 4-6（Daemon 稳定后启动，方案见 `desktop-mvp-plan.md`）
+1. [ ] Daemon 全流程手动验证 — 真实启动 Daemon，走完：配对→创建实例→下载 JAR→EULA→启动服务器→控制台→停止
+2. [ ] 自动化 E2E 测试 — 基于手动验证结果，补持久化冷启动测试 + 可能的真实进程启动测试
+3. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
 
 ---
 
 ## Done
 
+- [x] 下载可靠性改进（`34f766e` + `28522c3`）
+  - MojangClient: BMCLAPI/自定义镜像支持（前缀替换）、3 次重试（1s 间隔，4xx 不重试）、进度回调
+  - ServerJarService: 接入 TaskStore，5% 粒度进度广播（task.progress/task.completed WS 事件）
+  - DaemonConfig: 新增 downloadSource + customMirrorUrl 字段，热切换（无需重启）
+  - HttpClient 可注入，支持 MockEngine 测试
+  - User-Agent 头、Manifest 1 小时 TTL 缓存
+  - 代码质量：TaskStatus/BuildState enum、task type 常量、TaskStore 去重、MAX_RETRIES 常量
+  - 新增 10 个测试：3 ConfigRoutes（源配置 CRUD）+ 7 MojangClientTest（镜像/重试/进度/热切换）
+  - 参考 HMCL 源码（已 clone 到 ~/Documents/HMCL）的镜像前缀替换和重试模式
+  - api-protocol.md 同步更新
 - [x] Daemon 全端点自动化测试覆盖（92 → 117 测试，25 个新增）
   - 提取共享 TestHelpers.kt，迁移全部 14 个旧测试文件
   - ServerRoutesTest: +7（stop/kill/restart 错误路径 + restart with eula，WS ping/pong/subscribe/event）
