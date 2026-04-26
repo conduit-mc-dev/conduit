@@ -26,6 +26,7 @@ fun Application.module(
     dataDirectory: DataDirectory = DataDirectory(),
     instanceStore: InstanceStore = InstanceStore(dataDirectory),
     mojangClient: MojangClient? = null,
+    modrinthClient: ModrinthClient? = null,
 ) {
     dataDirectory.ensureDirectories()
 
@@ -49,10 +50,10 @@ fun Application.module(
     val rateLimiter = RateLimiter()
     val fileService = FileService(dataDirectory)
     val serverPropertiesService = ServerPropertiesService(dataDirectory)
-    val modrinthClient = ModrinthClient()
+    val actualModrinthClient = modrinthClient ?: ModrinthClient()
     val javaDetector = JavaDetector()
     val modStore = dev.conduit.daemon.store.ModStore()
-    val modService = ModService(modStore, modrinthClient, instanceStore, dataDirectory, broadcaster, AppJson)
+    val modService = ModService(modStore, actualModrinthClient, instanceStore, dataDirectory, broadcaster, AppJson)
     val packStore = dev.conduit.daemon.store.PackStore()
     val loaderService = LoaderService(instanceStore, dataDirectory, taskStore, appScope)
     val packService = PackService(modStore, instanceStore, packStore, dataDirectory, taskStore, appScope, AppJson)
@@ -69,7 +70,7 @@ fun Application.module(
             serverRoutes(instanceStore, processManager, eulaService)
             configRoutes(daemonConfigStore, instanceStore)
             fileRoutes(instanceStore, fileService, serverPropertiesService)
-            modrinthRoutes(modrinthClient)
+            modrinthRoutes(actualModrinthClient)
             javaRoutes(javaDetector, daemonConfigStore)
             modRoutes(instanceStore, modService)
             loaderRoutes(instanceStore, loaderService)

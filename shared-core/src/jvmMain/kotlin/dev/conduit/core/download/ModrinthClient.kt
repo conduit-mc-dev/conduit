@@ -17,7 +17,7 @@ import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.outputStream
 
-class ModrinthClient : Closeable {
+class ModrinthClient(httpClient: HttpClient? = null) : Closeable {
 
     companion object {
         private const val BASE_URL = "https://api.modrinth.com/v2"
@@ -26,7 +26,7 @@ class ModrinthClient : Closeable {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val client = HttpClient(CIO) {
+    private val client = httpClient ?: HttpClient(CIO) {
         install(ContentNegotiation) { json(this@ModrinthClient.json) }
         install(HttpTimeout) {
             connectTimeoutMillis = 15_000
@@ -168,6 +168,7 @@ private data class ModrinthRawSearchHit(
 @Serializable
 private data class ModrinthRawVersion(
     val id: String,
+    val project_id: String? = null,
     val version_number: String,
     val name: String,
     val changelog: String? = null,
@@ -179,6 +180,7 @@ private data class ModrinthRawVersion(
 ) {
     fun toVersionInfo() = ModrinthVersionInfo(
         versionId = id,
+        projectId = project_id,
         versionNumber = version_number,
         name = name,
         changelog = changelog,

@@ -238,6 +238,100 @@ class ModRoutesTest {
         assertEquals(HttpStatusCode.NotFound, response.status)
     }
 
+    private fun modrinthTestModule(): TestApplicationBuilder.() -> Unit = {
+        application {
+            tempDir = Files.createTempDirectory("conduit-test")
+            tempDir.toFile().deleteOnExit()
+            module(
+                dataDirectory = DataDirectory(tempDir),
+                mojangClient = createMockMojangClient(),
+                modrinthClient = createMockModrinthClient(),
+            )
+        }
+    }
+
+    @Test
+    fun `install mod from modrinth`() = testApplication {
+        modrinthTestModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.post("/api/v1/instances/${instance.id}/mods") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(InstallModRequest(modrinthVersionId = "ver-001"))
+        }
+        assertEquals(HttpStatusCode.Created, response.status)
+
+        val mod = response.body<InstalledMod>()
+        assertEquals("Sodium 1.0.0", mod.name)
+        assertEquals("1.0.0", mod.version)
+        assertEquals("modrinth", mod.source)
+        assertEquals("sodium-1.0.0.jar", mod.fileName)
+        assertEquals("proj-abc", mod.modrinthProjectId)
+        assertEquals("ver-001", mod.modrinthVersionId)
+        assertTrue(mod.enabled)
+
+        assertTrue(tempDir.resolve("instances/${instance.id}/mods/sodium-1.0.0.jar").exists())
+    }
+
+    @Test
+    fun `update modrinth mod to new version`() = testApplication {
+        modrinthTestModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val installResp = client.post("/api/v1/instances/${instance.id}/mods") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(InstallModRequest(modrinthVersionId = "ver-001"))
+        }
+        val installed = installResp.body<InstalledMod>()
+
+        val updateResp = client.put("/api/v1/instances/${instance.id}/mods/${installed.id}") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateModRequest(modrinthVersionId = "ver-002"))
+        }
+        assertEquals(HttpStatusCode.OK, updateResp.status)
+
+        val updated = updateResp.body<InstalledMod>()
+        assertEquals("Sodium 1.1.0", updated.name)
+        assertEquals("1.1.0", updated.version)
+        assertEquals("sodium-1.1.0.jar", updated.fileName)
+        assertEquals("ver-002", updated.modrinthVersionId)
+        assertEquals("proj-abc", updated.modrinthProjectId)
+
+        assertTrue(tempDir.resolve("instances/${instance.id}/mods/sodium-1.1.0.jar").exists())
+        assertTrue(!tempDir.resolve("instances/${instance.id}/mods/sodium-1.0.0.jar").exists())
+    }
+
+    @Test
+    fun `check updates finds newer version`() = testApplication {
+        modrinthTestModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        client.post("/api/v1/instances/${instance.id}/mods") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(InstallModRequest(modrinthVersionId = "ver-001"))
+        }
+
+        val response = client.get("/api/v1/instances/${instance.id}/mods/updates") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+
+        val result = response.body<ModUpdatesResponse>()
+        assertEquals(1, result.updatesAvailable)
+        assertEquals("ver-002", result.mods[0].latestVersionId)
+        assertEquals("1.1.0", result.mods[0].latestVersion)
+    }
+
     @Test
     fun `upload non-jar file is rejected`() = testApplication {
         testModule()()

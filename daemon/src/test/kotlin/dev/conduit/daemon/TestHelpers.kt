@@ -1,5 +1,6 @@
 package dev.conduit.daemon
 
+import dev.conduit.core.download.ModrinthClient
 import dev.conduit.core.download.MojangClient
 import dev.conduit.core.model.*
 import io.ktor.client.*
@@ -88,6 +89,67 @@ private val mockVersionDetailJson = """
   }
 }
 """.trimIndent()
+
+private val mockModJarBytes = "PK-fake-modrinth-mod".toByteArray()
+
+private val mockVersionV1Json = """
+{
+  "id": "ver-001",
+  "project_id": "proj-abc",
+  "version_number": "1.0.0",
+  "name": "Sodium 1.0.0",
+  "changelog": "Initial release",
+  "game_versions": ["1.20.4"],
+  "loaders": ["fabric"],
+  "date_published": "2024-01-01T00:00:00Z",
+  "files": [{
+    "filename": "sodium-1.0.0.jar",
+    "url": "https://cdn.modrinth.com/data/proj-abc/versions/ver-001/sodium-1.0.0.jar",
+    "size": ${mockModJarBytes.size},
+    "hashes": {"sha1": "aabbccdd", "sha512": "eeff0011"}
+  }],
+  "dependencies": []
+}
+""".trimIndent()
+
+private val mockVersionV2Json = """
+{
+  "id": "ver-002",
+  "project_id": "proj-abc",
+  "version_number": "1.1.0",
+  "name": "Sodium 1.1.0",
+  "changelog": "Performance improvements",
+  "game_versions": ["1.20.4"],
+  "loaders": ["fabric"],
+  "date_published": "2024-02-01T00:00:00Z",
+  "files": [{
+    "filename": "sodium-1.1.0.jar",
+    "url": "https://cdn.modrinth.com/data/proj-abc/versions/ver-002/sodium-1.1.0.jar",
+    "size": ${mockModJarBytes.size},
+    "hashes": {"sha1": "11223344", "sha512": "55667788"}
+  }],
+  "dependencies": []
+}
+""".trimIndent()
+
+private val mockProjectVersionsJson = "[$mockVersionV2Json, $mockVersionV1Json]"
+
+fun createMockModrinthClient(): ModrinthClient {
+    val httpClient = HttpClient(MockEngine { request ->
+        val path = request.url.encodedPath
+        when {
+            path.contains("/version/ver-001") -> respond(mockVersionV1Json, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+            path.contains("/version/ver-002") -> respond(mockVersionV2Json, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+            path.contains("/project/proj-abc/version") -> respond(mockProjectVersionsJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+            path.contains("sodium-") -> respond(mockModJarBytes, headers = headersOf(HttpHeaders.ContentType, "application/octet-stream"))
+            else -> respondError(HttpStatusCode.NotFound)
+        }
+    }) {
+        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        expectSuccess = false
+    }
+    return ModrinthClient(httpClient)
+}
 
 fun createMockMojangClient(): MojangClient {
     val httpClient = HttpClient(MockEngine { request ->

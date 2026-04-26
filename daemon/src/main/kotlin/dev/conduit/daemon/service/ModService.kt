@@ -54,7 +54,7 @@ class ModService(
         val mod = InstalledMod(
             id = IdGenerator.generateInstanceId(),
             source = "modrinth",
-            modrinthProjectId = null,
+            modrinthProjectId = version.projectId,
             modrinthVersionId = versionId,
             name = version.name,
             version = version.versionNumber,
@@ -146,6 +146,7 @@ class ModService(
         modrinthClient.downloadFile(downloadUrl, destination)
 
         val updated = mod.copy(
+            modrinthProjectId = version.projectId ?: mod.modrinthProjectId,
             modrinthVersionId = newVersionId,
             name = version.name,
             version = version.versionNumber,

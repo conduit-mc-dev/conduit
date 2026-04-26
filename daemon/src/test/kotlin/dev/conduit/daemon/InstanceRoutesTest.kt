@@ -6,6 +6,7 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import kotlinx.coroutines.delay
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -217,6 +218,55 @@ class InstanceRoutesTest {
         }
         assertEquals(HttpStatusCode.NotFound, response.status)
         assertEquals("INSTANCE_NOT_FOUND", response.body<ErrorResponse>().error.code)
+    }
+
+    @Test
+    fun `retry-download resets to initializing`() = testApplication {
+        val tempDir = Files.createTempDirectory("conduit-test")
+        tempDir.toFile().deleteOnExit()
+        application {
+            module(dataDirectory = DataDirectory(tempDir), mojangClient = createMockMojangClient())
+        }
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        val created = createTestInstance(client, token, name = "Retry Server")
+
+        repeat(40) {
+            val state = client.get("/api/v1/instances/${created.id}") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }.body<InstanceSummary>().state
+            if (state == InstanceState.STOPPED) return@repeat
+            delay(50)
+        }
+        val getResp = client.get("/api/v1/instances/${created.id}") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(InstanceState.STOPPED, getResp.body<InstanceSummary>().state)
+
+        val retryResp = client.post("/api/v1/instances/${created.id}/retry-download") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, retryResp.status)
+
+        val retried = retryResp.body<InstanceSummary>()
+        assertEquals(InstanceState.INITIALIZING, retried.state)
+        assertNotNull(retried.taskId)
+    }
+
+    @Test
+    fun `retry-download on initializing instance returns 409`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        val created = createTestInstance(client, token, name = "Still Downloading")
+
+        val retryResp = client.post("/api/v1/instances/${created.id}/retry-download") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Conflict, retryResp.status)
+        assertEquals("INSTANCE_RUNNING", retryResp.body<ErrorResponse>().error.code)
     }
 
     @Test

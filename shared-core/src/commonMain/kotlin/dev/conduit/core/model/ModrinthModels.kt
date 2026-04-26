@@ -33,6 +33,7 @@ data class ModEnvSupport(
 @Serializable
 data class ModrinthVersionInfo(
     val versionId: String,
+    val projectId: String? = null,
     val versionNumber: String,
     val name: String,
     val changelog: String? = null,

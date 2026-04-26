@@ -315,6 +315,19 @@ must be in `stopped` state.
 
 **Error: `409 INSTANCE_RUNNING`** if the instance is not stopped.
 
+### 3.6 Retry Download
+
+**`POST /api/v1/instances/{id}/retry-download`** — Requires auth.
+
+Resets an instance from `stopped` (with failed download) back to
+`initializing` and re-triggers the server JAR download. Useful when the
+initial download failed due to network issues.
+
+**Response `200 OK`:** Updated instance summary (same shape as Create
+Instance response, with a new `taskId` for download tracking).
+
+**Error: `409 INSTANCE_RUNNING`** if the instance is currently running.
+
 ---
 
 ## 4. Desktop–Daemon REST API (per-instance)
@@ -1908,6 +1921,7 @@ Each instance is stored in its own directory under the Daemon's data root:
 | `GET` | `/api/v1/instances/{id}` | yes | Get instance |
 | `PUT` | `/api/v1/instances/{id}` | yes | Update instance |
 | `DELETE` | `/api/v1/instances/{id}` | yes | Delete instance |
+| `POST` | `/api/v1/instances/{id}/retry-download` | yes | Retry server JAR download |
 | `GET` | `/api/v1/modrinth/search` | yes | Search Modrinth |
 | `GET` | `/api/v1/modrinth/project/{id}/versions` | yes | Get project versions |
 | `GET` | `/api/v1/minecraft/versions` | yes | List MC versions |

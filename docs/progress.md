@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-26（实例持久化 + E2E 测试完成）
+> 最新更新：2026-04-26（Daemon bug 修复 + 测试补全）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,18 +11,31 @@
 
 ## Now（进行中）
 
-- [x] ~~实例持久化 + E2E 测试~~ → 已完成（InstanceStore 磁盘持久化 + 18 个新测试）
+- [x] ~~Daemon bug 修复 + 测试补全~~ → 已完成
 
 ---
 
 ## Next（下一步）
 
-1. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+1. [ ] Forge/NeoForge 安装支持（MVP 前）— `LoaderService.kt` 当前 Forge/NeoForge throw stub，需实现安装器
+2. [ ] Player 追踪（MVP 前）— 解析 stdout join/leave 日志，更新 playerCount/players，发射 `server.players_changed` WS 事件
+3. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+
+### 延迟项（MVP 后）
+
+- [ ] Memory/TPS 监控 — 需 RCON 基础设施，实现 `memory`/`tps` 字段和 `server.stats` WS 事件
+- [ ] `maxPlayers` 从 `server.properties` 实时读取（当前硬编码 20）
 
 ---
 
 ## Done
 
+- [x] Daemon bug 修复 + Modrinth 测试补全（2026-04-26）
+  - **修复 modrinthProjectId bug**：`ModrinthRawVersion` 加 `project_id`，`ModrinthVersionInfo` 加 `projectId`，`ModService.installFromModrinth()` 和 `updateMod()` 正确传递 projectId；修复前所有 Modrinth mod 更新检查静默返回空
+  - **retry-download 端点归档**：`POST /instances/{id}/retry-download` 补入 `api-protocol.md` + 2 个新测试
+  - **ModrinthClient 可测试化**：构造函数支持注入 `HttpClient`（与 MojangClient 模式一致），`Application.module()` 新增可选 `modrinthClient` 参数
+  - **Modrinth mock + 3 个 happy path 测试**：install from Modrinth、update mod version、check updates finds newer version
+  - 测试总数：135 → 140（+5）
 - [x] 实例持久化 + E2E 自动化测试（2026-04-26）
   - **InstanceStore 磁盘持久化**：每个实例写 `instance.json` 到实例目录，冷启动时扫描恢复
   - 状态恢复：RUNNING/STARTING/STOPPING → STOPPED（"Recovered after daemon restart"），INITIALIZING → STOPPED（"interrupted"）
