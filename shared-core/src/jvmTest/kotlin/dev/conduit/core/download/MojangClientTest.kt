@@ -1,11 +1,11 @@
-package dev.conduit.daemon
+package dev.conduit.core.download
 
-import dev.conduit.core.download.MojangClient
 import dev.conduit.core.model.DownloadSource
 import io.ktor.client.*
 import io.ktor.client.engine.mock.*
-import io.ktor.client.request.HttpResponseData
 import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.HttpRequestData
+import io.ktor.client.request.HttpResponseData
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.test.runTest
@@ -54,7 +54,7 @@ class MojangClientTest {
     }
     """.trimIndent()
 
-    private fun mockClient(requestedUrls: MutableList<String>? = null, handler: MockRequestHandleScope.(io.ktor.client.request.HttpRequestData) -> io.ktor.client.request.HttpResponseData): HttpClient {
+    private fun mockClient(requestedUrls: MutableList<String>? = null, handler: MockRequestHandleScope.(HttpRequestData) -> HttpResponseData): HttpClient {
         return HttpClient(MockEngine { request ->
             requestedUrls?.add(request.url.toString())
             handler(request)
@@ -66,7 +66,7 @@ class MojangClientTest {
         }
     }
 
-    private fun MockRequestHandleScope.routeStandard(request: io.ktor.client.request.HttpRequestData): io.ktor.client.request.HttpResponseData {
+    private fun MockRequestHandleScope.routeStandard(request: HttpRequestData): HttpResponseData {
         val path = request.url.encodedPath
         return when {
             path.contains("version_manifest") -> respond(manifestJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
@@ -75,8 +75,6 @@ class MojangClientTest {
             else -> respondError(HttpStatusCode.NotFound)
         }
     }
-
-    // --- Mirror URL Tests ---
 
     @Test
     fun `fetchManifest with MOJANG requests original url`() = runTest {
@@ -110,8 +108,6 @@ class MojangClientTest {
 
         assertTrue(urls[0].contains("my-mirror.example.com"))
     }
-
-    // --- Retry Tests ---
 
     @Test
     fun `downloadServerJar retries on 500`() = runTest {
@@ -161,8 +157,6 @@ class MojangClientTest {
         }
     }
 
-    // --- Progress Callback Test ---
-
     @Test
     fun `downloadServerJar calls onProgress`() = runTest {
         val client = mockClient { request -> routeStandard(request) }
@@ -178,8 +172,6 @@ class MojangClientTest {
             assertEquals(jarContent.size.toLong(), progressCalls.last().second)
         }
     }
-
-    // --- Hot Switch Test ---
 
     @Test
     fun `mirror url reflects config change`() = runTest {

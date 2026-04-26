@@ -1,9 +1,5 @@
-package dev.conduit.daemon
+package dev.conduit.core.download
 
-import dev.conduit.core.download.MojangDownloadEntry
-import dev.conduit.core.download.MojangDownloads
-import dev.conduit.core.download.MojangVersionDetail
-import dev.conduit.core.download.MojangVersionManifest
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals

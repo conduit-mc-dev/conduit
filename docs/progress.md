@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-26（Daemon bug 修复 + 测试补全）
+> 最新更新：2026-04-26（shared-core 测试基础设施 + 架构评估）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,15 +11,16 @@
 
 ## Now（进行中）
 
-- [x] ~~Daemon bug 修复 + 测试补全~~ → 已完成
+- [ ] shared-core 测试补充 — ModrinthClient 独立单元测试（7 个用例），详见 `architecture-notes.md`
 
 ---
 
 ## Next（下一步）
 
-1. [ ] Forge/NeoForge 安装支持（MVP 前）— `LoaderService.kt` 当前 Forge/NeoForge throw stub，需实现安装器
-2. [ ] Player 追踪（MVP 前）— 解析 stdout join/leave 日志，更新 playerCount/players，发射 `server.players_changed` WS 事件
-3. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
+2. [ ] Forge/NeoForge 安装支持（MVP 前）— `LoaderService.kt` 当前 Forge/NeoForge throw stub，需实现安装器
+3. [ ] Player 追踪（MVP 前）— 解析 stdout join/leave 日志，更新 playerCount/players，发射 `server.players_changed` WS 事件
+4. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
 
 ### 延迟项（MVP 后）
 
@@ -30,6 +31,11 @@
 
 ## Done
 
+- [x] shared-core 测试基础设施 + 架构评估（2026-04-26）
+  - **架构评估文档**：新增 `docs/architecture-notes.md`，记录代码组织评估、HMCL 对比借鉴、包内文件组织决策
+  - **shared-core 测试基础设施**：`build.gradle.kts` 新增 `jvmTest` source set（kotlin-test, ktor-client-mock, coroutines-test）；`libs.versions.toml` 新增 `kotlinx-coroutines-test`
+  - **测试迁移**：`MojangManifestParseTest`（3 个）和 `MojangClientTest`（7 个）从 daemon 移至 `shared-core/src/jvmTest/`，改 package 为 `dev.conduit.core.download`
+  - **测试策略规划**：后续两步计划（ModrinthClientTest、ConduitWsClientTest）详细记录在 architecture-notes.md
 - [x] Daemon bug 修复 + Modrinth 测试补全（2026-04-26）
   - **修复 modrinthProjectId bug**：`ModrinthRawVersion` 加 `project_id`，`ModrinthVersionInfo` 加 `projectId`，`ModService.installFromModrinth()` 和 `updateMod()` 正确传递 projectId；修复前所有 Modrinth mod 更新检查静默返回空
   - **retry-download 端点归档**：`POST /instances/{id}/retry-download` 补入 `api-protocol.md` + 2 个新测试

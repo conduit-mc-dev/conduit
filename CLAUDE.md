@@ -124,6 +124,7 @@ conduit-mc/
 
 - [`docs/api-protocol.md`](docs/api-protocol.md) — API 协议规范（REST + WebSocket + 错误码，**实现的唯一标准**）
 - [`docs/progress.md`](docs/progress.md) — 当前进度与下一步计划
+- [`docs/architecture-notes.md`](docs/architecture-notes.md) — 架构决策、代码组织评估、HMCL 借鉴点
 
 ## 当前开发阶段
 
