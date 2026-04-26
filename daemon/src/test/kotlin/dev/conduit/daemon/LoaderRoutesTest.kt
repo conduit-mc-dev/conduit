@@ -3,21 +3,15 @@ package dev.conduit.daemon
 import dev.conduit.core.model.*
 import dev.conduit.daemon.service.DataDirectory
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class LoaderRoutesTest {
-
-    private fun ApplicationTestBuilder.jsonClient() = createClient {
-        install(ContentNegotiation) { json(AppJson) }
-    }
 
     private fun testModule(): TestApplicationBuilder.() -> Unit = {
         application {
@@ -27,31 +21,12 @@ class LoaderRoutesTest {
         }
     }
 
-    private suspend fun pairAndGetToken(client: io.ktor.client.HttpClient): String {
-        val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
-        return client.post("/api/v1/pair/confirm") {
-            contentType(ContentType.Application.Json)
-            setBody(PairConfirmRequest(code = code, deviceName = "Test Device"))
-        }.body<PairConfirmResponse>().token
-    }
-
-    private suspend fun createStoppedInstance(
-        client: io.ktor.client.HttpClient,
-        token: String,
-    ): InstanceSummary {
-        return client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "Test Server", mcVersion = "1.20.4"))
-        }.body()
-    }
-
     @Test
     fun `get loader returns null when none installed`() = testApplication {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createStoppedInstance(client, token)
+        val instance = createTestInstance(client, token)
 
         val response = client.get("/api/v1/instances/${instance.id}/loader") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -64,7 +39,7 @@ class LoaderRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createStoppedInstance(client, token)
+        val instance = createTestInstance(client, token)
 
         val response = client.delete("/api/v1/instances/${instance.id}/loader") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -79,5 +54,36 @@ class LoaderRoutesTest {
 
         val response = client.get("/api/v1/instances/fake/loader")
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `get available loaders returns list`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token)
+
+        val response = client.get("/api/v1/instances/${instance.id}/loader/available") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val loaders = response.body<List<AvailableLoader>>()
+        assertTrue(loaders.isNotEmpty())
+    }
+
+    @Test
+    fun `install loader when initializing returns 409`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token)
+
+        val response = client.post("/api/v1/instances/${instance.id}/loader/install") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(InstallLoaderRequest(type = LoaderType.FABRIC, version = "0.16.14"))
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertEquals("SERVER_MUST_BE_STOPPED", response.body<ErrorResponse>().error.code)
     }
 }

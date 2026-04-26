@@ -3,11 +3,9 @@ package dev.conduit.daemon
 import dev.conduit.core.model.*
 import dev.conduit.daemon.service.DataDirectory
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import java.nio.file.Files
 import java.nio.file.Path
@@ -19,10 +17,6 @@ import kotlin.test.assertTrue
 
 class ModRoutesTest {
 
-    private fun ApplicationTestBuilder.jsonClient() = createClient {
-        install(ContentNegotiation) { json(AppJson) }
-    }
-
     private lateinit var tempDir: Path
 
     private fun testModule(): TestApplicationBuilder.() -> Unit = {
@@ -33,33 +27,12 @@ class ModRoutesTest {
         }
     }
 
-    private suspend fun pairAndGetToken(client: io.ktor.client.HttpClient): String {
-        val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
-        return client.post("/api/v1/pair/confirm") {
-            contentType(ContentType.Application.Json)
-            setBody(PairConfirmRequest(code = code, deviceName = "Test Device"))
-        }.body<PairConfirmResponse>().token
-    }
-
-    private suspend fun createTestInstance(
-        client: io.ktor.client.HttpClient,
-        token: String,
-    ): InstanceSummary {
-        val instance = client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "Test Server", mcVersion = "1.20.4"))
-        }.body<InstanceSummary>()
-        tempDir.resolve("instances").resolve(instance.id).createDirectories()
-        return instance
-    }
-
     @Test
     fun `list mods returns empty for new instance`() = testApplication {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.get("/api/v1/instances/${instance.id}/mods") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -74,9 +47,9 @@ class ModRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKfake-jar-content-for-testing".toByteArray()
+        val fakeJarBytes = "PKfake-jar-content-for-testing".toByteArray()
 
         val response = client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -113,9 +86,9 @@ class ModRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKduplicate-test".toByteArray()
+        val fakeJarBytes = "PKduplicate-test".toByteArray()
 
         client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -144,9 +117,9 @@ class ModRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKremove-test".toByteArray()
+        val fakeJarBytes = "PKremove-test".toByteArray()
         val uploadResp = client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {
@@ -175,9 +148,9 @@ class ModRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKtoggle-test".toByteArray()
+        val fakeJarBytes = "PKtoggle-test".toByteArray()
         val uploadResp = client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {
@@ -217,7 +190,7 @@ class ModRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.delete("/api/v1/instances/${instance.id}/mods/nonexistent") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -230,7 +203,7 @@ class ModRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.get("/api/v1/instances/${instance.id}/mods/updates") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -251,11 +224,26 @@ class ModRoutesTest {
     }
 
     @Test
+    fun `toggle nonexistent mod returns 404`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.patch("/api/v1/instances/${instance.id}/mods/nonexistent") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(ToggleModRequest(enabled = false))
+        }
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
     fun `upload non-jar file is rejected`() = testApplication {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")

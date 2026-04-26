@@ -6,10 +6,8 @@ import dev.conduit.core.model.PairInitiateResponse
 import dev.conduit.core.model.PairedDevice
 import dev.conduit.daemon.service.DataDirectory
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import java.nio.file.Files
 import kotlin.test.Test
@@ -17,10 +15,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class PairRoutesTest {
-
-    private fun ApplicationTestBuilder.jsonClient() = createClient {
-        install(ContentNegotiation) { json(AppJson) }
-    }
 
     private fun testModule(): TestApplicationBuilder.() -> Unit = {
         application {
@@ -81,14 +75,12 @@ class PairRoutesTest {
         testModule()()
         val client = jsonClient()
 
-        // 配对第一台设备
         val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
         client.post("/api/v1/pair/confirm") {
             contentType(ContentType.Application.Json)
             setBody(PairConfirmRequest(code = code, deviceName = "First Device"))
         }
 
-        // 再次 initiate 不带 token → 401
         val response = client.post("/api/v1/pair/initiate")
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
@@ -132,6 +124,62 @@ class PairRoutesTest {
     }
 
     @Test
+    fun `revoke all devices returns 204 and invalidates tokens`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+
+        val code1 = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
+        val token1 = client.post("/api/v1/pair/confirm") {
+            contentType(ContentType.Application.Json)
+            setBody(PairConfirmRequest(code = code1, deviceName = "Device 1"))
+        }.body<PairConfirmResponse>().token
+
+        val code2 = client.post("/api/v1/pair/initiate") {
+            header(HttpHeaders.Authorization, "Bearer $token1")
+        }.body<PairInitiateResponse>().code
+        val token2 = client.post("/api/v1/pair/confirm") {
+            contentType(ContentType.Application.Json)
+            setBody(PairConfirmRequest(code = code2, deviceName = "Device 2"))
+        }.body<PairConfirmResponse>().token
+
+        val deleteResponse = client.delete("/api/v1/pair/devices") {
+            header(HttpHeaders.Authorization, "Bearer $token1")
+        }
+        assertEquals(HttpStatusCode.NoContent, deleteResponse.status)
+
+        val list1 = client.get("/api/v1/pair/devices") {
+            header(HttpHeaders.Authorization, "Bearer $token1")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, list1.status)
+
+        val list2 = client.get("/api/v1/pair/devices") {
+            header(HttpHeaders.Authorization, "Bearer $token2")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, list2.status)
+    }
+
+    @Test
+    fun `rate limiting returns 429 after max attempts`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+
+        client.post("/api/v1/pair/initiate")
+
+        repeat(5) {
+            client.post("/api/v1/pair/confirm") {
+                contentType(ContentType.Application.Json)
+                setBody(PairConfirmRequest(code = "000000", deviceName = "Test"))
+            }
+        }
+
+        val response = client.post("/api/v1/pair/confirm") {
+            contentType(ContentType.Application.Json)
+            setBody(PairConfirmRequest(code = "000000", deviceName = "Test"))
+        }
+        assertEquals(HttpStatusCode.TooManyRequests, response.status)
+    }
+
+    @Test
     fun `revoke device removes it`() = testApplication {
         testModule()()
         val client = jsonClient()
@@ -147,7 +195,6 @@ class PairRoutesTest {
         }
         assertEquals(HttpStatusCode.NoContent, deleteResponse.status)
 
-        // token 已失效，列表应返回 401
         val listResponse = client.get("/api/v1/pair/devices") {
             header(HttpHeaders.Authorization, "Bearer ${confirmResult.token}")
         }

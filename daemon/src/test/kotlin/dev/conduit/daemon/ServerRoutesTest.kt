@@ -2,31 +2,20 @@ package dev.conduit.daemon
 
 import dev.conduit.core.model.*
 import dev.conduit.daemon.service.DataDirectory
+import dev.conduit.daemon.store.InstanceStore
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import io.ktor.websocket.*
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class ServerRoutesTest {
-
-    private fun ApplicationTestBuilder.jsonClient() = createClient {
-        install(ContentNegotiation) { json(AppJson) }
-    }
-
-    private fun ApplicationTestBuilder.wsClient() = createClient {
-        install(ContentNegotiation) { json(AppJson) }
-        install(WebSockets)
-    }
 
     private fun testModule(): TestApplicationBuilder.() -> Unit = {
         application {
@@ -36,24 +25,15 @@ class ServerRoutesTest {
         }
     }
 
-    private suspend fun pairAndGetToken(client: io.ktor.client.HttpClient): String {
-        val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
-        return client.post("/api/v1/pair/confirm") {
-            contentType(ContentType.Application.Json)
-            setBody(PairConfirmRequest(code = code, deviceName = "Test Device"))
-        }.body<PairConfirmResponse>().token
-    }
+    private lateinit var instanceStore: InstanceStore
 
-    private suspend fun createTestInstance(
-        client: io.ktor.client.HttpClient,
-        token: String,
-        name: String = "test-server",
-    ): InstanceSummary {
-        return client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = name, mcVersion = "1.20.4"))
-        }.body()
+    private fun testModuleWithStore(): TestApplicationBuilder.() -> Unit = {
+        application {
+            val tempDir = Files.createTempDirectory("conduit-test")
+            tempDir.toFile().deleteOnExit()
+            instanceStore = InstanceStore()
+            module(instanceStore = instanceStore, dataDirectory = DataDirectory(tempDir))
+        }
     }
 
     @Test
@@ -95,7 +75,7 @@ class ServerRoutesTest {
     }
 
     @Test
-    fun `start without eula returns 409`() = testApplication {
+    fun `start when initializing returns 409`() = testApplication {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
@@ -107,7 +87,6 @@ class ServerRoutesTest {
         assertEquals(HttpStatusCode.Conflict, response.status)
 
         val error = response.body<ErrorResponse>()
-        // 新实例处于 INITIALIZING 状态，优先返回 INSTANCE_INITIALIZING
         assertEquals("INSTANCE_INITIALIZING", error.error.code)
     }
 
@@ -142,7 +121,7 @@ class ServerRoutesTest {
     }
 
     @Test
-    fun `send command to stopped server returns 409`() = testApplication {
+    fun `send command when not running returns 409`() = testApplication {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
@@ -158,6 +137,118 @@ class ServerRoutesTest {
         val error = response.body<ErrorResponse>()
         assertEquals("SERVER_NOT_RUNNING", error.error.code)
     }
+
+    // --- stop/kill/restart error paths ---
+
+    @Test
+    fun `stop server when initializing returns 409`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token)
+
+        val response = client.post("/api/v1/instances/${instance.id}/server/stop") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertEquals("INSTANCE_INITIALIZING", response.body<ErrorResponse>().error.code)
+    }
+
+    @Test
+    fun `stop server when stopped returns 409`() = testApplication {
+        testModuleWithStore()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token)
+        instanceStore.markInitialized(instance.id)
+
+        val response = client.post("/api/v1/instances/${instance.id}/server/stop") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertEquals("SERVER_NOT_RUNNING", response.body<ErrorResponse>().error.code)
+    }
+
+    @Test
+    fun `kill server when initializing force-stops and returns 200`() = testApplication {
+        testModuleWithStore()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token)
+
+        val response = client.post("/api/v1/instances/${instance.id}/server/kill") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val status = response.body<ServerStatusResponse>()
+        assertEquals(InstanceState.STOPPED, status.state)
+    }
+
+    @Test
+    fun `kill server when stopped returns 409`() = testApplication {
+        testModuleWithStore()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token)
+        instanceStore.markInitialized(instance.id)
+
+        val response = client.post("/api/v1/instances/${instance.id}/server/kill") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertEquals("SERVER_NOT_RUNNING", response.body<ErrorResponse>().error.code)
+    }
+
+    @Test
+    fun `restart server when initializing without eula returns eula error`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token)
+
+        val response = client.post("/api/v1/instances/${instance.id}/server/restart") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertEquals("EULA_NOT_ACCEPTED", response.body<ErrorResponse>().error.code)
+    }
+
+    @Test
+    fun `restart server when initializing with eula returns 409`() = testApplication {
+        testModuleWithStore()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token)
+
+        client.put("/api/v1/instances/${instance.id}/server/eula") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(AcceptEulaRequest(accepted = true))
+        }
+
+        val response = client.post("/api/v1/instances/${instance.id}/server/restart") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertEquals("INSTANCE_INITIALIZING", response.body<ErrorResponse>().error.code)
+    }
+
+    @Test
+    fun `restart server when stopped without eula returns 409`() = testApplication {
+        testModuleWithStore()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token)
+        instanceStore.markInitialized(instance.id)
+
+        val response = client.post("/api/v1/instances/${instance.id}/server/restart") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertEquals("EULA_NOT_ACCEPTED", response.body<ErrorResponse>().error.code)
+    }
+
+    // --- WebSocket ---
 
     @Test
     fun `websocket connection with invalid token is rejected`() = testApplication {
@@ -189,9 +280,54 @@ class ServerRoutesTest {
         val client = wsClient()
 
         client.webSocket("/api/v1/ws?token=$token") {
-            send(Frame.Text("""{"type":"subscribe","instanceId":"test123","channels":["console","stats"]}"""))
+            send(Frame.Text("""{"type":"${WsMessage.SUBSCRIBE}","instanceId":"test123","channels":["${WsMessage.CHANNEL_CONSOLE}","${WsMessage.CHANNEL_STATS}"]}"""))
             @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
             assertTrue(incoming.isEmpty)
+        }
+    }
+
+    @Test
+    fun `websocket ping receives pong`() = testApplication {
+        testModule()()
+        val jsonClient = jsonClient()
+        val token = pairAndGetToken(jsonClient)
+        val client = wsClient()
+
+        client.webSocket("/api/v1/ws?token=$token") {
+            send(Frame.Text("""{"type":"${WsMessage.PING}"}"""))
+            val response = incoming.receive() as Frame.Text
+            assertTrue(response.readText().contains(WsMessage.PONG))
+        }
+    }
+
+    @Test
+    fun `websocket receives instance created event`() = testApplication {
+        testModule()()
+        val jsonClient = jsonClient()
+        val token = pairAndGetToken(jsonClient)
+        val client = wsClient()
+
+        client.webSocket("/api/v1/ws?token=$token") {
+            createTestInstance(jsonClient, token)
+
+            val response = incoming.receive() as Frame.Text
+            assertTrue(response.readText().contains(WsMessage.INSTANCE_CREATED))
+        }
+    }
+
+    @Test
+    fun `websocket unsubscribe does not close connection`() = testApplication {
+        testModule()()
+        val jsonClient = jsonClient()
+        val token = pairAndGetToken(jsonClient)
+        val client = wsClient()
+
+        client.webSocket("/api/v1/ws?token=$token") {
+            send(Frame.Text("""{"type":"${WsMessage.SUBSCRIBE}","instanceId":"test","channels":["${WsMessage.CHANNEL_CONSOLE}"]}"""))
+            send(Frame.Text("""{"type":"${WsMessage.UNSUBSCRIBE}","instanceId":"test","channels":["${WsMessage.CHANNEL_CONSOLE}"]}"""))
+            send(Frame.Text("""{"type":"${WsMessage.PING}"}"""))
+            val response = incoming.receive() as Frame.Text
+            assertTrue(response.readText().contains(WsMessage.PONG))
         }
     }
 }

@@ -3,10 +3,8 @@ package dev.conduit.daemon
 import dev.conduit.core.model.*
 import dev.conduit.daemon.service.DataDirectory
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import java.nio.file.Files
 import kotlin.test.Test
@@ -15,25 +13,12 @@ import kotlin.test.assertNotNull
 
 class InstanceRoutesTest {
 
-    private fun ApplicationTestBuilder.jsonClient() = createClient {
-        install(ContentNegotiation) { json(AppJson) }
-    }
-
     private fun testModule(): TestApplicationBuilder.() -> Unit = {
         application {
             val tempDir = Files.createTempDirectory("conduit-test")
             tempDir.toFile().deleteOnExit()
             module(dataDirectory = DataDirectory(tempDir))
         }
-    }
-
-    /** 配对并返回 token，供后续请求使用 */
-    private suspend fun pairAndGetToken(client: io.ktor.client.HttpClient): String {
-        val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
-        return client.post("/api/v1/pair/confirm") {
-            contentType(ContentType.Application.Json)
-            setBody(PairConfirmRequest(code = code, deviceName = "Test Device"))
-        }.body<PairConfirmResponse>().token
     }
 
     @Test
@@ -88,11 +73,7 @@ class InstanceRoutesTest {
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
-        val created = client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "Test Server", mcVersion = "1.20.4"))
-        }.body<InstanceSummary>()
+        val created = createTestInstance(client, token)
 
         val getResponse = client.get("/api/v1/instances/${created.id}") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -110,11 +91,7 @@ class InstanceRoutesTest {
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
-        val created = client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "Old Name", mcVersion = "1.20.4"))
-        }.body<InstanceSummary>()
+        val created = createTestInstance(client, token, name = "Old Name")
 
         val updateResponse = client.put("/api/v1/instances/${created.id}") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -134,13 +111,8 @@ class InstanceRoutesTest {
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
-        val created = client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "To Delete", mcVersion = "1.20.4"))
-        }.body<InstanceSummary>()
+        val created = createTestInstance(client, token, name = "To Delete")
 
-        // 新建实例处于 INITIALIZING 状态，无法删除
         val deleteInitializing = client.delete("/api/v1/instances/${created.id}") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
@@ -155,11 +127,7 @@ class InstanceRoutesTest {
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
-        client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "Unique Server", mcVersion = "1.20.4"))
-        }
+        createTestInstance(client, token, name = "Unique Server")
 
         val duplicateResponse = client.post("/api/v1/instances") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -178,17 +146,8 @@ class InstanceRoutesTest {
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
-        val first = client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "Server A", mcVersion = "1.20.4"))
-        }.body<InstanceSummary>()
-
-        val second = client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "Server B", mcVersion = "1.20.4"))
-        }.body<InstanceSummary>()
+        val first = createTestInstance(client, token, name = "Server A")
+        val second = createTestInstance(client, token, name = "Server B")
 
         assertEquals(25565, first.mcPort)
         assertEquals(25566, second.mcPort)
@@ -207,5 +166,74 @@ class InstanceRoutesTest {
 
         val error = response.body<ErrorResponse>()
         assertEquals("INSTANCE_NOT_FOUND", error.error.code)
+    }
+
+    @Test
+    fun `explicit mcPort creates instance with that port`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        val response = client.post("/api/v1/instances") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(CreateInstanceRequest(name = "Custom Port", mcVersion = "1.20.4", mcPort = 30000))
+        }
+        assertEquals(HttpStatusCode.Created, response.status)
+        assertEquals(30000, response.body<InstanceSummary>().mcPort)
+    }
+
+    @Test
+    fun `duplicate explicit port returns 409`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        client.post("/api/v1/instances") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(CreateInstanceRequest(name = "Port A", mcVersion = "1.20.4", mcPort = 30000))
+        }
+
+        val response = client.post("/api/v1/instances") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(CreateInstanceRequest(name = "Port B", mcVersion = "1.20.4", mcPort = 30000))
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertEquals("PORT_CONFLICT", response.body<ErrorResponse>().error.code)
+    }
+
+    @Test
+    fun `update nonexistent instance returns 404`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        val response = client.put("/api/v1/instances/zzzzz") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateInstanceRequest(name = "Nope"))
+        }
+        assertEquals(HttpStatusCode.NotFound, response.status)
+        assertEquals("INSTANCE_NOT_FOUND", response.body<ErrorResponse>().error.code)
+    }
+
+    @Test
+    fun `update instance name conflict returns 409`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        createTestInstance(client, token, name = "Server A")
+        val b = createTestInstance(client, token, name = "Server B")
+
+        val response = client.put("/api/v1/instances/${b.id}") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateInstanceRequest(name = "Server A"))
+        }
+        assertEquals(HttpStatusCode.Conflict, response.status)
+        assertEquals("INSTANCE_NAME_CONFLICT", response.body<ErrorResponse>().error.code)
     }
 }

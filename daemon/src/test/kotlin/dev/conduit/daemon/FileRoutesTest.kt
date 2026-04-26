@@ -2,12 +2,11 @@ package dev.conduit.daemon
 
 import dev.conduit.core.model.*
 import dev.conduit.daemon.service.DataDirectory
+import dev.conduit.daemon.service.FileService
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -21,10 +20,6 @@ import kotlin.test.assertTrue
 
 class FileRoutesTest {
 
-    private fun ApplicationTestBuilder.jsonClient() = createClient {
-        install(ContentNegotiation) { json(AppJson) }
-    }
-
     private lateinit var tempDir: Path
 
     private fun testModule(): TestApplicationBuilder.() -> Unit = {
@@ -35,27 +30,6 @@ class FileRoutesTest {
         }
     }
 
-    private suspend fun pairAndGetToken(client: io.ktor.client.HttpClient): String {
-        val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
-        return client.post("/api/v1/pair/confirm") {
-            contentType(ContentType.Application.Json)
-            setBody(PairConfirmRequest(code = code, deviceName = "Test Device"))
-        }.body<PairConfirmResponse>().token
-    }
-
-    private suspend fun createTestInstance(
-        client: io.ktor.client.HttpClient,
-        token: String,
-    ): InstanceSummary {
-        val instance = client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "Test Server", mcVersion = "1.20.4"))
-        }.body<InstanceSummary>()
-        tempDir.resolve("instances").resolve(instance.id).createDirectories()
-        return instance
-    }
-
     // --- server.properties ---
 
     @Test
@@ -63,7 +37,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.get("/api/v1/instances/${instance.id}/config/server-properties") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -78,7 +52,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.put("/api/v1/instances/${instance.id}/config/server-properties") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -105,7 +79,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val instanceDir = tempDir.resolve("instances").resolve(instance.id)
         instanceDir.resolve("test.txt").writeText("hello")
@@ -127,7 +101,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val configDir = tempDir.resolve("instances").resolve(instance.id).resolve("config")
         configDir.createDirectories()
@@ -148,7 +122,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.get("/api/v1/instances/${instance.id}/files?path=nonexistent") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -163,7 +137,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val instanceDir = tempDir.resolve("instances").resolve(instance.id)
         instanceDir.resolve("ops.json").writeText("""[{"name":"player1"}]""")
@@ -181,7 +155,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.get("/api/v1/instances/${instance.id}/files/content?path=nope.txt") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -196,7 +170,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.put("/api/v1/instances/${instance.id}/files/content?path=config/new.json") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -220,7 +194,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val instanceDir = tempDir.resolve("instances").resolve(instance.id)
         instanceDir.resolve("deleteme.txt").writeText("bye")
@@ -239,7 +213,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.get("/api/v1/instances/${instance.id}/files/content?path=../../../etc/passwd") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -252,7 +226,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.put("/api/v1/instances/${instance.id}/files/content?path=server.jar") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -266,7 +240,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.put("/api/v1/instances/${instance.id}/files/content?path=mods/evil.jar") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -280,7 +254,7 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.put("/api/v1/instances/${instance.id}/files/content?path=pack/something") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -294,11 +268,40 @@ class FileRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.delete("/api/v1/instances/${instance.id}/files/content?path=instance.json") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `delete nonexistent file returns 404`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.delete("/api/v1/instances/${instance.id}/files/content?path=ghost.txt") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
+    fun `write file exceeding size limit returns 413`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val bigBody = ByteArray((FileService.MAX_FILE_SIZE + 1).toInt()) { 0x41 }
+        val response = client.put("/api/v1/instances/${instance.id}/files/content?path=big.bin") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.OctetStream)
+            setBody(bigBody)
+        }
+        assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
     }
 }

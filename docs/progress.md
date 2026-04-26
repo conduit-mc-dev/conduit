@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-27
+> 最新更新：2026-04-26
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,19 +11,30 @@
 
 ## Now（进行中）
 
-- [x] ~~Daemon 未实现端点补全~~ → 已完成（33 个端点，6 个阶段）
+- [x] ~~Daemon 全端点自动化测试覆盖~~ → 已完成（92 → 117 测试）
 
 ---
 
 ## Next（下一步）
 
-- [ ] Daemon 全端点自动化测试覆盖
 - [ ] Desktop MVP 迭代 4-6（Daemon 稳定后启动，方案见 `desktop-mvp-plan.md`）
 
 ---
 
 ## Done
 
+- [x] Daemon 全端点自动化测试覆盖（92 → 117 测试，25 个新增）
+  - 提取共享 TestHelpers.kt，迁移全部 14 个旧测试文件
+  - ServerRoutesTest: +7（stop/kill/restart 错误路径 + restart with eula，WS ping/pong/subscribe/event）
+  - InstanceRoutesTest: +4（explicit mcPort, PORT_CONFLICT, update nonexistent, name conflict on update）
+  - PairRoutesTest: +2（revoke all devices, rate limiting 429）
+  - LoaderRoutesTest: +2（available loaders, install when initializing）
+  - ModRoutesTest: +1（toggle nonexistent mod 404）
+  - FileRoutesTest: +2（delete nonexistent 404, 10MB size limit 413）
+  - PublicRoutesTest: +3（Cache-Control header, pack.mrpack 304, custom mod 304）
+  - ModrinthRoutesTest: +1（project versions auth）
+  - WebSocket: ping/pong, instance.created 事件接收, unsubscribe 连接保持
+  - 显式延后：Modrinth 快乐路径（需 mock）、server start 快乐路径（需真实 jar）
 - [x] Phase 6: Public 端点（3 端点）— server.json 动态聚合, pack.mrpack 下载, custom mod 下载
   - 新增 `PublicModels.kt` (shared-core), `PublicRoutesTest.kt` (8 tests)
   - 扩展 `PublicRoutes.kt`：server.json 聚合实例/mod/pack/进程状态，ETag 条件请求支持

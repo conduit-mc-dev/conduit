@@ -3,12 +3,10 @@ package dev.conduit.daemon
 import dev.conduit.core.model.*
 import dev.conduit.daemon.service.DataDirectory
 import io.ktor.client.call.*
-import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import kotlinx.coroutines.delay
 import java.nio.file.Files
@@ -21,10 +19,6 @@ import kotlin.test.assertTrue
 
 class PublicRoutesTest {
 
-    private fun ApplicationTestBuilder.jsonClient() = createClient {
-        install(ContentNegotiation) { json(AppJson) }
-    }
-
     private lateinit var tempDir: Path
 
     private fun testModule(): TestApplicationBuilder.() -> Unit = {
@@ -33,27 +27,6 @@ class PublicRoutesTest {
             tempDir.toFile().deleteOnExit()
             module(dataDirectory = DataDirectory(tempDir))
         }
-    }
-
-    private suspend fun pairAndGetToken(client: io.ktor.client.HttpClient): String {
-        val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
-        return client.post("/api/v1/pair/confirm") {
-            contentType(ContentType.Application.Json)
-            setBody(PairConfirmRequest(code = code, deviceName = "Test Device"))
-        }.body<PairConfirmResponse>().token
-    }
-
-    private suspend fun createTestInstance(
-        client: io.ktor.client.HttpClient,
-        token: String,
-    ): InstanceSummary {
-        val instance = client.post("/api/v1/instances") {
-            header(HttpHeaders.Authorization, "Bearer $token")
-            contentType(ContentType.Application.Json)
-            setBody(CreateInstanceRequest(name = "Test Server", mcVersion = "1.20.4"))
-        }.body<InstanceSummary>()
-        tempDir.resolve("instances").resolve(instance.id).createDirectories()
-        return instance
     }
 
     @Test
@@ -70,7 +43,7 @@ class PublicRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.get("/public/${instance.id}/server.json")
         assertEquals(HttpStatusCode.OK, response.status)
@@ -89,7 +62,7 @@ class PublicRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         client.put("/api/v1/instances/${instance.id}/invite") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -115,7 +88,7 @@ class PublicRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.get("/public/${instance.id}/pack.mrpack")
         assertEquals(HttpStatusCode.NotFound, response.status)
@@ -126,7 +99,7 @@ class PublicRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -156,7 +129,7 @@ class PublicRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val fakeJar = "PKcustom-mod-download-test".toByteArray()
         client.post("/api/v1/instances/${instance.id}/mods/upload") {
@@ -179,9 +152,84 @@ class PublicRoutesTest {
         testModule()()
         val client = jsonClient()
         val token = pairAndGetToken(client)
-        val instance = createTestInstance(client, token)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
 
         val response = client.get("/public/${instance.id}/mods/nonexistent.jar")
         assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
+    fun `server-json includes Cache-Control no-cache`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.get("/public/${instance.id}/server.json")
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals("no-cache", response.headers[HttpHeaders.CacheControl])
+    }
+
+    @Test
+    fun `pack-mrpack returns 304 with matching If-None-Match`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        client.post("/api/v1/instances/${instance.id}/mods/upload") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody(MultiPartFormDataContent(formData {
+                append("file", "PKetag-test-jar".toByteArray(), Headers.build {
+                    append(HttpHeaders.ContentDisposition, "filename=\"etag.jar\"")
+                    append(HttpHeaders.ContentType, "application/java-archive")
+                })
+            }))
+        }
+
+        client.post("/api/v1/instances/${instance.id}/pack/build") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(BuildPackRequest(versionId = "1.0.0"))
+        }
+        delay(500)
+
+        val first = client.get("/public/${instance.id}/pack.mrpack")
+        assertEquals(HttpStatusCode.OK, first.status)
+        val etag = first.headers[HttpHeaders.ETag]
+        assertNotNull(etag)
+
+        val second = client.get("/public/${instance.id}/pack.mrpack") {
+            header(HttpHeaders.IfNoneMatch, etag)
+        }
+        assertEquals(HttpStatusCode.NotModified, second.status)
+    }
+
+    @Test
+    fun `custom mod download returns 304 with matching If-None-Match`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        client.post("/api/v1/instances/${instance.id}/mods/upload") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody(MultiPartFormDataContent(formData {
+                append("file", "PK304-test-mod".toByteArray(), Headers.build {
+                    append(HttpHeaders.ContentDisposition, "filename=\"cached.jar\"")
+                    append(HttpHeaders.ContentType, "application/java-archive")
+                })
+            }))
+        }
+
+        val first = client.get("/public/${instance.id}/mods/cached.jar")
+        assertEquals(HttpStatusCode.OK, first.status)
+        val etag = first.headers[HttpHeaders.ETag]
+        assertNotNull(etag)
+
+        val second = client.get("/public/${instance.id}/mods/cached.jar") {
+            header(HttpHeaders.IfNoneMatch, etag)
+        }
+        assertEquals(HttpStatusCode.NotModified, second.status)
     }
 }
