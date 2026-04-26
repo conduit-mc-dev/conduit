@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-26（下载可靠性改进完成）
+> 最新更新：2026-04-26（实例持久化 + E2E 测试完成）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,20 +11,34 @@
 
 ## Now（进行中）
 
-- [x] ~~下载可靠性改进~~ → 已完成（镜像 + 重试 + 进度广播 + mock 测试 + 代码质量修复）
+- [x] ~~实例持久化 + E2E 测试~~ → 已完成（InstanceStore 磁盘持久化 + 18 个新测试）
 
 ---
 
 ## Next（下一步）
 
-1. [ ] Daemon 全流程手动验证 — 真实启动 Daemon，走完：配对→创建实例→下载 JAR→EULA→启动服务器→控制台→停止
-2. [ ] 自动化 E2E 测试 — 基于手动验证结果，补持久化冷启动测试 + 可能的真实进程启动测试
-3. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+1. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
 
 ---
 
 ## Done
 
+- [x] 实例持久化 + E2E 自动化测试（2026-04-26）
+  - **InstanceStore 磁盘持久化**：每个实例写 `instance.json` 到实例目录，冷启动时扫描恢复
+  - 状态恢复：RUNNING/STARTING/STOPPING → STOPPED（"Recovered after daemon restart"），INITIALIZING → STOPPED（"interrupted"）
+  - `PersistedInstance` 排除 taskId/statusMessage（瞬态字段），每次 mutation 自动 persist
+  - `DataDirectory.instanceMetadataPath()`、`Application.module()` 参数重排（dataDirectory 在 instanceStore 之前）
+  - **18 个新测试**（117 → 135）：
+    - `InstanceStoreTest`（10 个）：persist/reload、状态恢复（RUNNING/INITIALIZING/STOPPED）、corrupt JSON、向后兼容、delete、update、纯内存、多实例
+    - `E2ELifecycleTest`（6 个）：完整生命周期（真实 JAR @slow）、冷启动恢复、真实进程启动（mock 脚本）、WebSocket 控制台输出、命令输出、优雅停止
+    - `PersistenceTest`（2 个）：DaemonConfig 跨 store 持久化、EULA 磁盘持久化
+  - Mock 基础设施：MockEngine MojangClient（瞬间下载）+ bash mock MC server 脚本（模拟 "Done" 检测 + stdin 命令）
+- [x] Daemon 全流程手动验证（2026-04-26）
+  - 真实环境端到端验证：配对→创建实例→下载 JAR→EULA→启动 MC 服务器→控制台命令→优雅停止→删除实例
+  - 全部 7 个 Phase 通过，覆盖 happy path + 错误路径（无效配对码、重名实例、未接受 EULA 启动、重复停止等）
+  - WebSocket 事件验证：task.progress/task.completed（下载）、server.state_changed（生命周期）、console.output（控制台订阅）、ping/pong
+  - 公共端点验证：server.json（在线/离线状态）、pack.mrpack（404 PACK_NOT_BUILT）
+  - 发现：Gradle `:daemon:run` 工作目录为 `daemon/`，数据目录在 `daemon/conduit-data/`（非项目根目录），生产部署应通过 `CONDUIT_DATA_DIR` 指定绝对路径
 - [x] 下载可靠性改进（`34f766e` + `28522c3`）
   - MojangClient: BMCLAPI/自定义镜像支持（前缀替换）、3 次重试（1s 间隔，4xx 不重试）、进度回调
   - ServerJarService: 接入 TaskStore，5% 粒度进度广播（task.progress/task.completed WS 事件）

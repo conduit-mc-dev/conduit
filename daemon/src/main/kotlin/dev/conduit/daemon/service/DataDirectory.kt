@@ -32,6 +32,9 @@ class DataDirectory(
     fun packMrpackPath(instanceId: String): Path =
         packDir(instanceId).resolve("pack.mrpack")
 
+    fun instanceMetadataPath(instanceId: String): Path =
+        instanceDir(instanceId).resolve("instance.json")
+
     fun ensureDirectories() {
         instancesDir.createDirectories()
     }

@@ -23,9 +23,9 @@ fun main() {
 
 fun Application.module(
     tokenStore: TokenStore = TokenStore(),
-    instanceStore: InstanceStore = InstanceStore(),
-    mojangClient: MojangClient? = null,
     dataDirectory: DataDirectory = DataDirectory(),
+    instanceStore: InstanceStore = InstanceStore(dataDirectory),
+    mojangClient: MojangClient? = null,
 ) {
     dataDirectory.ensureDirectories()
 
