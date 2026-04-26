@@ -66,6 +66,64 @@ class ConfigRoutesTest {
     }
 
     @Test
+    fun `daemon config returns default download source`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        val response = client.get("/api/v1/config/daemon") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        val config = response.body<DaemonConfig>()
+        assertEquals(DownloadSource.MOJANG, config.downloadSource)
+        assertEquals(null, config.customMirrorUrl)
+    }
+
+    @Test
+    fun `update download source to bmclapi`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        val response = client.put("/api/v1/config/daemon") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateDaemonConfigRequest(downloadSource = DownloadSource.BMCLAPI))
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+
+        val config = response.body<DaemonConfig>()
+        assertEquals(DownloadSource.BMCLAPI, config.downloadSource)
+        assertEquals(9147, config.port)
+
+        val reloaded = client.get("/api/v1/config/daemon") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }.body<DaemonConfig>()
+        assertEquals(DownloadSource.BMCLAPI, reloaded.downloadSource)
+    }
+
+    @Test
+    fun `update download source to custom with mirror url`() = testApplication {
+        testModule()()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+
+        val response = client.put("/api/v1/config/daemon") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(UpdateDaemonConfigRequest(
+                downloadSource = DownloadSource.CUSTOM,
+                customMirrorUrl = "https://my-mirror.example.com",
+            ))
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+
+        val config = response.body<DaemonConfig>()
+        assertEquals(DownloadSource.CUSTOM, config.downloadSource)
+        assertEquals("https://my-mirror.example.com", config.customMirrorUrl)
+    }
+
+    @Test
     fun `daemon config requires auth`() = testApplication {
         testModule()()
         val client = jsonClient()

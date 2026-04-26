@@ -1252,13 +1252,21 @@ override is set.
 {
   "port": 9147,
   "publicEndpointEnabled": true,
-  "defaultJvmArgs": ["-Xmx4G", "-Xms2G"]
+  "defaultJvmArgs": ["-Xmx4G", "-Xms2G"],
+  "downloadSource": "mojang",
+  "customMirrorUrl": null
 }
 ```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `downloadSource` | string | `"mojang"` | Download source for Mojang assets: `"mojang"`, `"bmclapi"`, or `"custom"` |
+| `customMirrorUrl` | string\|null | `null` | Base URL for custom mirror (only used when `downloadSource` is `"custom"`) |
 
 **`PUT /api/v1/config/daemon`** — Requires auth.
 
 Updates Daemon-level configuration. Changes to `port` require a Daemon restart.
+Changes to `downloadSource` and `customMirrorUrl` take effect on the next download.
 
 ### 4.11 Invite Link (per-instance)
 
@@ -1332,7 +1340,7 @@ All messages (both directions) use the same envelope format:
 | `server.state_changed` | `{ "oldState": "stopped", "newState": "starting" }` | State machine transition |
 | `server.players_changed` | `{ "playerCount": 3, "maxPlayers": 20, "joined": "Steve", "left": null }` | Player join/leave |
 | `server.stats` | `{ "tps": 19.8, "memoryUsedMb": 2100, "memoryMaxMb": 4096 }` | Periodic stats (every 10s) |
-| `task.progress` | `{ "taskId": "...", "type": "loader_install\|pack_build", "progress": 0.5, "message": "..." }` | Long operation progress |
+| `task.progress` | `{ "taskId": "...", "type": "server_jar_download\|loader_install\|pack_build", "progress": 0.5, "message": "..." }` | Long operation progress |
 | `task.completed` | `{ "taskId": "...", "type": "...", "success": true, "message": "..." }` | Long operation finished |
 | `pack.dirty` | `{ "reason": "mod_added\|mod_removed\|mod_updated", "modName": "Sodium" }` | Pack needs rebuild |
 

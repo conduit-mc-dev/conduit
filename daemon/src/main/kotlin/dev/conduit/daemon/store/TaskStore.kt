@@ -36,6 +36,16 @@ class TaskStore(
         return taskId
     }
 
+    fun register(taskId: String, instanceId: String, type: String, message: String) {
+        evictCompleted()
+        tasks[taskId] = TaskState(
+            taskId = taskId,
+            instanceId = instanceId,
+            type = type,
+            message = message,
+        )
+    }
+
     suspend fun updateProgress(taskId: String, progress: Double, message: String) {
         tasks.compute(taskId) { _, state ->
             state?.copy(progress = progress, message = message)

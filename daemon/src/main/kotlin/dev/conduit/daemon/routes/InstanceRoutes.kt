@@ -34,7 +34,7 @@ fun Route.instanceRoutes(
                 throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "mcVersion must not be empty")
             }
             val summary = instanceStore.create(request)
-            serverJarService.startDownload(summary.id, request.mcVersion)
+            serverJarService.startDownload(summary.id, request.mcVersion, summary.taskId!!)
             broadcaster.broadcastGlobal(
                 WsMessage.INSTANCE_CREATED,
                 json.encodeToJsonElement(mapOf("id" to summary.id, "name" to summary.name)),
@@ -67,7 +67,7 @@ fun Route.instanceRoutes(
             val id = call.requireInstanceId()
             val summary = instanceStore.resetToInitializing(id)
             dataDirectory.serverJarPath(id).deleteIfExists()
-            serverJarService.startDownload(id, summary.mcVersion)
+            serverJarService.startDownload(id, summary.mcVersion, summary.taskId!!)
             call.respond(summary)
         }
     }

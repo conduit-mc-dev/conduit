@@ -21,6 +21,8 @@ class DaemonConfigStore(private val configPath: Path) {
             port = request.port ?: config.port,
             publicEndpointEnabled = request.publicEndpointEnabled ?: config.publicEndpointEnabled,
             defaultJvmArgs = request.defaultJvmArgs ?: config.defaultJvmArgs,
+            downloadSource = request.downloadSource ?: config.downloadSource,
+            customMirrorUrl = request.customMirrorUrl ?: config.customMirrorUrl,
         )
         config = updated
         save(updated)

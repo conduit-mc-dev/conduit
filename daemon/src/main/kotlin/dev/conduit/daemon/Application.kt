@@ -24,7 +24,7 @@ fun main() {
 fun Application.module(
     tokenStore: TokenStore = TokenStore(),
     instanceStore: InstanceStore = InstanceStore(),
-    mojangClient: MojangClient = MojangClient(),
+    mojangClient: MojangClient? = null,
     dataDirectory: DataDirectory = DataDirectory(),
 ) {
     dataDirectory.ensureDirectories()
@@ -33,12 +33,17 @@ fun Application.module(
     val broadcaster = WsBroadcaster(AppJson)
     val eulaService = EulaService(dataDirectory)
     val daemonConfigStore = DaemonConfigStore(dataDirectory.configPath)
+    val actualMojangClient = mojangClient ?: MojangClient(
+        downloadSourceProvider = { daemonConfigStore.get().let { it.downloadSource to it.customMirrorUrl } },
+    )
     val processManager = ServerProcessManager(instanceStore, dataDirectory, broadcaster, appScope, AppJson)
 
+    val taskStore = dev.conduit.daemon.store.TaskStore(broadcaster, AppJson)
     val serverJarService = ServerJarService(
-        mojangClient = mojangClient,
+        mojangClient = actualMojangClient,
         instanceStore = instanceStore,
         dataDirectory = dataDirectory,
+        taskStore = taskStore,
         scope = appScope,
     )
     val rateLimiter = RateLimiter()
@@ -48,7 +53,6 @@ fun Application.module(
     val javaDetector = JavaDetector()
     val modStore = dev.conduit.daemon.store.ModStore()
     val modService = ModService(modStore, modrinthClient, instanceStore, dataDirectory, broadcaster, AppJson)
-    val taskStore = dev.conduit.daemon.store.TaskStore(broadcaster, AppJson)
     val packStore = dev.conduit.daemon.store.PackStore()
     val loaderService = LoaderService(instanceStore, dataDirectory, taskStore, appScope)
     val packService = PackService(modStore, instanceStore, packStore, dataDirectory, taskStore, appScope, AppJson)
@@ -61,7 +65,7 @@ fun Application.module(
         wsRoutes(broadcaster, tokenStore, AppJson)
         authenticate("bearer") {
             instanceRoutes(instanceStore, serverJarService, dataDirectory, broadcaster, AppJson)
-            minecraftRoutes(mojangClient)
+            minecraftRoutes(actualMojangClient)
             serverRoutes(instanceStore, processManager, eulaService)
             configRoutes(daemonConfigStore, instanceStore)
             fileRoutes(instanceStore, fileService, serverPropertiesService)

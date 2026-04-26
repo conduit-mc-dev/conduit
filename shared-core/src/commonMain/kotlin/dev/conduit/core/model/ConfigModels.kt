@@ -1,6 +1,16 @@
 package dev.conduit.core.model
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+
+// --- 下载源 ---
+
+@Serializable
+enum class DownloadSource {
+    @SerialName("mojang") MOJANG,
+    @SerialName("bmclapi") BMCLAPI,
+    @SerialName("custom") CUSTOM,
+}
 
 // --- Daemon 全局配置 ---
 
@@ -9,6 +19,8 @@ data class DaemonConfig(
     val port: Int = 9147,
     val publicEndpointEnabled: Boolean = true,
     val defaultJvmArgs: List<String> = listOf("-Xmx4G", "-Xms2G"),
+    val downloadSource: DownloadSource = DownloadSource.MOJANG,
+    val customMirrorUrl: String? = null,
 )
 
 @Serializable
@@ -16,6 +28,8 @@ data class UpdateDaemonConfigRequest(
     val port: Int? = null,
     val publicEndpointEnabled: Boolean? = null,
     val defaultJvmArgs: List<String>? = null,
+    val downloadSource: DownloadSource? = null,
+    val customMirrorUrl: String? = null,
 )
 
 // --- 实例 JVM 配置 ---
