@@ -21,24 +21,10 @@ import kotlin.test.*
 
 class E2ELifecycleTest {
 
-    private fun createMockServerScript(dir: Path): Path {
-        val script = dir.resolve("mock-mc-server.sh")
-        script.writeText("""
-            #!/bin/bash
-            echo "[main/INFO]: Starting minecraft server version 1.20.4"
-            echo "[Server thread/INFO]: Preparing level \"world\""
-            echo "[Server thread/INFO]: Done (1.0s)! For help, type \"help\""
-            while IFS= read -r line; do
-                case "${'$'}line" in
-                    list) echo "[Server thread/INFO]: There are 0 of a max of 20 players online:" ;;
-                    say\ *) echo "[Server thread/INFO]: [Server] ${'$'}{line#say }" ;;
-                    stop) echo "[Server thread/INFO]: Stopping the server"; echo "[Server thread/INFO]: Saving worlds"; exit 0 ;;
-                    *) echo "[Server thread/INFO]: Unknown or empty command. Type \"help\" for help." ;;
-                esac
-            done
-        """.trimIndent())
-        script.toFile().setExecutable(true)
-        return script
+    private fun mockServerJvmConfig(): Pair<String, List<String>> {
+        val javaPath = ProcessHandle.current().info().command().orElse("java")
+        val classpath = System.getProperty("java.class.path")
+        return Pair(javaPath, listOf("-cp", classpath, MockMcServer::class.qualifiedName!!))
     }
 
     private suspend fun pollUntilState(
@@ -86,7 +72,7 @@ class E2ELifecycleTest {
         try {
             val dataDir = DataDirectory(tempDir)
             val store = InstanceStore(dataDir)
-            val script = createMockServerScript(tempDir)
+            val (javaPath, jvmArgs) = mockServerJvmConfig()
 
             testApplication {
                 application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
@@ -107,7 +93,7 @@ class E2ELifecycleTest {
                     setBody(AcceptEulaRequest(accepted = true))
                 }
 
-                store.updateJvmConfig(instance.id, true, emptyList(), true, script.toString())
+                store.updateJvmConfig(instance.id, true, jvmArgs, true, javaPath)
 
                 if (!skipStart) {
                     client.post("/api/v1/instances/${instance.id}/server/start") {

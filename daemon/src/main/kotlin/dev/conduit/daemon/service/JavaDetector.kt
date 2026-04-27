@@ -8,6 +8,9 @@ import kotlin.io.path.isExecutable
 
 class JavaDetector {
 
+    private val osName = System.getProperty("os.name", "").lowercase()
+    private val isWindows = osName.contains("windows")
+
     fun detectInstallations(): List<JavaInstallation> {
         val candidates = findCandidates()
         val installations = candidates.mapNotNull { path -> probeJava(path) }
@@ -21,26 +24,26 @@ class JavaDetector {
 
     private fun findCandidates(): List<String> {
         val candidates = mutableSetOf<String>()
+        val javaBinary = if (isWindows) "java.exe" else "java"
 
         System.getenv("JAVA_HOME")?.let { javaHome ->
-            val bin = "$javaHome/bin/java"
-            if (Path.of(bin).exists()) candidates.add(bin)
+            val bin = Path.of(javaHome, "bin", javaBinary)
+            if (bin.exists()) candidates.add(bin.toString())
         }
 
-        findInPath("java")?.let { candidates.add(it) }
+        findInPath(javaBinary)?.let { candidates.add(it) }
 
-        val os = System.getProperty("os.name", "").lowercase()
         when {
-            os.contains("mac") -> {
+            osName.contains("mac") -> {
                 scanDir("/Library/Java/JavaVirtualMachines", "Contents/Home/bin/java", candidates)
                 scanDir(System.getProperty("user.home") + "/Library/Java/JavaVirtualMachines", "Contents/Home/bin/java", candidates)
             }
-            os.contains("linux") -> {
+            osName.contains("linux") -> {
                 scanDir("/usr/lib/jvm", "bin/java", candidates)
                 scanDir("/usr/java", "bin/java", candidates)
                 scanDir("/usr/local/java", "bin/java", candidates)
             }
-            os.contains("windows") -> {
+            isWindows -> {
                 scanDir("C:\\Program Files\\Java", "bin\\java.exe", candidates)
                 scanDir("C:\\Program Files (x86)\\Java", "bin\\java.exe", candidates)
                 scanDir(System.getenv("LOCALAPPDATA") + "\\Programs\\Eclipse Adoptium", "bin\\java.exe", candidates)
@@ -62,12 +65,13 @@ class JavaDetector {
 
     private fun findInPath(command: String): String? {
         return try {
-            val process = ProcessBuilder("which", command)
+            val lookupCmd = if (isWindows) "where" else "which"
+            val process = ProcessBuilder(lookupCmd, command)
                 .redirectErrorStream(true)
                 .start()
             val result = process.inputStream.bufferedReader().readText().trim()
             process.waitFor()
-            if (process.exitValue() == 0 && result.isNotBlank()) result else null
+            if (process.exitValue() == 0 && result.isNotBlank()) result.lines().first() else null
         } catch (_: Exception) {
             null
         }
