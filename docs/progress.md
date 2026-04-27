@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-26（开源项目调研）
+> 最新更新：2026-04-27（ModrinthClient 测试 + Windows 兼容性修复）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,7 +11,7 @@
 
 ## Now（进行中）
 
-- [ ] shared-core 测试补充 — ModrinthClient 独立单元测试（7 个用例），详见 `architecture-notes.md`
+（无）
 
 ---
 
@@ -35,6 +35,11 @@
 
 ## Done
 
+- [x] shared-core ModrinthClient 测试 + Windows 兼容性修复（2026-04-27）
+  - **ModrinthClientTest**（7 个用例）：search 字段映射、facets 构建、limit 裁剪、getProjectVersions 列表映射、getVersion 文件哈希、downloadFile 磁盘写入、API 错误异常
+  - **E2E 测试 Windows 兼容性**：用 Kotlin `MockMcServer` object 替代 bash 脚本，通过 `java -cp` 跨平台启动
+  - **JavaDetector Windows 修复**：`where` 替代 `which`、`java.exe` 后缀、`Path.of()` 构建路径
+  - 测试总数：140 → 147（+7 shared-core）
 - [x] 开源项目调研（2026-04-26）
   - 调研 PrismLauncher、MCSManager、Pelican Wings 三个项目（加已有的 HMCL 共四个），clone 到 `~/Documents/`
   - `architecture-notes.md` 新增 "开源项目调研" 章节：项目概览、Forge 服务端安装方案、Player 追踪三方案对比、进程生命周期改进（崩溃恢复 + power lock）、Mod 管理改进方向（持久化 + 依赖解析 + 批量更新）

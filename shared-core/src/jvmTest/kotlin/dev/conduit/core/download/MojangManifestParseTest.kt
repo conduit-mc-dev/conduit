@@ -87,10 +87,10 @@ class MojangManifestParseTest {
         val detail = json.decodeFromString<MojangVersionDetail>(fixture)
 
         assertEquals("1.21.5", detail.id)
-        assertNotNull(detail.downloads.server)
-        assertEquals("bbb222", detail.downloads.server!!.sha1)
-        assertEquals(50000000L, detail.downloads.server!!.size)
-        assertTrue(detail.downloads.server!!.url.endsWith("server.jar"))
+        val server = assertNotNull(detail.downloads.server)
+        assertEquals("bbb222", server.sha1)
+        assertEquals(50000000L, server.size)
+        assertTrue(server.url.endsWith("server.jar"))
         assertNotNull(detail.downloads.client)
     }
 

@@ -61,11 +61,12 @@ fun Route.modRoutes(
                 part.dispose()
             }
 
-            if (fileBytes == null || fileName == null) {
-                throw ApiException(HttpStatusCode.BadRequest, "VALIDATION_ERROR", "Missing file in multipart upload")
-            }
+            val checkedFileName = fileName
+                ?: throw ApiException(HttpStatusCode.BadRequest, "VALIDATION_ERROR", "Missing file in multipart upload")
+            val checkedFileBytes = fileBytes
+                ?: throw ApiException(HttpStatusCode.BadRequest, "VALIDATION_ERROR", "Missing file in multipart upload")
 
-            val mod = modService.uploadCustomMod(id, fileName!!, fileBytes!!, name, version, env)
+            val mod = modService.uploadCustomMod(id, checkedFileName, checkedFileBytes, name, version, env)
             call.respond(HttpStatusCode.Created, mod)
         }
 
