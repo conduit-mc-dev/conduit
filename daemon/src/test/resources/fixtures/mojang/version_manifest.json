@@ -1,0 +1,14 @@
+{
+  "latest": {"release":"1.20.4","snapshot":"1.20.4"},
+  "versions": [{
+    "id": "1.20.4",
+    "type": "release",
+    "url": "https://piston-meta.mojang.com/v1/packages/abc/1.20.4.json",
+    "releaseTime": "2023-12-07T00:00:00Z"
+  },{
+    "id": "24w03a",
+    "type": "snapshot",
+    "url": "https://piston-meta.mojang.com/v1/packages/def/24w03a.json",
+    "releaseTime": "2024-01-17T00:00:00Z"
+  }]
+}

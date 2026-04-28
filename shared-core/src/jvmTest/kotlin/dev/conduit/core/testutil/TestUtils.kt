@@ -36,6 +36,11 @@ fun mockHttpClient(
 fun MockRequestHandleScope.jsonResponse(body: String): HttpResponseData =
     respond(body, headers = headersOf(HttpHeaders.ContentType, "application/json"))
 
-fun loadFixture(path: String): String =
-    object {}.javaClass.getResource("/fixtures/$path")?.readText()
+fun loadFixture(path: String, replacements: Map<String, String> = emptyMap()): String {
+    val content = object {}.javaClass.getResource("/fixtures/$path")?.readText()
         ?: error("Test fixture not found: /fixtures/$path")
+    val replaced = replacements.entries.fold(content) { acc, (key, value) -> acc.replace("{{$key}}", value) }
+    val leftover = Regex("""\{\{[^}]+}}""").find(replaced)
+    check(leftover == null) { "Unreplaced placeholder ${leftover?.value} in fixture /fixtures/$path" }
+    return replaced
+}

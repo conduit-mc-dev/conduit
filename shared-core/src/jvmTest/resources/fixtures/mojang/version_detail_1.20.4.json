@@ -1,0 +1,11 @@
+{
+  "id": "1.20.4",
+  "type": "release",
+  "downloads": {
+    "server": {
+      "sha1": "{{SHA1}}",
+      "size": {{SIZE}},
+      "url": "https://piston-data.mojang.com/v1/objects/abc/server.jar"
+    }
+  }
+}

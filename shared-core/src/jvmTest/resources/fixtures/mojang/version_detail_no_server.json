@@ -1,0 +1,11 @@
+{
+  "id": "rd-132211",
+  "type": "old_alpha",
+  "downloads": {
+    "client": {
+      "sha1": "ccc333",
+      "size": 1000000,
+      "url": "https://piston-data.mojang.com/v1/objects/ccc/client.jar"
+    }
+  }
+}

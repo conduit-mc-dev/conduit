@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-28（安全加固：GET 路由保护 + symlink 防护 + 路径穿越修复）
+> 最新更新：2026-04-28（测试系统重构 Phase 6：JSON fixture 文件化）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,7 +11,7 @@
 
 ## Now（进行中）
 
-- [ ] 测试系统重构 Phase 6 — JSON fixture 文件化（将内联 JSON 迁移到 `src/test/resources/fixtures/`）
+（暂无，等待下一任务）
 
 ---
 
@@ -22,6 +22,10 @@
 3. [ ] Player 追踪（MVP 前）— MVP 用 stdout 日志解析（`joinPattern`/`leavePattern`），未来用 MC Ping 补充。详见 `architecture-notes.md` "Player 追踪" 章节
 4. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
 5. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+
+### 技术债（非阻塞）
+
+- [ ] shared-core/daemon 测试工具跨模块共享 — 目前 `loadFixture` 和 `withTempDir` 在 shared-core `TestUtils.kt` 和 daemon `TestHelpers.kt` 各有一份完全相同的实现。根因是无 `java-test-fixtures` 插件或独立 `test-utils` 模块。方案：给 shared-core 加 `java-test-fixtures` → daemon `testImplementation(testFixtures(project(":shared-core")))`
 
 ### 延迟项（MVP 后）
 
@@ -60,6 +64,12 @@
 
 ## Done
 
+- [x] 测试系统重构 Phase 6：JSON fixture 文件化（2026-04-28）
+  - **shared-core**：`ModrinthClientTest`（2 个 fixture）、`MojangClientTest`（2 个）、`MojangManifestParseTest`（3 个）共 7 个 fixture 文件迁移到 `shared-core/src/jvmTest/resources/fixtures/{modrinth,mojang}/`
+  - **daemon**：`TestHelpers.kt` 的 4 个 mock JSON 块（`mockManifestJson`/`mockVersionDetailJson`/`mockVersionV1Json`/`mockVersionV2Json`）迁移到 `daemon/src/test/resources/fixtures/{modrinth,mojang}/`
+  - **loadFixture 工具**：shared-core 已有；daemon 新增 `TestHelpers.kt#loadFixture(path, replacements)`，支持 `{{KEY}}` 占位符替换（用于 `$mockJarContent.size` 等动态字节长度）
+  - **留在原地**：小的 request body（< 60 字符）、WebSocket 协议帧（带 `WsMessage.*` 常量引用）、Loader HTTP 响应（单行一次性使用）
+  - 测试总数保持 187（纯重构），仅减少 ~100 行内联 JSON，test 数据可跨语言/编辑器语法高亮查看
 - [x] 安全加固：GET 路由保护 + symlink 防护 + 路径穿越修复（2026-04-28）
   - **FileRoutes GET 保护**：GET /files 和 GET /files/content 加 `validateNotProtected`，拦截 server.jar/instance.json/pack/mods-disabled/mods-custom 读取
   - **symlink 防护**：`resolveSafePath` 改用 `toRealPath()` 做 symlink 感知的路径包含检查；处理文件/目录不存在时的 fallback

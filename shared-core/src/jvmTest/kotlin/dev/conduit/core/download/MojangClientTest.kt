@@ -2,6 +2,7 @@ package dev.conduit.core.download
 
 import dev.conduit.core.model.DownloadSource
 import dev.conduit.core.testutil.jsonResponse
+import dev.conduit.core.testutil.loadFixture
 import dev.conduit.core.testutil.mockHttpClient
 import dev.conduit.core.testutil.withTempDir
 import io.ktor.client.engine.mock.*
@@ -14,31 +15,12 @@ class MojangClientTest {
     private val jarContent = "fake-server-jar-content".toByteArray()
     private val jarSha1 = "0a08e2d523081e88ffef01e923c6f2de074108e7"
 
-    private val manifestJson = """
-    {
-      "latest": {"release":"1.20.4","snapshot":"1.20.4"},
-      "versions": [{
-        "id": "1.20.4",
-        "type": "release",
-        "url": "https://piston-meta.mojang.com/v1/packages/abc/1.20.4.json",
-        "releaseTime": "2023-12-07T00:00:00Z"
-      }]
-    }
-    """.trimIndent()
+    private val manifestJson = loadFixture("mojang/version_manifest_1.20.4.json")
 
-    private val versionDetailJson = """
-    {
-      "id": "1.20.4",
-      "type": "release",
-      "downloads": {
-        "server": {
-          "sha1": "$jarSha1",
-          "size": ${jarContent.size},
-          "url": "https://piston-data.mojang.com/v1/objects/abc/server.jar"
-        }
-      }
-    }
-    """.trimIndent()
+    private val versionDetailJson = loadFixture(
+        "mojang/version_detail_1.20.4.json",
+        mapOf("SHA1" to jarSha1, "SIZE" to jarContent.size.toString()),
+    )
 
     private fun MockRequestHandleScope.routeStandard(request: io.ktor.client.request.HttpRequestData) =
         when {

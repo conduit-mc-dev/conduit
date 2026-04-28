@@ -1,6 +1,7 @@
 package dev.conduit.core.download
 
 import dev.conduit.core.testutil.jsonResponse
+import dev.conduit.core.testutil.loadFixture
 import dev.conduit.core.testutil.mockHttpClient
 import dev.conduit.core.testutil.withTempDir
 import io.ktor.client.engine.mock.*
@@ -12,46 +13,8 @@ import kotlin.test.*
 class ModrinthClientTest {
 
     companion object {
-        private val searchResponseJson = """
-        {
-          "hits": [{
-            "project_id": "abc123",
-            "slug": "my-mod",
-            "title": "My Mod",
-            "description": "A test mod",
-            "author": "author1",
-            "icon_url": null,
-            "downloads": 42,
-            "latest_version": "1.0.0",
-            "categories": ["fabric"],
-            "client_side": "required",
-            "server_side": "optional"
-          }],
-          "total_hits": 1,
-          "offset": 0,
-          "limit": 20
-        }
-        """.trimIndent()
-
-        private val versionJson = """
-        {
-          "id": "ver1",
-          "project_id": "abc123",
-          "version_number": "1.0.0",
-          "name": "Version 1",
-          "changelog": "Initial release",
-          "game_versions": ["1.20.4"],
-          "loaders": ["fabric"],
-          "date_published": "2024-01-01T00:00:00Z",
-          "files": [{
-            "filename": "mod.jar",
-            "url": "https://cdn.modrinth.com/mod.jar",
-            "size": 12345,
-            "hashes": {"sha1": "a1b2", "sha512": "c3d4"}
-          }],
-          "dependencies": [{"project_id": "dep1", "dependency_type": "required"}]
-        }
-        """.trimIndent()
+        private val searchResponseJson = loadFixture("modrinth/search_response.json")
+        private val versionJson = loadFixture("modrinth/version_ver1.json")
     }
 
 

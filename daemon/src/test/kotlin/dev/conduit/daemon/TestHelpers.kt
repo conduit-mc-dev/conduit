@@ -61,81 +61,36 @@ inline fun <T> withTempDir(prefix: String = "conduit-test", block: (Path) -> T):
     }
 }
 
+fun loadFixture(path: String, replacements: Map<String, String> = emptyMap()): String {
+    val content = object {}.javaClass.getResource("/fixtures/$path")?.readText()
+        ?: error("Test fixture not found: /fixtures/$path")
+    val replaced = replacements.entries.fold(content) { acc, (key, value) -> acc.replace("{{$key}}", value) }
+    val leftover = Regex("""\{\{[^}]+}}""").find(replaced)
+    check(leftover == null) { "Unreplaced placeholder ${leftover?.value} in fixture /fixtures/$path" }
+    return replaced
+}
+
 private val mockJarContent = "fake-server-jar-content".toByteArray()
 private val mockJarSha1 = "0a08e2d523081e88ffef01e923c6f2de074108e7"
 
-private val mockManifestJson = """
-{
-  "latest": {"release":"1.20.4","snapshot":"1.20.4"},
-  "versions": [{
-    "id": "1.20.4",
-    "type": "release",
-    "url": "https://piston-meta.mojang.com/v1/packages/abc/1.20.4.json",
-    "releaseTime": "2023-12-07T00:00:00Z"
-  },{
-    "id": "24w03a",
-    "type": "snapshot",
-    "url": "https://piston-meta.mojang.com/v1/packages/def/24w03a.json",
-    "releaseTime": "2024-01-17T00:00:00Z"
-  }]
-}
-""".trimIndent()
+private val mockManifestJson = loadFixture("mojang/version_manifest.json")
 
-private val mockVersionDetailJson = """
-{
-  "id": "1.20.4",
-  "type": "release",
-  "downloads": {
-    "server": {
-      "sha1": "$mockJarSha1",
-      "size": ${mockJarContent.size},
-      "url": "https://piston-data.mojang.com/v1/objects/abc/server.jar"
-    }
-  }
-}
-""".trimIndent()
+private val mockVersionDetailJson = loadFixture(
+    "mojang/version_detail.json",
+    mapOf("SHA1" to mockJarSha1, "SIZE" to mockJarContent.size.toString()),
+)
 
 private val mockModJarBytes = "PK-fake-modrinth-mod".toByteArray()
 
-private val mockVersionV1Json = """
-{
-  "id": "ver-001",
-  "project_id": "proj-abc",
-  "version_number": "1.0.0",
-  "name": "Sodium 1.0.0",
-  "changelog": "Initial release",
-  "game_versions": ["1.20.4"],
-  "loaders": ["fabric"],
-  "date_published": "2024-01-01T00:00:00Z",
-  "files": [{
-    "filename": "sodium-1.0.0.jar",
-    "url": "https://cdn.modrinth.com/data/proj-abc/versions/ver-001/sodium-1.0.0.jar",
-    "size": ${mockModJarBytes.size},
-    "hashes": {"sha1": "aabbccdd", "sha512": "eeff0011"}
-  }],
-  "dependencies": []
-}
-""".trimIndent()
+private val mockVersionV1Json = loadFixture(
+    "modrinth/version_sodium_1.0.0.json",
+    mapOf("SIZE" to mockModJarBytes.size.toString()),
+)
 
-private val mockVersionV2Json = """
-{
-  "id": "ver-002",
-  "project_id": "proj-abc",
-  "version_number": "1.1.0",
-  "name": "Sodium 1.1.0",
-  "changelog": "Performance improvements",
-  "game_versions": ["1.20.4"],
-  "loaders": ["fabric"],
-  "date_published": "2024-02-01T00:00:00Z",
-  "files": [{
-    "filename": "sodium-1.1.0.jar",
-    "url": "https://cdn.modrinth.com/data/proj-abc/versions/ver-002/sodium-1.1.0.jar",
-    "size": ${mockModJarBytes.size},
-    "hashes": {"sha1": "11223344", "sha512": "55667788"}
-  }],
-  "dependencies": []
-}
-""".trimIndent()
+private val mockVersionV2Json = loadFixture(
+    "modrinth/version_sodium_1.1.0.json",
+    mapOf("SIZE" to mockModJarBytes.size.toString()),
+)
 
 private val mockProjectVersionsJson = "[$mockVersionV2Json, $mockVersionV1Json]"
 

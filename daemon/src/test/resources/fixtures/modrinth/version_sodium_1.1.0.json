@@ -1,0 +1,17 @@
+{
+  "id": "ver-002",
+  "project_id": "proj-abc",
+  "version_number": "1.1.0",
+  "name": "Sodium 1.1.0",
+  "changelog": "Performance improvements",
+  "game_versions": ["1.20.4"],
+  "loaders": ["fabric"],
+  "date_published": "2024-02-01T00:00:00Z",
+  "files": [{
+    "filename": "sodium-1.1.0.jar",
+    "url": "https://cdn.modrinth.com/data/proj-abc/versions/ver-002/sodium-1.1.0.jar",
+    "size": {{SIZE}},
+    "hashes": {"sha1": "11223344", "sha512": "55667788"}
+  }],
+  "dependencies": []
+}

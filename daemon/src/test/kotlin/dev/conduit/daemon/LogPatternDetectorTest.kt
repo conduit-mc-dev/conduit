@@ -8,9 +8,7 @@ class LogPatternDetectorTest {
 
     private val detector = LogPatternDetector()
 
-    private fun loadLog(name: String): String =
-        javaClass.getResource("/fixtures/logs/$name")?.readText()?.trim()
-            ?: error("Fixture not found: $name")
+    private fun loadLog(name: String): String = loadFixture("logs/$name").trim()
 
     @Test
     fun `detects Done from vanilla server`() {
