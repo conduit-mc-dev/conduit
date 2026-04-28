@@ -2,6 +2,7 @@ package dev.conduit.daemon.service
 
 import dev.conduit.daemon.ApiException
 import io.ktor.http.*
+import java.nio.file.FileSystemException
 import java.nio.file.Path
 import kotlin.io.path.*
 
@@ -54,6 +55,26 @@ class FileService(private val dataDirectory: DataDirectory) {
         if (!resolved.startsWith(instanceDir)) {
             throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Invalid path")
         }
+
+        try {
+            val realInstanceDir = instanceDir.toRealPath()
+            if (resolved.exists()) {
+                if (!resolved.toRealPath().startsWith(realInstanceDir)) {
+                    throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Invalid path")
+                }
+            } else {
+                val parent = resolved.parent
+                if (parent != null && parent.exists()) {
+                    val realParent = parent.toRealPath().resolve(resolved.fileName)
+                    if (!realParent.startsWith(realInstanceDir)) {
+                        throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Invalid path")
+                    }
+                }
+            }
+        } catch (_: FileSystemException) {
+            throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Invalid path")
+        }
+
         return resolved
     }
 
@@ -62,8 +83,9 @@ class FileService(private val dataDirectory: DataDirectory) {
         if (normalized in PROTECTED_PATHS) {
             throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Protected file: $relativePath")
         }
+        val withSlash = if (normalized.endsWith("/")) normalized else "$normalized/"
         for (prefix in PROTECTED_PREFIXES) {
-            if (normalized.startsWith(prefix)) {
+            if (normalized.startsWith(prefix) || withSlash == prefix) {
                 throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Protected directory: $relativePath")
             }
         }
@@ -78,12 +100,5 @@ class FileService(private val dataDirectory: DataDirectory) {
         return ContentType.parse(mime)
     }
 
-    private fun validatePath(relativePath: String) {
-        if (relativePath.contains("..")) {
-            throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Path traversal not allowed")
-        }
-        if (relativePath.startsWith("/") || relativePath.startsWith("\\")) {
-            throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Absolute paths not allowed")
-        }
-    }
+    private fun validatePath(relativePath: String) = PathValidator.validateRelativePath(relativePath)
 }

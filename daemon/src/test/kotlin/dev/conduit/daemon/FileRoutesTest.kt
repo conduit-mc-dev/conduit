@@ -332,20 +332,97 @@ class FileRoutesTest {
     }
 
     @Test
-    fun `GET server-jar is not blocked by validateNotProtected`() = testApplication {
-        // TODO: validateNotProtected is NOT called on GET routes — security gap
-        // server.jar is readable via GET, documenting current behavior
+    fun `GET server-jar is blocked by validateNotProtected`() = testApplication {
         val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
-        // write a file so we can verify the path is not blocked
         tempDir.resolve("instances/${instance.id}/server.jar").toFile().also {
             it.parentFile.mkdirs()
             it.writeText("fake")
         }
 
         val response = client.get("/api/v1/instances/${instance.id}/files/content?path=server.jar") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `GET instance-json is blocked`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.get("/api/v1/instances/${instance.id}/files/content?path=instance.json") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `GET file under mods-disabled is blocked`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.get("/api/v1/instances/${instance.id}/files/content?path=mods-disabled/foo.jar") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `GET mods jar file is blocked`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.get("/api/v1/instances/${instance.id}/files/content?path=mods/something.jar") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `GET listing pack directory is blocked`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+        tempDir.resolve("instances/${instance.id}/pack").createDirectories()
+
+        val response = client.get("/api/v1/instances/${instance.id}/files?path=pack") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `GET listing mods-custom directory is blocked`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+        tempDir.resolve("instances/${instance.id}/mods-custom").createDirectories()
+
+        val response = client.get("/api/v1/instances/${instance.id}/files?path=mods-custom") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `GET listing root still works`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.get("/api/v1/instances/${instance.id}/files") {
             header(HttpHeaders.Authorization, "Bearer $token")
         }
         assertEquals(HttpStatusCode.OK, response.status)

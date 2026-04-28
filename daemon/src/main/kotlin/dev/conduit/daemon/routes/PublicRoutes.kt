@@ -3,6 +3,7 @@ package dev.conduit.daemon.routes
 import dev.conduit.core.model.*
 import dev.conduit.daemon.ApiException
 import dev.conduit.daemon.service.DataDirectory
+import dev.conduit.daemon.service.PathValidator
 import dev.conduit.daemon.service.ServerProcessManager
 import dev.conduit.daemon.store.InstanceStore
 import dev.conduit.daemon.store.ModStore
@@ -100,8 +101,9 @@ fun Route.publicRoutes(
         get("/{instanceId}/mods/{fileName}") {
             val instanceId = call.parameters["instanceId"]
                 ?: throw ApiException(HttpStatusCode.BadRequest, "VALIDATION_ERROR", "Missing instanceId")
-            val fileName = call.parameters["fileName"]
+            val rawFileName = call.parameters["fileName"]
                 ?: throw ApiException(HttpStatusCode.BadRequest, "VALIDATION_ERROR", "Missing fileName")
+            val fileName = PathValidator.sanitizeFileName(rawFileName)
 
             instanceStore.get(instanceId)
             val customModPath = dataDirectory.modsCustomDir(instanceId).resolve(fileName)

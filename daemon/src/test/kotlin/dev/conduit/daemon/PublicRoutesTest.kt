@@ -219,4 +219,15 @@ class PublicRoutesTest {
         }
         assertEquals(HttpStatusCode.NotModified, second.status)
     }
+
+    @Test
+    fun `custom mod download rejects path traversal filename`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.get("/public/${instance.id}/mods/..%2F..%2Fetc%2Fpasswd")
+        assertTrue(response.status.value in listOf(404, 422))
+    }
 }

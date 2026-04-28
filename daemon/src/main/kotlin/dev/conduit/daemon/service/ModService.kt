@@ -42,7 +42,8 @@ class ModService(
 
         val modsDir = dataDirectory.modsDir(instanceId)
         modsDir.createDirectories()
-        val destination = modsDir.resolve(file.fileName)
+        val safeFileName = PathValidator.sanitizeFileName(file.fileName)
+        val destination = modsDir.resolve(safeFileName)
 
         try {
             modrinthClient.downloadFile(downloadUrl, destination)
@@ -58,7 +59,7 @@ class ModService(
             modrinthVersionId = versionId,
             name = version.name,
             version = version.versionNumber,
-            fileName = file.fileName,
+            fileName = safeFileName,
             env = ModEnvSupport(),
             hashes = ModHashes(sha1 = file.hashes?.sha1, sha512 = file.hashes?.sha512),
             downloadUrl = downloadUrl,
@@ -81,7 +82,8 @@ class ModService(
         if (bytes.size > MAX_UPLOAD_SIZE) {
             throw ApiException(HttpStatusCode.PayloadTooLarge, "FILE_TOO_LARGE", "File exceeds 256 MB limit")
         }
-        if (!fileName.endsWith(".jar")) {
+        val safeFileName = PathValidator.sanitizeFileName(fileName)
+        if (!safeFileName.endsWith(".jar")) {
             throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "File must be a .jar")
         }
 
@@ -93,18 +95,18 @@ class ModService(
 
         val customDir = dataDirectory.modsCustomDir(instanceId)
         customDir.createDirectories()
-        customDir.resolve(fileName).writeBytes(bytes)
+        customDir.resolve(safeFileName).writeBytes(bytes)
 
         val modsDir = dataDirectory.modsDir(instanceId)
         modsDir.createDirectories()
-        modsDir.resolve(fileName).writeBytes(bytes)
+        modsDir.resolve(safeFileName).writeBytes(bytes)
 
         val mod = InstalledMod(
             id = IdGenerator.generateInstanceId(),
             source = "custom",
-            name = name ?: fileName.removeSuffix(".jar"),
+            name = name ?: safeFileName.removeSuffix(".jar"),
             version = version ?: "unknown",
-            fileName = fileName,
+            fileName = safeFileName,
             env = env ?: ModEnvSupport(client = "required", server = "required"),
             hashes = hashes,
             fileSize = bytes.size.toLong(),
@@ -142,7 +144,8 @@ class ModService(
         val modsDir = dataDirectory.modsDir(instanceId)
         modsDir.resolve(mod.fileName).deleteIfExists()
 
-        val destination = modsDir.resolve(file.fileName)
+        val newSafeFileName = PathValidator.sanitizeFileName(file.fileName)
+        val destination = modsDir.resolve(newSafeFileName)
         modrinthClient.downloadFile(downloadUrl, destination)
 
         val updated = mod.copy(
@@ -150,7 +153,7 @@ class ModService(
             modrinthVersionId = newVersionId,
             name = version.name,
             version = version.versionNumber,
-            fileName = file.fileName,
+            fileName = newSafeFileName,
             hashes = ModHashes(sha1 = file.hashes?.sha1, sha512 = file.hashes?.sha512),
             downloadUrl = downloadUrl,
             fileSize = file.fileSize,

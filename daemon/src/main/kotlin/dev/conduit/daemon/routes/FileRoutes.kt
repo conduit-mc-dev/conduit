@@ -48,6 +48,9 @@ fun Route.fileRoutes(
             val id = call.requireInstanceId()
             instanceStore.get(id)
             val pathParam = call.queryParameters["path"] ?: ""
+            if (pathParam.isNotEmpty()) {
+                fileService.validateNotProtected(pathParam)
+            }
             val resolved = fileService.resolveSafePath(id, pathParam.ifEmpty { "." })
             if (!resolved.exists() || !resolved.isDirectory()) {
                 throw ApiException(HttpStatusCode.NotFound, "FILE_NOT_FOUND", "Directory not found")
@@ -79,6 +82,7 @@ fun Route.fileRoutes(
             instanceStore.get(id)
             val pathParam = call.queryParameters["path"]
                 ?: throw ApiException(HttpStatusCode.BadRequest, "VALIDATION_ERROR", "Missing path parameter")
+            fileService.validateNotProtected(pathParam)
             val resolved = fileService.resolveSafePath(id, pathParam)
             if (!resolved.exists() || resolved.isDirectory()) {
                 throw ApiException(HttpStatusCode.NotFound, "FILE_NOT_FOUND", "File not found")

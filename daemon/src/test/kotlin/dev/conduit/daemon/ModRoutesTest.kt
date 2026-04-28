@@ -326,4 +326,26 @@ class ModRoutesTest {
         }
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
     }
+
+    @Test
+    fun `upload mod with path traversal filename is sanitized`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val fakeJarBytes = "PKtraversal-test-content".toByteArray()
+        val response = client.post("/api/v1/instances/${instance.id}/mods/upload") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody(MultiPartFormDataContent(formData {
+                append("file", fakeJarBytes, Headers.build {
+                    append(HttpHeaders.ContentDisposition, "filename=\"../../../evil.jar\"")
+                    append(HttpHeaders.ContentType, "application/java-archive")
+                })
+            }))
+        }
+        assertEquals(HttpStatusCode.Created, response.status)
+        val mod = response.body<InstalledMod>()
+        assertEquals("evil.jar", mod.fileName)
+    }
 }

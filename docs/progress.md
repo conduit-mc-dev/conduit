@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-28（测试系统重构）
+> 最新更新：2026-04-28（安全加固：GET 路由保护 + symlink 防护 + 路径穿越修复）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -34,8 +34,9 @@
 ### 测试缺口清单（按优先级，参考 HMCL/PrismLauncher/Wings/MCSManager 调研）
 
 **高优先级（MVP 前应补）**
-- [ ] FileRoutes GET 路由安全加固 — `validateNotProtected` 未在 GET 调用，可读 server.jar/instance.json（参考 Wings `filesystem_test.go`）
-- [ ] resolveSafePath symlink 防护 — `normalize()` 不解析 symlink，需改为 `toRealPath()`（参考 Wings `path_test.go`）
+- [x] FileRoutes GET 路由安全加固 — `validateNotProtected` 已在 GET /files 和 GET /files/content 调用，+7 测试
+- [x] resolveSafePath symlink 防护 — `toRealPath()` 替代 `normalize()`，处理不存在文件/目录场景
+- [x] PublicRoutes/ModService 路径穿越 — `PathValidator.sanitizeFileName()` 防御外部输入的恶意文件名，+2 测试
 - [ ] 协程取消清理 — 取消安装/下载后无残留文件、状态回 STOPPED（参考 HMCL `TaskTest`）
 - [ ] Fabric/Quilt 安装流程测试 — `installFabric()`/`installQuilt()` 执行路径无测试（参考 MCSManager `quick_install.ts`）
 - [ ] 启动超时检测 — `Done` 永不出现时实例停留在 STARTING 无限期
@@ -59,6 +60,14 @@
 
 ## Done
 
+- [x] 安全加固：GET 路由保护 + symlink 防护 + 路径穿越修复（2026-04-28）
+  - **FileRoutes GET 保护**：GET /files 和 GET /files/content 加 `validateNotProtected`，拦截 server.jar/instance.json/pack/mods-disabled/mods-custom 读取
+  - **symlink 防护**：`resolveSafePath` 改用 `toRealPath()` 做 symlink 感知的路径包含检查；处理文件/目录不存在时的 fallback
+  - **PublicRoutes 修复**：custom mod 下载端点 `/{instanceId}/mods/{fileName}` 加 `sanitizeFileName` + `startsWith` 防御
+  - **ModService 修复**：所有外部来源的 fileName（Modrinth API / multipart 上传 / 内部存储）统一 sanitize
+  - **PathValidator 工具对象**：提取 `validateRelativePath`（原 FileService.validatePath）+ 新增 `sanitizeFileName`（提取纯文件名，拒绝 `..` 和空串）
+  - 测试总数：171 → 187（+16）：PathValidatorTest 8 个、FileRoutesTest +7、PublicRoutesTest +1、ModRoutesTest +1
+  - 修复 4 个安全漏洞：GET 读保护文件、symlink 逃逸、PublicRoutes 路径穿越、ModService 文件名穿越
 - [x] 测试系统重构 Phase 1-5（2026-04-28）
   - **Phase 1**：提取 shared-core 共享测试工具（`TestUtils.kt`：withTempDir/mockHttpClient/jsonResponse/loadFixture），消除 5 处重复
   - **Phase 2**：统一 daemon 测试模板（`DaemonTestSetup.kt`：setupTestModule 替代 13 个 testModule 副本），forceInitializing 处理 mock 下载竞态
