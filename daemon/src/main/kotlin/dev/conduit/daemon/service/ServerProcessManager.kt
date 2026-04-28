@@ -36,7 +36,7 @@ class ServerProcessManager(
 
     private val processes = ConcurrentHashMap<String, ManagedProcess>()
 
-    private val donePattern = Regex("""\[.*]: Done \(""")
+    private val logDetector = LogPatternDetector()
 
     fun start(instanceId: String) {
         if (processes.containsKey(instanceId)) {
@@ -69,13 +69,20 @@ class ServerProcessManager(
                     reader.lineSequence().forEach { line ->
                         broadcastConsoleLine(instanceId, line)
 
-                        if (donePattern.containsMatchIn(line)) {
-                            try {
-                                instanceStore.transitionState(instanceId, InstanceState.STARTING, InstanceState.RUNNING)
-                                broadcastStateChanged(instanceId, InstanceState.STARTING, InstanceState.RUNNING)
-                            } catch (_: ApiException) {
-                                // 状态已不是 STARTING（可能被 stop 抢先），忽略
+                        val event = logDetector.detect(line)
+                        when (event?.type) {
+                            LogEventType.SERVER_DONE -> {
+                                try {
+                                    instanceStore.transitionState(instanceId, InstanceState.STARTING, InstanceState.RUNNING)
+                                    broadcastStateChanged(instanceId, InstanceState.STARTING, InstanceState.RUNNING)
+                                } catch (_: ApiException) {
+                                    // 状态已不是 STARTING（被 stop 抢先），忽略
+                                }
                             }
+                            LogEventType.OOM, LogEventType.PORT_CONFLICT, LogEventType.CRASH -> {
+                                log.warn("Detected {} for instance {}: {}", event.type, instanceId, line)
+                            }
+                            null -> {}
                         }
                     }
                 }

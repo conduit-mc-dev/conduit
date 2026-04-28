@@ -1,7 +1,7 @@
 package dev.conduit.daemon
 
 import dev.conduit.core.model.*
-import dev.conduit.daemon.service.DataDirectory
+import dev.conduit.daemon.testutil.setupTestModule
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
@@ -9,9 +9,6 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import kotlinx.coroutines.delay
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.io.path.createDirectories
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -19,19 +16,9 @@ import kotlin.test.assertTrue
 
 class PublicRoutesTest {
 
-    private lateinit var tempDir: Path
-
-    private fun testModule(): TestApplicationBuilder.() -> Unit = {
-        application {
-            tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            module(dataDirectory = DataDirectory(tempDir))
-        }
-    }
-
     @Test
     fun `health endpoint still works`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
 
         val response = client.get("/public/health")
@@ -40,7 +27,7 @@ class PublicRoutesTest {
 
     @Test
     fun `server-json returns instance info`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -59,7 +46,7 @@ class PublicRoutesTest {
 
     @Test
     fun `server-json returns 404 when public disabled`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -76,7 +63,7 @@ class PublicRoutesTest {
 
     @Test
     fun `server-json returns 404 for nonexistent instance`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
 
         val response = client.get("/public/nonexistent/server.json")
@@ -85,7 +72,7 @@ class PublicRoutesTest {
 
     @Test
     fun `pack-mrpack returns 404 when not built`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -96,7 +83,7 @@ class PublicRoutesTest {
 
     @Test
     fun `pack-mrpack serves file after build`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -126,7 +113,7 @@ class PublicRoutesTest {
 
     @Test
     fun `custom mod download serves file`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -149,7 +136,7 @@ class PublicRoutesTest {
 
     @Test
     fun `custom mod download 404 for nonexistent file`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -160,7 +147,7 @@ class PublicRoutesTest {
 
     @Test
     fun `server-json includes Cache-Control no-cache`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -172,7 +159,7 @@ class PublicRoutesTest {
 
     @Test
     fun `pack-mrpack returns 304 with matching If-None-Match`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -207,7 +194,7 @@ class PublicRoutesTest {
 
     @Test
     fun `custom mod download returns 304 with matching If-None-Match`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)

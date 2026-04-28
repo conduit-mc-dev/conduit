@@ -1,8 +1,8 @@
 package dev.conduit.daemon
 
 import dev.conduit.core.model.*
-import dev.conduit.daemon.service.DataDirectory
 import dev.conduit.daemon.service.FileService
+import dev.conduit.daemon.testutil.setupTestModule
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -10,8 +10,6 @@ import io.ktor.http.*
 import io.ktor.server.testing.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.io.path.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -20,21 +18,11 @@ import kotlin.test.assertTrue
 
 class FileRoutesTest {
 
-    private lateinit var tempDir: Path
-
-    private fun testModule(): TestApplicationBuilder.() -> Unit = {
-        application {
-            tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            module(dataDirectory = DataDirectory(tempDir))
-        }
-    }
-
     // --- server.properties ---
 
     @Test
     fun `get server-properties returns empty when file missing`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -49,7 +37,7 @@ class FileRoutesTest {
 
     @Test
     fun `update server-properties creates file and returns updated keys`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -76,7 +64,7 @@ class FileRoutesTest {
 
     @Test
     fun `list root directory of instance`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -98,7 +86,7 @@ class FileRoutesTest {
 
     @Test
     fun `list subdirectory`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -119,7 +107,7 @@ class FileRoutesTest {
 
     @Test
     fun `list nonexistent directory returns 404`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -134,7 +122,7 @@ class FileRoutesTest {
 
     @Test
     fun `read file content`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -152,7 +140,7 @@ class FileRoutesTest {
 
     @Test
     fun `read nonexistent file returns 404`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -167,7 +155,7 @@ class FileRoutesTest {
 
     @Test
     fun `write file creates file and parent dirs`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -191,7 +179,7 @@ class FileRoutesTest {
 
     @Test
     fun `delete file returns 204`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -210,7 +198,7 @@ class FileRoutesTest {
 
     @Test
     fun `path traversal is rejected`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -223,7 +211,7 @@ class FileRoutesTest {
 
     @Test
     fun `write to protected file server-jar is rejected`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -237,7 +225,7 @@ class FileRoutesTest {
 
     @Test
     fun `write to mods jar is rejected`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -251,7 +239,7 @@ class FileRoutesTest {
 
     @Test
     fun `write to pack directory is rejected`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -265,7 +253,7 @@ class FileRoutesTest {
 
     @Test
     fun `delete protected instance-json is rejected`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -277,8 +265,95 @@ class FileRoutesTest {
     }
 
     @Test
+    fun `PUT path traversal is rejected`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.put("/api/v1/instances/${instance.id}/files/content?path=../../../etc/passwd") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody("malicious content")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `DELETE path traversal is rejected`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.delete("/api/v1/instances/${instance.id}/files/content?path=../../../etc/passwd") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `directory listing path traversal is rejected`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.get("/api/v1/instances/${instance.id}/files?path=../../../") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `backslash path traversal is rejected`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.put("/api/v1/instances/${instance.id}/files/content?path=..\\..\\..\\etc\\passwd") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody("malicious")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `absolute path is rejected`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.get("/api/v1/instances/${instance.id}/files/content?path=/etc/passwd") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+    }
+
+    @Test
+    fun `GET server-jar is not blocked by validateNotProtected`() = testApplication {
+        // TODO: validateNotProtected is NOT called on GET routes — security gap
+        // server.jar is readable via GET, documenting current behavior
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+        // write a file so we can verify the path is not blocked
+        tempDir.resolve("instances/${instance.id}/server.jar").toFile().also {
+            it.parentFile.mkdirs()
+            it.writeText("fake")
+        }
+
+        val response = client.get("/api/v1/instances/${instance.id}/files/content?path=server.jar") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
     fun `delete nonexistent file returns 404`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -291,7 +366,7 @@ class FileRoutesTest {
 
     @Test
     fun `write file exceeding size limit returns 413`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)

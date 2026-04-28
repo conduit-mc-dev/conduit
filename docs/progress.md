@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-27（ModrinthClient 测试 + Windows 兼容性修复）
+> 最新更新：2026-04-28（测试系统重构）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,7 +11,7 @@
 
 ## Now（进行中）
 
-（无）
+- [ ] 测试系统重构 Phase 6 — JSON fixture 文件化（将内联 JSON 迁移到 `src/test/resources/fixtures/`）
 
 ---
 
@@ -31,10 +31,42 @@
 - [ ] Modrinth 批量更新检查 — 改用 `POST /v2/version_files/update` 替代逐个查询
 - [ ] UI/UX 设计参考文档 — 独立文件，参考 GDLauncher + MCSManager/Pelican 面板布局
 
+### 测试缺口清单（按优先级，参考 HMCL/PrismLauncher/Wings/MCSManager 调研）
+
+**高优先级（MVP 前应补）**
+- [ ] FileRoutes GET 路由安全加固 — `validateNotProtected` 未在 GET 调用，可读 server.jar/instance.json（参考 Wings `filesystem_test.go`）
+- [ ] resolveSafePath symlink 防护 — `normalize()` 不解析 symlink，需改为 `toRealPath()`（参考 Wings `path_test.go`）
+- [ ] 协程取消清理 — 取消安装/下载后无残留文件、状态回 STOPPED（参考 HMCL `TaskTest`）
+- [ ] Fabric/Quilt 安装流程测试 — `installFabric()`/`installQuilt()` 执行路径无测试（参考 MCSManager `quick_install.ts`）
+- [ ] 启动超时检测 — `Done` 永不出现时实例停留在 STARTING 无限期
+
+**中优先级（v0.2 前应补）**
+- [ ] MC 版本排序正确性 — shuffle + sort = 已知顺序（参考 HMCL `GameVersionNumberTest`）
+- [ ] server.properties round-trip 特殊字符 — `#` 注释、`=` 在值内、Unicode（参考 PrismLauncher `INIFile_test`）
+- [ ] WebSocket 背压/满 channel 行为（参考 Wings `sink_pool_test.go`）
+- [ ] 请求头断言 — 验证 User-Agent/Authorization（参考 Wings `http_test.go`）
+- [ ] 重试次数精确计数验证（参考 Wings `http_test.go`）
+- [ ] Mod 元数据解析 — fixture JAR 中的 fabric.mod.json/mods.toml/plugin.yml（参考 MCSManager/PrismLauncher）
+
+**低优先级（可选增强）**
+- [ ] JVM 参数构建测试（参考 HMCL `CommandBuilderTest`）
+- [ ] 文件名跨平台验证 — Windows 保留名（参考 HMCL `FileUtilsTest`）
+- [ ] 控制台输出限流测试（参考 Wings `rate_test.go`）
+- [ ] ISO 8601 时间戳 round-trip（参考 PrismLauncher `ParseUtils_test`）
+- [ ] 并发写入竞态检测（参考 Wings `utils_test.go`）
+
 ---
 
 ## Done
 
+- [x] 测试系统重构 Phase 1-5（2026-04-28）
+  - **Phase 1**：提取 shared-core 共享测试工具（`TestUtils.kt`：withTempDir/mockHttpClient/jsonResponse/loadFixture），消除 5 处重复
+  - **Phase 2**：统一 daemon 测试模板（`DaemonTestSetup.kt`：setupTestModule 替代 13 个 testModule 副本），forceInitializing 处理 mock 下载竞态
+  - **Phase 3**：LoaderService 可 mock 化（构造函数注入 HttpClient），消除 LoaderRoutesTest/MinecraftRoutesTest 网络依赖，移除慢测试
+  - **Phase 4**：路径穿越测试补全（+6 测试：PUT/DELETE/listing 的 `../`、反斜杠、绝对路径），记录 GET 路由安全缺口
+  - **Phase 5**：提取 LogPatternDetector（检测 Done/OOM/端口冲突/崩溃），fixture 文件驱动的 9 个测试
+  - 参考项目：HMCL（fixture 驱动）、PrismLauncher（数据驱动）、Wings（路径穿越攻击向量）、MCSManager（关键路径分析）
+  - 测试总数：157 → 171（-1 慢测试 +15 新测试），净减代码 ~120 行
 - [x] shared-core ModrinthClient 测试 + Windows 兼容性修复（2026-04-27）
   - **ModrinthClientTest**（7 个用例）：search 字段映射、facets 构建、limit 裁剪、getProjectVersions 列表映射、getVersion 文件哈希、downloadFile 磁盘写入、API 错误异常
   - **E2E 测试 Windows 兼容性**：用 Kotlin `MockMcServer` object 替代 bash 脚本，通过 `java -cp` 跨平台启动

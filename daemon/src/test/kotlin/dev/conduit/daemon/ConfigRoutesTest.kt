@@ -1,12 +1,11 @@
 package dev.conduit.daemon
 
 import dev.conduit.core.model.*
-import dev.conduit.daemon.service.DataDirectory
+import dev.conduit.daemon.testutil.setupTestModule
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
-import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -14,19 +13,11 @@ import kotlin.test.assertTrue
 
 class ConfigRoutesTest {
 
-    private fun testModule(): TestApplicationBuilder.() -> Unit = {
-        application {
-            val tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            module(dataDirectory = DataDirectory(tempDir))
-        }
-    }
-
     // --- Daemon Config ---
 
     @Test
     fun `get daemon config returns defaults`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -43,7 +34,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `update daemon config partial update`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -67,7 +58,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `daemon config returns default download source`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -81,7 +72,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `update download source to bmclapi`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -104,7 +95,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `update download source to custom with mirror url`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -125,7 +116,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `daemon config requires auth`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
 
         val response = client.get("/api/v1/config/daemon")
@@ -136,7 +127,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `get jvm config returns nulls for new instance`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -154,7 +145,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `get jvm config with instance-level jvmArgs from creation`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -173,7 +164,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `update jvm config sets jvmArgs`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -192,7 +183,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `update jvm config sets javaPath`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -211,7 +202,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `update jvm config reset javaPath to null reverts to default`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -236,7 +227,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `update jvm config partial update preserves other field`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -259,7 +250,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `jvm config 404 for nonexistent instance`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -273,7 +264,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `get invite returns url and enabled by default`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -291,7 +282,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `disable public endpoint via invite`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -315,7 +306,7 @@ class ConfigRoutesTest {
 
     @Test
     fun `invite 404 for nonexistent instance`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 

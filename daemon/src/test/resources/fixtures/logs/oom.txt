@@ -1,0 +1,1 @@
+[15:30:12] [Server thread/ERROR]: java.lang.OutOfMemoryError: Java heap space

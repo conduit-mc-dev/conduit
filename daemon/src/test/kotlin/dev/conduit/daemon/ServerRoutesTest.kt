@@ -1,15 +1,14 @@
 package dev.conduit.daemon
 
 import dev.conduit.core.model.*
-import dev.conduit.daemon.service.DataDirectory
-import dev.conduit.daemon.store.InstanceStore
+import dev.conduit.daemon.testutil.forceInitializing
+import dev.conduit.daemon.testutil.setupTestModule
 import io.ktor.client.call.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import io.ktor.websocket.*
-import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -17,28 +16,9 @@ import kotlin.test.assertTrue
 
 class ServerRoutesTest {
 
-    private fun testModule(): TestApplicationBuilder.() -> Unit = {
-        application {
-            val tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            module(dataDirectory = DataDirectory(tempDir))
-        }
-    }
-
-    private lateinit var instanceStore: InstanceStore
-
-    private fun testModuleWithStore(): TestApplicationBuilder.() -> Unit = {
-        application {
-            val tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            instanceStore = InstanceStore()
-            module(instanceStore = instanceStore, dataDirectory = DataDirectory(tempDir))
-        }
-    }
-
     @Test
     fun `eula check returns not accepted for new instance`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -55,7 +35,7 @@ class ServerRoutesTest {
 
     @Test
     fun `accept eula then check`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -76,10 +56,11 @@ class ServerRoutesTest {
 
     @Test
     fun `start when initializing returns 409`() = testApplication {
-        testModule()()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
+        env.forceInitializing(instance.id)
 
         val response = client.post("/api/v1/instances/${instance.id}/server/start") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -92,7 +73,7 @@ class ServerRoutesTest {
 
     @Test
     fun `server status endpoint returns full status`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -113,7 +94,7 @@ class ServerRoutesTest {
 
     @Test
     fun `server routes require authentication`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
 
         val response = client.get("/api/v1/instances/test123/server/eula")
@@ -122,7 +103,7 @@ class ServerRoutesTest {
 
     @Test
     fun `send command when not running returns 409`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
@@ -142,10 +123,11 @@ class ServerRoutesTest {
 
     @Test
     fun `stop server when initializing returns 409`() = testApplication {
-        testModule()()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
+        env.forceInitializing(instance.id)
 
         val response = client.post("/api/v1/instances/${instance.id}/server/stop") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -156,11 +138,11 @@ class ServerRoutesTest {
 
     @Test
     fun `stop server when stopped returns 409`() = testApplication {
-        testModuleWithStore()()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
-        instanceStore.markInitialized(instance.id)
+        env.store.markInitialized(instance.id)
 
         val response = client.post("/api/v1/instances/${instance.id}/server/stop") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -171,10 +153,11 @@ class ServerRoutesTest {
 
     @Test
     fun `kill server when initializing force-stops and returns 200`() = testApplication {
-        testModuleWithStore()()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
+        env.forceInitializing(instance.id)
 
         val response = client.post("/api/v1/instances/${instance.id}/server/kill") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -186,11 +169,11 @@ class ServerRoutesTest {
 
     @Test
     fun `kill server when stopped returns 409`() = testApplication {
-        testModuleWithStore()()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
-        instanceStore.markInitialized(instance.id)
+        env.store.markInitialized(instance.id)
 
         val response = client.post("/api/v1/instances/${instance.id}/server/kill") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -201,10 +184,11 @@ class ServerRoutesTest {
 
     @Test
     fun `restart server when initializing without eula returns eula error`() = testApplication {
-        testModule()()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
+        env.forceInitializing(instance.id)
 
         val response = client.post("/api/v1/instances/${instance.id}/server/restart") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -215,10 +199,11 @@ class ServerRoutesTest {
 
     @Test
     fun `restart server when initializing with eula returns 409`() = testApplication {
-        testModuleWithStore()()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
+        env.forceInitializing(instance.id)
 
         client.put("/api/v1/instances/${instance.id}/server/eula") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -235,11 +220,11 @@ class ServerRoutesTest {
 
     @Test
     fun `restart server when stopped without eula returns 409`() = testApplication {
-        testModuleWithStore()()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
-        instanceStore.markInitialized(instance.id)
+        env.store.markInitialized(instance.id)
 
         val response = client.post("/api/v1/instances/${instance.id}/server/restart") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -252,7 +237,7 @@ class ServerRoutesTest {
 
     @Test
     fun `websocket connection with invalid token is rejected`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = wsClient()
 
         client.webSocket("/api/v1/ws?token=invalid_token") {
@@ -263,7 +248,7 @@ class ServerRoutesTest {
 
     @Test
     fun `websocket connection without token is rejected`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = wsClient()
 
         client.webSocket("/api/v1/ws") {
@@ -274,7 +259,7 @@ class ServerRoutesTest {
 
     @Test
     fun `websocket connection with valid token succeeds`() = testApplication {
-        testModule()()
+        setupTestModule()
         val jsonClient = jsonClient()
         val token = pairAndGetToken(jsonClient)
         val client = wsClient()
@@ -288,7 +273,7 @@ class ServerRoutesTest {
 
     @Test
     fun `websocket ping receives pong`() = testApplication {
-        testModule()()
+        setupTestModule()
         val jsonClient = jsonClient()
         val token = pairAndGetToken(jsonClient)
         val client = wsClient()
@@ -302,7 +287,7 @@ class ServerRoutesTest {
 
     @Test
     fun `websocket receives instance created event`() = testApplication {
-        testModule()()
+        setupTestModule()
         val jsonClient = jsonClient()
         val token = pairAndGetToken(jsonClient)
         val client = wsClient()
@@ -317,7 +302,7 @@ class ServerRoutesTest {
 
     @Test
     fun `websocket unsubscribe does not close connection`() = testApplication {
-        testModule()()
+        setupTestModule()
         val jsonClient = jsonClient()
         val token = pairAndGetToken(jsonClient)
         val client = wsClient()

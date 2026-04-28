@@ -72,6 +72,11 @@ private val mockManifestJson = """
     "type": "release",
     "url": "https://piston-meta.mojang.com/v1/packages/abc/1.20.4.json",
     "releaseTime": "2023-12-07T00:00:00Z"
+  },{
+    "id": "24w03a",
+    "type": "snapshot",
+    "url": "https://piston-meta.mojang.com/v1/packages/def/24w03a.json",
+    "releaseTime": "2024-01-17T00:00:00Z"
   }]
 }
 """.trimIndent()
@@ -165,4 +170,26 @@ fun createMockMojangClient(): MojangClient {
         expectSuccess = true
     }
     return MojangClient(httpClient = httpClient)
+}
+
+fun createMockLoaderHttpClient(): HttpClient {
+    return HttpClient(MockEngine { request ->
+        val url = request.url.toString()
+        when {
+            url.contains("meta.fabricmc.net") && url.contains("/versions/loader/") ->
+                respond(
+                    """[{"loader":{"version":"0.16.14"}},{"loader":{"version":"0.16.13"}}]""",
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            url.contains("meta.quiltmc.org") && url.contains("/versions/loader/") ->
+                respond(
+                    """[{"loader":{"version":"0.26.1"}},{"loader":{"version":"0.26.0"}}]""",
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            else -> respondError(HttpStatusCode.NotFound)
+        }
+    }) {
+        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+        expectSuccess = false
+    }
 }

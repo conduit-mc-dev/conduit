@@ -2,29 +2,23 @@ package dev.conduit.daemon
 
 import dev.conduit.core.model.*
 import dev.conduit.daemon.service.DataDirectory
+import dev.conduit.daemon.testutil.forceInitializing
+import dev.conduit.daemon.testutil.setupTestModule
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
-import kotlinx.coroutines.delay
 import java.nio.file.Files
+import kotlinx.coroutines.delay
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class InstanceRoutesTest {
 
-    private fun testModule(): TestApplicationBuilder.() -> Unit = {
-        application {
-            val tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            module(dataDirectory = DataDirectory(tempDir))
-        }
-    }
-
     @Test
     fun `instances require authentication`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
 
         val response = client.get("/api/v1/instances")
@@ -33,7 +27,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `empty instance list`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -48,7 +42,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `create instance returns initializing state with taskId`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -70,7 +64,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `get instance by id`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -88,7 +82,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `update instance`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -108,11 +102,12 @@ class InstanceRoutesTest {
 
     @Test
     fun `delete stopped instance`() = testApplication {
-        testModule()()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
         val created = createTestInstance(client, token, name = "To Delete")
+        env.forceInitializing(created.id)
 
         val deleteInitializing = client.delete("/api/v1/instances/${created.id}") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -124,7 +119,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `duplicate name returns 409`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -143,7 +138,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `auto port assignment increments`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -156,7 +151,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `instance not found returns 404`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -171,7 +166,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `explicit mcPort creates instance with that port`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -186,7 +181,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `duplicate explicit port returns 409`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -207,7 +202,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `update nonexistent instance returns 404`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -256,7 +251,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `retry-download on initializing instance returns 409`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -271,7 +266,7 @@ class InstanceRoutesTest {
 
     @Test
     fun `update instance name conflict returns 409`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 

@@ -1,14 +1,12 @@
 package dev.conduit.daemon
 
 import dev.conduit.core.model.*
-import dev.conduit.daemon.service.DataDirectory
+import dev.conduit.daemon.testutil.setupTestModule
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.io.path.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,19 +15,9 @@ import kotlin.test.assertTrue
 
 class ModRoutesTest {
 
-    private lateinit var tempDir: Path
-
-    private fun testModule(): TestApplicationBuilder.() -> Unit = {
-        application {
-            tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            module(dataDirectory = DataDirectory(tempDir))
-        }
-    }
-
     @Test
     fun `list mods returns empty for new instance`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -44,7 +32,7 @@ class ModRoutesTest {
 
     @Test
     fun `upload custom mod and list`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -83,7 +71,7 @@ class ModRoutesTest {
 
     @Test
     fun `upload duplicate mod returns 409`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -114,7 +102,7 @@ class ModRoutesTest {
 
     @Test
     fun `remove mod returns 204`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -145,7 +133,7 @@ class ModRoutesTest {
 
     @Test
     fun `toggle mod disable and enable`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -187,7 +175,7 @@ class ModRoutesTest {
 
     @Test
     fun `remove nonexistent mod returns 404`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -200,7 +188,7 @@ class ModRoutesTest {
 
     @Test
     fun `check updates returns empty for no mods`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -216,7 +204,7 @@ class ModRoutesTest {
 
     @Test
     fun `mod routes require auth`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
 
         val response = client.get("/api/v1/instances/fake/mods")
@@ -225,7 +213,7 @@ class ModRoutesTest {
 
     @Test
     fun `toggle nonexistent mod returns 404`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -238,21 +226,9 @@ class ModRoutesTest {
         assertEquals(HttpStatusCode.NotFound, response.status)
     }
 
-    private fun modrinthTestModule(): TestApplicationBuilder.() -> Unit = {
-        application {
-            tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            module(
-                dataDirectory = DataDirectory(tempDir),
-                mojangClient = createMockMojangClient(),
-                modrinthClient = createMockModrinthClient(),
-            )
-        }
-    }
-
     @Test
     fun `install mod from modrinth`() = testApplication {
-        modrinthTestModule()()
+        val (tempDir) = setupTestModule(modrinthClient = createMockModrinthClient())
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -278,7 +254,7 @@ class ModRoutesTest {
 
     @Test
     fun `update modrinth mod to new version`() = testApplication {
-        modrinthTestModule()()
+        val (tempDir) = setupTestModule(modrinthClient = createMockModrinthClient())
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -310,7 +286,7 @@ class ModRoutesTest {
 
     @Test
     fun `check updates finds newer version`() = testApplication {
-        modrinthTestModule()()
+        val (tempDir) = setupTestModule(modrinthClient = createMockModrinthClient())
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -334,7 +310,7 @@ class ModRoutesTest {
 
     @Test
     fun `upload non-jar file is rejected`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)

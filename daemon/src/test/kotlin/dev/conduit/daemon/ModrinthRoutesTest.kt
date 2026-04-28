@@ -1,26 +1,17 @@
 package dev.conduit.daemon
 
-import dev.conduit.daemon.service.DataDirectory
+import dev.conduit.daemon.testutil.setupTestModule
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
-import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class ModrinthRoutesTest {
 
-    private fun testModule(): TestApplicationBuilder.() -> Unit = {
-        application {
-            val tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            module(dataDirectory = DataDirectory(tempDir))
-        }
-    }
-
     @Test
     fun `search requires query parameter`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
 
@@ -32,7 +23,7 @@ class ModrinthRoutesTest {
 
     @Test
     fun `modrinth routes require auth`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
 
         val response = client.get("/api/v1/modrinth/search?q=sodium")
@@ -41,7 +32,7 @@ class ModrinthRoutesTest {
 
     @Test
     fun `get project versions requires auth`() = testApplication {
-        testModule()()
+        setupTestModule()
         val client = jsonClient()
 
         val response = client.get("/api/v1/modrinth/project/sodium/versions")

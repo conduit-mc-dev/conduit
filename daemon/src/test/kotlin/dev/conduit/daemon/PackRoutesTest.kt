@@ -1,16 +1,14 @@
 package dev.conduit.daemon
 
 import dev.conduit.core.model.*
-import dev.conduit.daemon.service.DataDirectory
 import dev.conduit.daemon.store.BuildState
+import dev.conduit.daemon.testutil.setupTestModule
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
 import kotlinx.coroutines.delay
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -18,19 +16,9 @@ import kotlin.test.assertTrue
 
 class PackRoutesTest {
 
-    private lateinit var tempDir: Path
-
-    private fun testModule(): TestApplicationBuilder.() -> Unit = {
-        application {
-            tempDir = Files.createTempDirectory("conduit-test")
-            tempDir.toFile().deleteOnExit()
-            module(dataDirectory = DataDirectory(tempDir))
-        }
-    }
-
     @Test
     fun `get pack info returns 404 when never built`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -43,7 +31,7 @@ class PackRoutesTest {
 
     @Test
     fun `build pack and check status`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -93,7 +81,7 @@ class PackRoutesTest {
 
     @Test
     fun `build status returns idle when never built`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
@@ -108,7 +96,7 @@ class PackRoutesTest {
 
     @Test
     fun `pack routes require auth`() = testApplication {
-        testModule()()
+        val (tempDir) = setupTestModule()
         val client = jsonClient()
 
         val response = client.get("/api/v1/instances/fake/pack")

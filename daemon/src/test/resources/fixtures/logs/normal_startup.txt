@@ -1,0 +1,1 @@
+[15:23:40] [Server thread/INFO]: Starting minecraft server version 1.20.4

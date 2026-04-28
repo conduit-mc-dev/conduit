@@ -1,29 +1,15 @@
 package dev.conduit.core.download
 
 import dev.conduit.core.model.DownloadSource
-import io.ktor.client.*
+import dev.conduit.core.testutil.jsonResponse
+import dev.conduit.core.testutil.mockHttpClient
+import dev.conduit.core.testutil.withTempDir
 import io.ktor.client.engine.mock.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.HttpRequestData
-import io.ktor.client.request.HttpResponseData
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.test.*
 
 class MojangClientTest {
-
-    private inline fun <T> withTempDir(block: (Path) -> T): T {
-        val dir = Files.createTempDirectory("conduit-test")
-        try {
-            return block(dir)
-        } finally {
-            dir.toFile().deleteRecursively()
-        }
-    }
 
     private val jarContent = "fake-server-jar-content".toByteArray()
     private val jarSha1 = "0a08e2d523081e88ffef01e923c6f2de074108e7"
@@ -54,32 +40,18 @@ class MojangClientTest {
     }
     """.trimIndent()
 
-    private fun mockClient(requestedUrls: MutableList<String>? = null, handler: MockRequestHandleScope.(HttpRequestData) -> HttpResponseData): HttpClient {
-        return HttpClient(MockEngine { request ->
-            requestedUrls?.add(request.url.toString())
-            handler(request)
-        }) {
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
-            }
-            expectSuccess = true
-        }
-    }
-
-    private fun MockRequestHandleScope.routeStandard(request: HttpRequestData): HttpResponseData {
-        val path = request.url.encodedPath
-        return when {
-            path.contains("version_manifest") -> respond(manifestJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
-            path.contains("1.20.4.json") -> respond(versionDetailJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
-            path.contains("server.jar") -> respond(jarContent, headers = headersOf(HttpHeaders.ContentType, "application/octet-stream"))
+    private fun MockRequestHandleScope.routeStandard(request: io.ktor.client.request.HttpRequestData) =
+        when {
+            request.url.encodedPath.contains("version_manifest") -> jsonResponse(manifestJson)
+            request.url.encodedPath.contains("1.20.4.json") -> jsonResponse(versionDetailJson)
+            request.url.encodedPath.contains("server.jar") -> respond(jarContent, headers = headersOf(HttpHeaders.ContentType, "application/octet-stream"))
             else -> respondError(HttpStatusCode.NotFound)
         }
-    }
 
     @Test
     fun `fetchManifest with MOJANG requests original url`() = runTest {
         val urls = mutableListOf<String>()
-        val client = mockClient(urls) { respond(manifestJson, headers = headersOf(HttpHeaders.ContentType, "application/json")) }
+        val client = mockHttpClient(requestedUrls = urls) { jsonResponse(manifestJson) }
 
         MojangClient(downloadSourceProvider = { DownloadSource.MOJANG to null }, httpClient = client)
             .fetchManifest()
@@ -90,7 +62,7 @@ class MojangClientTest {
     @Test
     fun `fetchManifest with BMCLAPI requests bmclapi url`() = runTest {
         val urls = mutableListOf<String>()
-        val client = mockClient(urls) { respond(manifestJson, headers = headersOf(HttpHeaders.ContentType, "application/json")) }
+        val client = mockHttpClient(requestedUrls = urls) { jsonResponse(manifestJson) }
 
         MojangClient(downloadSourceProvider = { DownloadSource.BMCLAPI to null }, httpClient = client)
             .fetchManifest(forceRefresh = true)
@@ -101,7 +73,7 @@ class MojangClientTest {
     @Test
     fun `fetchManifest with CUSTOM uses custom url`() = runTest {
         val urls = mutableListOf<String>()
-        val client = mockClient(urls) { respond(manifestJson, headers = headersOf(HttpHeaders.ContentType, "application/json")) }
+        val client = mockHttpClient(requestedUrls = urls) { jsonResponse(manifestJson) }
 
         MojangClient(downloadSourceProvider = { DownloadSource.CUSTOM to "https://my-mirror.example.com" }, httpClient = client)
             .fetchManifest(forceRefresh = true)
@@ -112,11 +84,11 @@ class MojangClientTest {
     @Test
     fun `downloadServerJar retries on 500`() = runTest {
         var jarCallCount = 0
-        val client = mockClient { request ->
+        val client = mockHttpClient { request ->
             val path = request.url.encodedPath
             when {
-                path.contains("version_manifest") -> respond(manifestJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
-                path.contains("1.20.4.json") -> respond(versionDetailJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+                path.contains("version_manifest") -> jsonResponse(manifestJson)
+                path.contains("1.20.4.json") -> jsonResponse(versionDetailJson)
                 path.contains("server.jar") -> {
                     jarCallCount++
                     if (jarCallCount < 3) respondError(HttpStatusCode.InternalServerError)
@@ -136,11 +108,11 @@ class MojangClientTest {
     @Test
     fun `downloadServerJar does not retry on 404`() = runTest {
         var jarCallCount = 0
-        val client = mockClient { request ->
+        val client = mockHttpClient { request ->
             val path = request.url.encodedPath
             when {
-                path.contains("version_manifest") -> respond(manifestJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
-                path.contains("1.20.4.json") -> respond(versionDetailJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+                path.contains("version_manifest") -> jsonResponse(manifestJson)
+                path.contains("1.20.4.json") -> jsonResponse(versionDetailJson)
                 path.contains("server.jar") -> {
                     jarCallCount++
                     respondError(HttpStatusCode.NotFound)
@@ -159,7 +131,7 @@ class MojangClientTest {
 
     @Test
     fun `downloadServerJar calls onProgress`() = runTest {
-        val client = mockClient { request -> routeStandard(request) }
+        val client = mockHttpClient { request -> routeStandard(request) }
 
         withTempDir { tempDir ->
             val progressCalls = mutableListOf<Pair<Long, Long>>()
@@ -178,7 +150,7 @@ class MojangClientTest {
         val urls = mutableListOf<String>()
         var currentSource = DownloadSource.MOJANG
 
-        val client = mockClient(urls) { respond(manifestJson, headers = headersOf(HttpHeaders.ContentType, "application/json")) }
+        val client = mockHttpClient(requestedUrls = urls) { jsonResponse(manifestJson) }
 
         val mojang = MojangClient(downloadSourceProvider = { currentSource to null }, httpClient = client)
 

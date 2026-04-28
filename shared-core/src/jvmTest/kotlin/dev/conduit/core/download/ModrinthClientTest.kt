@@ -1,41 +1,15 @@
 package dev.conduit.core.download
 
-import io.ktor.client.*
+import dev.conduit.core.testutil.jsonResponse
+import dev.conduit.core.testutil.mockHttpClient
+import dev.conduit.core.testutil.withTempDir
 import io.ktor.client.engine.mock.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
-import java.nio.file.Files
-import java.nio.file.Path
 import kotlin.io.path.readText
 import kotlin.test.*
 
 class ModrinthClientTest {
-
-    private inline fun <T> withTempDir(block: (Path) -> T): T {
-        val dir = Files.createTempDirectory("conduit-modrinth-test")
-        try {
-            return block(dir)
-        } finally {
-            dir.toFile().deleteRecursively()
-        }
-    }
-
-    private fun mockClient(
-        requestedUrls: MutableList<String>? = null,
-        handler: MockRequestHandleScope.(HttpRequestData) -> HttpResponseData,
-    ): HttpClient {
-        return HttpClient(MockEngine { request ->
-            requestedUrls?.add(request.url.toString())
-            handler(request)
-        }) {
-            install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
-            expectSuccess = false
-        }
-    }
 
     companion object {
         private val searchResponseJson = """
@@ -80,12 +54,10 @@ class ModrinthClientTest {
         """.trimIndent()
     }
 
-    private fun MockRequestHandleScope.jsonResponse(body: String) =
-        respond(body, headers = headersOf(HttpHeaders.ContentType, "application/json"))
 
     @Test
     fun `search returns parsed results with correct field mapping`() = runTest {
-        val http = mockClient { jsonResponse(searchResponseJson) }
+        val http = mockHttpClient(expectSuccess = false) { jsonResponse(searchResponseJson) }
         val client = ModrinthClient(http)
 
         val result = client.search("test")
@@ -107,7 +79,7 @@ class ModrinthClientTest {
     @Test
     fun `search builds correct facets with mcVersion and loader`() = runTest {
         val urls = mutableListOf<String>()
-        val http = mockClient(urls) { jsonResponse(searchResponseJson) }
+        val http = mockHttpClient(expectSuccess = false, requestedUrls = urls) { jsonResponse(searchResponseJson) }
         val client = ModrinthClient(http)
 
         client.search("test", mcVersion = "1.20.4", loader = "fabric")
@@ -123,7 +95,7 @@ class ModrinthClientTest {
     @Test
     fun `search coerces limit to 1-100 range`() = runTest {
         val urls = mutableListOf<String>()
-        val http = mockClient(urls) { jsonResponse(searchResponseJson) }
+        val http = mockHttpClient(expectSuccess = false, requestedUrls = urls) { jsonResponse(searchResponseJson) }
         val client = ModrinthClient(http)
 
         client.search("test", limit = 200)
@@ -135,7 +107,7 @@ class ModrinthClientTest {
 
     @Test
     fun `getProjectVersions returns version list`() = runTest {
-        val http = mockClient { jsonResponse("[$versionJson]") }
+        val http = mockHttpClient(expectSuccess = false) { jsonResponse("[$versionJson]") }
         val client = ModrinthClient(http)
 
         val result = client.getProjectVersions("abc123")
@@ -154,7 +126,7 @@ class ModrinthClientTest {
 
     @Test
     fun `getVersion returns single version with file hashes`() = runTest {
-        val http = mockClient { jsonResponse(versionJson) }
+        val http = mockHttpClient(expectSuccess = false) { jsonResponse(versionJson) }
         val client = ModrinthClient(http)
 
         val result = client.getVersion("ver1")
@@ -173,7 +145,7 @@ class ModrinthClientTest {
     @Test
     fun `downloadFile writes content to disk`() = runTest {
         val content = "hello modrinth"
-        val http = mockClient { respond(content.toByteArray(), headers = headersOf(HttpHeaders.ContentType, "application/octet-stream")) }
+        val http = mockHttpClient(expectSuccess = false) { respond(content.toByteArray(), headers = headersOf(HttpHeaders.ContentType, "application/octet-stream")) }
         val client = ModrinthClient(http)
 
         withTempDir { dir ->
@@ -187,7 +159,7 @@ class ModrinthClientTest {
 
     @Test
     fun `API error throws ModrinthApiException`() = runTest {
-        val http = mockClient { respond("Not found", HttpStatusCode.NotFound, headersOf(HttpHeaders.ContentType, "text/plain")) }
+        val http = mockHttpClient(expectSuccess = false) { respond("Not found", HttpStatusCode.NotFound, headersOf(HttpHeaders.ContentType, "text/plain")) }
         val client = ModrinthClient(http)
 
         val ex = assertFailsWith<ModrinthApiException> {

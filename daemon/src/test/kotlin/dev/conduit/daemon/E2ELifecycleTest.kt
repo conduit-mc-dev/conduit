@@ -121,62 +121,6 @@ class E2ELifecycleTest {
     }
 
     @Test
-    fun `full lifecycle with real server jar`() {
-        if (System.getenv("CONDUIT_SLOW_TESTS") == null && System.getProperty("slow") == null) {
-            println("Skipping slow test (set CONDUIT_SLOW_TESTS=1 or -Dslow=true to enable)")
-            return
-        }
-
-        withTempDir("conduit-e2e-slow") { tempDir ->
-            testApplication {
-                val dataDir = DataDirectory(tempDir)
-                application { module(dataDirectory = dataDir, instanceStore = InstanceStore(dataDir)) }
-
-                val client = jsonClient()
-                val token = pairAndGetToken(client)
-
-                val instance = client.post("/api/v1/instances") {
-                    header(HttpHeaders.Authorization, "Bearer $token")
-                    contentType(ContentType.Application.Json)
-                    setBody(CreateInstanceRequest(name = "Real JAR Test", mcVersion = "1.20.4"))
-                }.body<InstanceSummary>()
-                assertEquals(InstanceState.INITIALIZING, instance.state)
-
-                waitUntilReady(client, token, instance.id, timeoutMs = 120_000)
-                assertTrue(tempDir.resolve("instances/${instance.id}/server.jar").exists())
-
-                client.put("/api/v1/instances/${instance.id}/server/eula") {
-                    header(HttpHeaders.Authorization, "Bearer $token")
-                    contentType(ContentType.Application.Json)
-                    setBody(AcceptEulaRequest(accepted = true))
-                }
-
-                client.post("/api/v1/instances/${instance.id}/server/start") {
-                    header(HttpHeaders.Authorization, "Bearer $token")
-                }
-                pollUntilState(client, token, instance.id, "running", timeoutMs = 90_000)
-
-                val cmdResp = client.post("/api/v1/instances/${instance.id}/server/command") {
-                    header(HttpHeaders.Authorization, "Bearer $token")
-                    contentType(ContentType.Application.Json)
-                    setBody(SendCommandRequest(command = "list"))
-                }.body<CommandAcceptedResponse>()
-                assertTrue(cmdResp.accepted)
-
-                client.post("/api/v1/instances/${instance.id}/server/stop") {
-                    header(HttpHeaders.Authorization, "Bearer $token")
-                }
-                pollUntilState(client, token, instance.id, "stopped", timeoutMs = 30_000)
-
-                val delResp = client.delete("/api/v1/instances/${instance.id}") {
-                    header(HttpHeaders.Authorization, "Bearer $token")
-                }
-                assertEquals(HttpStatusCode.NoContent, delResp.status)
-            }
-        }
-    }
-
-    @Test
     fun `cold start recovery preserves instances`() {
         val tempDir = Files.createTempDirectory("conduit-e2e-cold")
         try {

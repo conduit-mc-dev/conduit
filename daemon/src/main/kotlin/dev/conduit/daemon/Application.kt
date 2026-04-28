@@ -7,6 +7,7 @@ import dev.conduit.daemon.service.*
 import dev.conduit.daemon.store.DaemonConfigStore
 import dev.conduit.daemon.store.InstanceStore
 import dev.conduit.daemon.store.TokenStore
+import io.ktor.client.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.engine.*
@@ -27,6 +28,7 @@ fun Application.module(
     instanceStore: InstanceStore = InstanceStore(dataDirectory),
     mojangClient: MojangClient? = null,
     modrinthClient: ModrinthClient? = null,
+    loaderHttpClient: HttpClient? = null,
 ) {
     dataDirectory.ensureDirectories()
 
@@ -55,7 +57,7 @@ fun Application.module(
     val modStore = dev.conduit.daemon.store.ModStore()
     val modService = ModService(modStore, actualModrinthClient, instanceStore, dataDirectory, broadcaster, AppJson)
     val packStore = dev.conduit.daemon.store.PackStore()
-    val loaderService = LoaderService(instanceStore, dataDirectory, taskStore, appScope)
+    val loaderService = LoaderService(instanceStore, dataDirectory, taskStore, appScope, loaderHttpClient)
     val packService = PackService(modStore, instanceStore, packStore, dataDirectory, taskStore, appScope, AppJson)
 
     configurePlugins(tokenStore)

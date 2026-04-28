@@ -25,12 +25,13 @@ class LoaderService(
     private val dataDirectory: DataDirectory,
     private val taskStore: TaskStore,
     private val scope: CoroutineScope,
+    httpClient: HttpClient? = null,
 ) : Closeable {
 
     private val log = LoggerFactory.getLogger(LoaderService::class.java)
     private val json = Json { ignoreUnknownKeys = true }
 
-    private val client = HttpClient(CIO) {
+    private val client = httpClient ?: HttpClient(CIO) {
         install(ContentNegotiation) { json(this@LoaderService.json) }
         install(HttpTimeout) {
             connectTimeoutMillis = 15_000
