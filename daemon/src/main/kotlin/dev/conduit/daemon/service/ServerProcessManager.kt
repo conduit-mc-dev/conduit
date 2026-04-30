@@ -29,6 +29,10 @@ class ServerProcessManager(
 ) {
     private val log = LoggerFactory.getLogger(ServerProcessManager::class.java)
 
+    private companion object {
+        const val STARTUP_TIMEOUT_SECONDS = 60L
+    }
+
     private data class ManagedProcess(
         val process: Process,
         val stdin: BufferedWriter,
@@ -36,9 +40,11 @@ class ServerProcessManager(
         val monitorJob: Job,
         val startedAt: Instant,
         @Volatile var pingJob: Job? = null,
+        @Volatile var startupTimeoutJob: Job? = null,
     )
 
     private val processes = ConcurrentHashMap<String, ManagedProcess>()
+    private val startupTimedOut = ConcurrentHashMap<String, Boolean>()
 
     private val logDetector = LogPatternDetector()
 
@@ -85,6 +91,7 @@ class ServerProcessManager(
                                 try {
                                     instanceStore.transitionState(instanceId, InstanceState.STARTING, InstanceState.RUNNING)
                                     broadcastStateChanged(instanceId, InstanceState.STARTING, InstanceState.RUNNING)
+                                    processes[instanceId]?.startupTimeoutJob?.cancel()
                                     startPingPolling(instanceId)
                                 } catch (_: ApiException) {
                                     // 状态已不是 STARTING（被 stop 抢先），忽略
@@ -106,7 +113,10 @@ class ServerProcessManager(
 
         val monitorJob = scope.launch(Dispatchers.IO) {
             val exitCode = process.waitFor()
-            processes.remove(instanceId)?.pingJob?.cancel()
+            val removed = processes.remove(instanceId)
+            removed?.pingJob?.cancel()
+            removed?.startupTimeoutJob?.cancel()
+            val timedOut = startupTimedOut.remove(instanceId) == true
             // 清玩家信息，前端人数归零；若之前非 0 则广播一次
             val hadPlayers = instanceStore.updatePlayerInfo(instanceId, 0, 20, emptyList())
             if (hadPlayers) broadcastPlayersChanged(instanceId, 0, 20)
@@ -115,6 +125,7 @@ class ServerProcessManager(
             val existingMessage = snapshot?.statusMessage
             val statusMessage = when {
                 existingMessage?.startsWith("Initialization failed") == true -> existingMessage
+                timedOut -> "Startup timed out after ${STARTUP_TIMEOUT_SECONDS}s"
                 exitCode != 0 -> "Process exited with code $exitCode"
                 else -> null
             }
@@ -124,9 +135,21 @@ class ServerProcessManager(
         }
 
         processes[instanceId] = ManagedProcess(process, stdin, outputJob, monitorJob, Clock.System.now())
+
+        val managed = processes[instanceId]
+        managed?.startupTimeoutJob = scope.launch {
+            delay(STARTUP_TIMEOUT_SECONDS.seconds)
+            val current = try { instanceStore.get(instanceId).state } catch (_: Exception) { return@launch }
+            if (current == InstanceState.STARTING) {
+                log.warn("Instance {} stuck in STARTING after {}s, forcing stop", instanceId, STARTUP_TIMEOUT_SECONDS)
+                startupTimedOut[instanceId] = true
+                managed.process.destroyForcibly()
+            }
+        }
     }
 
     fun stop(instanceId: String) {
+        processes[instanceId]?.startupTimeoutJob?.cancel()
         val current = instanceStore.get(instanceId).state
         when (current) {
             InstanceState.STOPPED -> throw ApiException(HttpStatusCode.Conflict, "SERVER_NOT_RUNNING", "Server is not running")
