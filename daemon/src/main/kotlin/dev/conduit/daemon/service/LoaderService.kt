@@ -14,7 +14,9 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.xml.sax.InputSource
@@ -96,6 +98,9 @@ class LoaderService(
         if (instance.loader != null) {
             throw ApiException(HttpStatusCode.Conflict, "LOADER_ALREADY_INSTALLED", "Uninstall the current loader first")
         }
+        if (type == LoaderType.FORGE) {
+            validateMcVersionForForge(instance.mcVersion)
+        }
 
         val taskId = taskStore.create(instanceId, TaskStore.TYPE_LOADER_INSTALL, "Installing ${type.name} $version...")
         scope.launch {
@@ -127,9 +132,51 @@ class LoaderService(
         when (type) {
             LoaderType.FABRIC -> installFabric(instanceId, mcVersion, version)
             LoaderType.QUILT -> installQuilt(instanceId, mcVersion, version)
-            LoaderType.FORGE, LoaderType.NEOFORGE ->
-                throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "${type.name} installation not yet supported")
+            LoaderType.FORGE -> installForge(instanceId, version)
+            LoaderType.NEOFORGE -> installNeoForge(instanceId, version)
         }
+    }
+
+    private suspend fun installForge(instanceId: String, forgeVersion: String) {
+        val url = "https://maven.minecraftforge.net/net/minecraftforge/forge/$forgeVersion/forge-$forgeVersion-installer.jar"
+        runModLoaderInstaller(instanceId, url)
+    }
+
+    private suspend fun installNeoForge(instanceId: String, neoForgeVersion: String) {
+        val url = "https://maven.neoforged.net/releases/net/neoforged/neoforge/$neoForgeVersion/neoforge-$neoForgeVersion-installer.jar"
+        runModLoaderInstaller(instanceId, url)
+    }
+
+    private suspend fun runModLoaderInstaller(instanceId: String, installerUrl: String) {
+        val instanceDir = dataDirectory.instanceDir(instanceId)
+        val installerJar = instanceDir.resolve("installer.jar")
+        val installerLog = instanceDir.resolve("installer.log")
+
+        val response = client.get(installerUrl)
+        if (response.status != HttpStatusCode.OK) {
+            throw RuntimeException("Failed to download installer ($installerUrl): ${response.status}")
+        }
+        installerJar.writeBytes(response.bodyAsBytes())
+
+        val javaPath = instanceStore.getProcessConfig(instanceId).javaPath
+
+        val exitCode = withContext(Dispatchers.IO) {
+            val process = ProcessBuilder(javaPath, "-jar", installerJar.fileName.toString(), "--installServer")
+                .directory(instanceDir.toFile())
+                .redirectErrorStream(true)
+                .redirectOutput(installerLog.toFile())
+                .start()
+            process.waitFor()
+        }
+
+        if (exitCode != 0) {
+            val tail = runCatching { installerLog.readText().takeLast(2000) }.getOrDefault("(no output captured)")
+            throw RuntimeException("Installer exited with code $exitCode. Log tail:\n$tail")
+        }
+
+        installerJar.deleteIfExists()
+        installerLog.deleteIfExists()
+        instanceDir.resolve("installer.jar.log").deleteIfExists()
     }
 
     private suspend fun installFabric(instanceId: String, mcVersion: String, loaderVersion: String) {
@@ -233,4 +280,23 @@ internal fun neoforgeVersionPrefix(mcVersion: String): String? {
     val major = parts[1]
     val minor = parts.getOrNull(2) ?: "0"
     return "$major.$minor."
+}
+
+internal fun validateMcVersionForForge(mcVersion: String) {
+    val parts = mcVersion.split(".")
+    val minor = parts.getOrNull(1)?.toIntOrNull()
+    if (parts.size < 2 || parts[0] != "1" || minor == null) {
+        throw ApiException(
+            HttpStatusCode.UnprocessableEntity,
+            "UNSUPPORTED_MC_VERSION",
+            "Invalid Minecraft version: $mcVersion",
+        )
+    }
+    if (minor < 17) {
+        throw ApiException(
+            HttpStatusCode.UnprocessableEntity,
+            "UNSUPPORTED_MC_VERSION",
+            "Forge installation requires Minecraft 1.17 or newer (got $mcVersion)",
+        )
+    }
 }

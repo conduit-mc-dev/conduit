@@ -556,6 +556,7 @@ immediately with a task ID, and progress is reported via WebSocket.
 | 409 | `SERVER_MUST_BE_STOPPED` | Server must be stopped before installing |
 | 409 | `LOADER_ALREADY_INSTALLED` | Uninstall the current loader first |
 | 422 | `VALIDATION_ERROR` | Invalid loader type or version |
+| 422 | `UNSUPPORTED_MC_VERSION` | Forge installation requires Minecraft 1.17 or newer |
 
 #### Uninstall Loader
 
@@ -1643,6 +1644,7 @@ All error responses follow this envelope:
 |------|------|-------------|
 | `LOADER_ALREADY_INSTALLED` | 409 | A loader is already installed |
 | `NO_LOADER_INSTALLED` | 404 | No loader to uninstall |
+| `UNSUPPORTED_MC_VERSION` | 422 | Loader cannot be installed on this Minecraft version (e.g. Forge on MC &lt; 1.17) |
 
 #### Mods
 

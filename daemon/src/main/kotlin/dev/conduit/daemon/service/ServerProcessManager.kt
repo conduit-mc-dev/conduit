@@ -44,6 +44,7 @@ class ServerProcessManager(
         }
 
         val config = instanceStore.getProcessConfig(instanceId)
+        val launchTarget = resolveLaunchTarget(instanceStore.getLoader(instanceId))
         instanceStore.transitionState(instanceId, InstanceState.STOPPED, InstanceState.STARTING)
         broadcastStateChanged(instanceId, InstanceState.STOPPED, InstanceState.STARTING)
 
@@ -51,8 +52,13 @@ class ServerProcessManager(
         val command = buildList {
             add(config.javaPath)
             addAll(config.jvmArgs)
-            add("-jar")
-            add("server.jar")
+            when (launchTarget) {
+                is LaunchTarget.VanillaJar -> {
+                    add("-jar")
+                    add("server.jar")
+                }
+                is LaunchTarget.ArgFile -> add("@${launchTarget.argFilePath}")
+            }
             add("nogui")
         }
 

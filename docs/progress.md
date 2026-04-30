@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-01（Forge/NeoForge 版本列表支持完成，Phase A）
+> 最新更新：2026-05-01（Forge/NeoForge 安装 Phase B 完成：installer subprocess + argfile 启动）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -18,7 +18,8 @@
 ## Next（下一步）
 
 1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
-2. [ ] Forge/NeoForge 安装 Phase B（MVP 前）— Phase A（版本列表）已完成；剩余：`LoaderService.kt:109-110` 仍 throw stub，需(1) 下载 installer JAR、(2) `--installServer` subprocess 执行 + 进度解析、(3) 产物检测（`run.sh` vs patched JAR）、(4) `ServerProcessManager.kt:51-57` 启动命令从硬编码 `java -jar server.jar` 改为按 loader 分支（新 Forge/NeoForge 用 `bash run.sh` 或从脚本解析 classpath）。仅支持 MC ≥ 1.17 的新 Forge 和 NeoForge（旧 Forge 返回 `UNSUPPORTED_MC_VERSION`）。详见 `architecture-notes.md` "Forge/NeoForge 服务端安装" 章节
+2. [ ] Forge/NeoForge Windows 支持（MVP 前）— Phase A + B 完成（Unix）；Windows 需要 `win_args.txt` 路径分支 + 启动命令调整。`ServerProcessManager.kt` 目前 `LaunchTarget.ArgFile` 硬编码 `unix_args.txt` 路径；Windows 上 Forge installer 会生成 `win_args.txt`。追加条件判断即可。
+3. [ ] Forge/NeoForge 端到端手工验证（MVP 前）— 自动化测试覆盖纯函数（版本校验、LaunchTarget 解析）和版本列表；installer subprocess + 实际启动未集成测试（成本过高）。需在真实环境（VPS 或本地 Linux/macOS）做一次：创建实例 → 装 Forge → 启动 → 确认"Done"出现 → 放一个 mod 测试加载。
 3. [ ] Player 追踪（MVP 前）— MVP 用 stdout 日志解析（`joinPattern`/`leavePattern`），未来用 MC Ping 补充。详见 `architecture-notes.md` "Player 追踪" 章节
 4. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
 5. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
@@ -62,6 +63,16 @@
 
 ## Done
 
+- [x] Forge/NeoForge 安装 Phase B（Unix，2026-05-01）
+  - **目标**：`LoaderService.installLoader()` 的 Forge/NeoForge stub 替换为真实安装路径；启动命令适配新 Forge/NeoForge 的 argfile 模式。MVP 仅支持 MC ≥ 1.17 的新 Forge 和 NeoForge。
+  - **installer 子进程**：`runModLoaderInstaller` 下载 installer JAR → `ProcessBuilder(javaPath, -jar, installer.jar, --installServer)` → `redirectOutput(installer.log)`（避免 stdout 管道阻塞）→ `waitFor()`。成功清理 `installer.jar`、`installer.log`、`installer.jar.log`；失败保留 log 前 2000 字符作为异常 message
+  - **URL 构造**：Forge `maven.minecraftforge.net/net/minecraftforge/forge/{v}/forge-{v}-installer.jar`；NeoForge `maven.neoforged.net/releases/net/neoforged/neoforge/{v}/neoforge-{v}-installer.jar`
+  - **版本校验**：`validateMcVersionForForge` 在 `install()` 同步阶段调用，MC &lt; 1.17 直接 422 `UNSUPPORTED_MC_VERSION`；NeoForge 天然只发布 1.20.2+，无需额外校验
+  - **启动命令适配**：新增 `LaunchTarget` 密封类（`VanillaJar` / `ArgFile`）+ `resolveLaunchTarget(LoaderInfo?)`。`ServerProcessManager.start()` 按 loader 分支：vanilla/Fabric/Quilt 走 `-jar server.jar`；Forge/NeoForge 走 `@libraries/.../unix_args.txt`（Java 9+ argfile 语法，保留用户 `jvmArgs`）
+  - **错误码**：`api-protocol.md` Loader 错误表新增 `UNSUPPORTED_MC_VERSION`（422）
+  - 测试 +7（196 → 203）：`validateMcVersionForForge` 边界（1.17+ 通过、1.16.5/1.12.2/1.8 拒、malformed 拒）+ `resolveLaunchTarget`（null/Fabric/Quilt → VanillaJar；Forge/NeoForge → 版本化 ArgFile 路径）
+  - **未覆盖**：installer 子进程接线依赖真实 Maven 下载 + 100MB+ libraries，自动化集成测试性价比低——放 Next 列表作手工端到端验证
+  - **Windows 跟进**：`LaunchTarget.ArgFile` 硬编码 `unix_args.txt`；Windows 上 Forge 生成 `win_args.txt`，需分支处理（见 Next #2）
 - [x] Forge/NeoForge 版本列表（Phase A，2026-05-01）
   - **目标**：`GET /instances/{id}/loader/available` 此前仅返回 Fabric/Quilt，Forge/NeoForge 始终缺席。Phase A 补齐版本枚举路径，不触碰安装流程——让前端能看到可选版本。
   - **Forge**：`https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml`，按 `{mcVersion}-` 前缀过滤
