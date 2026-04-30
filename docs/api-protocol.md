@@ -1,8 +1,8 @@
 # Conduit MC — API Protocol Specification
 
 > Version: 0.1-draft \
-> Last updated: 2026-04-25 \
-> Status: Partially implemented — pairing flow + instance CRUD + server lifecycle + WebSocket done; mod management pending
+> Last updated: 2026-04-30 \
+> Status: Daemon implemented — all 54 REST endpoints + WebSocket channels landed; 187 automated tests passing; security audit complete. Events/messages marked ⚠️ below are reserved in the spec but not yet emitted/handled (tracked in `progress.md`).
 
 This document defines the communication protocol between the two Conduit MC
 components: **Daemon** and **Desktop**. The Desktop app is a unified application
@@ -1351,8 +1351,8 @@ All messages (both directions) use the same envelope format:
 |------|---------|-------------|
 | `console.output` | `{ "line": "...", "level": "info\|warn\|error" }` | MC server console line |
 | `server.state_changed` | `{ "oldState": "stopped", "newState": "starting" }` | State machine transition |
-| `server.players_changed` | `{ "playerCount": 3, "maxPlayers": 20, "joined": "Steve", "left": null }` | Player join/leave |
-| `server.stats` | `{ "tps": 19.8, "memoryUsedMb": 2100, "memoryMaxMb": 4096 }` | Periodic stats (every 10s) |
+| `server.players_changed` | `{ "playerCount": 3, "maxPlayers": 20, "joined": "Steve", "left": null }` | Player join/leave ⚠️ _(not yet implemented — tracked as "Player 追踪" in progress.md)_ |
+| `server.stats` | `{ "tps": 19.8, "memoryUsedMb": 2100, "memoryMaxMb": 4096 }` | Periodic stats (every 10s) ⚠️ _(not yet implemented — tracked as "Memory/TPS 监控" in progress.md)_ |
 | `task.progress` | `{ "taskId": "...", "type": "server_jar_download\|loader_install\|pack_build", "progress": 0.5, "message": "..." }` | Long operation progress |
 | `task.completed` | `{ "taskId": "...", "type": "...", "success": true, "message": "..." }` | Long operation finished |
 | `pack.dirty` | `{ "reason": "mod_added\|mod_removed\|mod_updated", "modName": "Sodium" }` | Pack needs rebuild |
@@ -1368,7 +1368,7 @@ All messages (both directions) use the same envelope format:
 
 | Type | Fields | Description |
 |------|--------|-------------|
-| `console.input` | `instanceId`, `{ "command": "/say hello" }` | Send command to MC console |
+| `console.input` | `instanceId`, `{ "command": "/say hello" }` | Send command to MC console ⚠️ _(not yet handled by daemon — tracked in progress.md Next)_ |
 | `subscribe` | `{ "instanceId": "a3kx9", "channels": ["console", "stats"] }` | Subscribe to event channels for a specific instance |
 | `unsubscribe` | `{ "instanceId": "a3kx9", "channels": ["stats"] }` | Unsubscribe from channels |
 | `ping` | `{}` | Keep-alive heartbeat |

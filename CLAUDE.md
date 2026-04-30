@@ -35,7 +35,7 @@ conduit-mc/
 ├── daemon/             # Ktor 服务器，跑在 VPS
 ├── desktop/            # Compose Desktop，管理 + 启动器
 ├── web/                # Compose WasmJS（future）
-└── docs/               # 设计文档、品牌资产
+└── docs/               # API 协议、进度、架构决策、品牌资产
 ```
 
 ## Non-goals
@@ -77,7 +77,9 @@ conduit-mc/
 
 - [`docs/api-protocol.md`](docs/api-protocol.md) — API 协议规范（REST + WebSocket + 错误码，**实现的唯一标准**）
 - [`docs/progress.md`](docs/progress.md) — 当前进度与下一步计划
-- [`docs/architecture-notes.md`](docs/architecture-notes.md) — 架构决策、代码组织评估、HMCL 借鉴点
+- [`docs/architecture-notes.md`](docs/architecture-notes.md) — 架构决策、代码组织评估、外部项目借鉴
+- [`docs/desktop-mvp-plan.md`](docs/desktop-mvp-plan.md) — Desktop MVP 迭代方案
+- [`docs/branding.md`](docs/branding.md) — 品牌规范（命名、Logo、调性）
 
 ## 当前开发阶段
 

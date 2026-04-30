@@ -89,15 +89,17 @@ We deliberately do **not** try to:
 - **Language:** Kotlin (100% shared logic across all components)
 - **UI:** Compose Multiplatform (Desktop + future WasmJS web panel)
 - **Server framework:** Ktor (Daemon)
+- **DI:** Koin 4.2
+- **Desktop navigation:** JetBrains navigation-compose
 - **Modpack format:** [Modrinth `.mrpack`](https://docs.modrinth.com/docs/modpacks/format_definition/) (standard, no vendor lock-in)
 
 ### Status
 
-**🚧 Early development.** Daemon and Desktop MVP are functional — pairing, instance creation, server.jar download, and server lifecycle (start/stop/console) work end-to-end. Not yet ready for general use.
+**🚧 Early development.** Daemon is feature-complete — all 54 API endpoints, 187 automated tests, security audit passed. Desktop MVP covers pairing, instance creation, and server lifecycle (iterations 4-6 pending). Not yet ready for general use.
 
 ### Roadmap
 
-- [ ] **v0.1** — Daemon + Desktop MVP (management + launcher)
+- [ ] **v0.1** — Daemon + Desktop MVP (management + launcher) *(Daemon feature-complete; Desktop in iteration 4/6)*
 - [ ] **v0.2** — Invite link flow, full mod sync
 - [ ] **v0.3** — Modrinth mod search & management in Desktop
 - [ ] **v0.4** — Built-in Web panel (WasmJS, management-only)
@@ -160,15 +162,16 @@ Standing on the shoulders of giants:
 - **Kotlin** 一套语言贯穿所有组件（shared-core / daemon / desktop / web）
 - **Compose Multiplatform** 桌面 UI + 未来 WasmJS Web 面板
 - **Ktor** 作为 Daemon 的服务框架
+- **Koin 4.2** + **JetBrains navigation-compose**（Desktop 依赖注入与导航）
 - **Modrinth `.mrpack`** 作为整合包标准格式
 
 ### 当前状态
 
-**🚧 早期开发中。** Daemon 和 Desktop MVP 已可运行——配对、创建实例、下载 server.jar 端到端跑通。尚未达到日常使用标准。
+**🚧 早期开发中。** Daemon 功能完整——54 个 API 端点全部实现，187 个自动化测试通过，安全审计完成。Desktop MVP 覆盖配对、创建实例、服务器生命周期（迭代 4-6 待做）。尚未达到日常使用标准。
 
 ### 开发路线
 
-- [ ] **v0.1** — Daemon + Desktop MVP（管理 + 启动器）
+- [ ] **v0.1** — Daemon + Desktop MVP（管理 + 启动器）*（Daemon 功能完整；Desktop 正在迭代 4/6）*
 - [ ] **v0.2** — 邀请链接全流程、完整模组同步
 - [ ] **v0.3** — Desktop 接入 Modrinth 模组搜索/管理
 - [ ] **v0.4** — 内置 Web 管理面板（WasmJS，仅管理功能）
