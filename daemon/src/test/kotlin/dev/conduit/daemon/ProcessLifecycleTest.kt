@@ -7,9 +7,16 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.nio.file.Files
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.*
 
 class ProcessLifecycleTest {
@@ -85,6 +92,114 @@ class ProcessLifecycleTest {
                     "Expected timeout to fire near 60s (got ${elapsedMs}ms) — bug if much shorter or longer"
                 )
             }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `concurrent start requests return POWER_LOCKED for loser`() = runBlocking {
+        // Ktor 3.4.3's testApplication 60s timeout workaround (see class-level TODO).
+        val tempDir = Files.createTempDirectory("conduit-lock")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "Lock Test", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val deadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < deadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                val (javaPath, jvmArgs) = stuckServerJvmConfig()
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+                // Fire two concurrent start requests
+                val results = listOf(
+                    async { client.post("/api/v1/instances/${inst.id}/server/start") {
+                        header(HttpHeaders.Authorization, "Bearer $token")
+                    } },
+                    async { client.post("/api/v1/instances/${inst.id}/server/start") {
+                        header(HttpHeaders.Authorization, "Bearer $token")
+                    } },
+                ).awaitAll()
+
+                val successes = results.count { it.status == HttpStatusCode.OK }
+                val conflicts = results.count { it.status == HttpStatusCode.Conflict }
+                assertEquals(1, successes, "Expected exactly one success")
+                assertEquals(1, conflicts, "Expected exactly one conflict")
+
+                val loser = results.first { it.status == HttpStatusCode.Conflict }
+                val error = loser.body<ErrorResponse>()
+                assertTrue(
+                    error.error.code in listOf("POWER_LOCKED", "SERVER_ALREADY_RUNNING"),
+                    "Expected POWER_LOCKED or SERVER_ALREADY_RUNNING, got ${error.error.code}"
+                )
+
+                // Cleanup: kill the stuck server to avoid 60s timeout delay
+                client.post("/api/v1/instances/${inst.id}/server/kill") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `mutex prevents concurrent start calls at manager level`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-mutex")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val scope = kotlinx.coroutines.CoroutineScope(
+                SupervisorJob() + Dispatchers.IO
+            )
+            val broadcaster = dev.conduit.daemon.service.WsBroadcaster(AppJson)
+            val manager = dev.conduit.daemon.service.ServerProcessManager(
+                store, DataDirectory(tempDir), broadcaster, scope, json = AppJson
+            )
+
+            // Create a STOPPED instance directly
+            val inst = store.create(CreateInstanceRequest(name = "MutexUnit", mcVersion = "1.20.4"))
+            store.markInitialized(inst.id)
+            val (javaPath, jvmArgs) = stuckServerJvmConfig()
+            store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+            val lockRejections = AtomicInteger(0)
+            val stateRejections = AtomicInteger(0)
+            val jobs = (1..5).map {
+                scope.launch {
+                    try { manager.start(inst.id) } catch (e: ApiException) {
+                        when (e.code) {
+                            "POWER_LOCKED" -> lockRejections.incrementAndGet()
+                            "SERVER_ALREADY_RUNNING" -> stateRejections.incrementAndGet()
+                        }
+                    }
+                }
+            }
+            jobs.forEach { it.join() }
+
+            assertEquals(4, lockRejections.get() + stateRejections.get(), "Expected 4 of 5 calls to be rejected")
+            assertTrue(manager.isRunning(inst.id), "Exactly one process should be running")
+
+            manager.kill(inst.id)
+            manager.awaitProcessExit(inst.id)
+            scope.cancel()
         } finally {
             tempDir.toFile().deleteRecursively()
         }

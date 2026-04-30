@@ -1633,6 +1633,7 @@ All error responses follow this envelope:
 | Code | HTTP | Description |
 |------|------|-------------|
 | `SERVER_ALREADY_RUNNING` | 409 | Server is in a transitional state |
+| `POWER_LOCKED` | 409 | Another power action (start/stop/restart) is in progress for this instance; retry shortly |
 | `SERVER_NOT_RUNNING` | 409 | Server is already stopped |
 | `SERVER_MUST_BE_STOPPED` | 409 | Operation requires the server to be stopped |
 | `EULA_NOT_ACCEPTED` | 409 | EULA must be accepted before starting |
