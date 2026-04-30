@@ -109,10 +109,23 @@ class ServerProcessManager(
                 add("nogui")
             }
 
-            val process = ProcessBuilder(command)
-                .directory(instanceDir)
-                .redirectErrorStream(true)
-                .start()
+            val process = try {
+                ProcessBuilder(command)
+                    .directory(instanceDir)
+                    .redirectErrorStream(true)
+                    .start()
+            } catch (e: Exception) {
+                // Launch failed AFTER state transitioned to STARTING — revert so the instance
+                // isn't stuck. Neither monitorJob nor startupTimeoutJob was scheduled yet.
+                instanceStore.forceState(instanceId, InstanceState.STOPPED, "Failed to launch process: ${e.message}")
+                broadcastStateChanged(instanceId, InstanceState.STARTING, InstanceState.STOPPED)
+                log.error("Failed to launch process for instance {}", instanceId, e)
+                throw ApiException(
+                    HttpStatusCode.InternalServerError,
+                    "LAUNCH_FAILED",
+                    "Failed to launch server process: ${e.message}"
+                )
+            }
 
             val stdin = process.outputStream.bufferedWriter()
 

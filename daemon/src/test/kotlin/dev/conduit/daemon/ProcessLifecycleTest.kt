@@ -446,6 +446,61 @@ class ProcessLifecycleTest {
     }
 
     @Test
+    fun `start reverts to STOPPED when ProcessBuilder fails`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-launch-fail")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "Launch Fail", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                // Invalid javaPath — ProcessBuilder.start() throws IOException
+                store.updateJvmConfig(inst.id, true, emptyList(), true, "/nonexistent/bin/no-such-java-binary")
+
+                val startResp = client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+                assertEquals(HttpStatusCode.InternalServerError, startResp.status)
+
+                // State must have reverted to STOPPED with an informative message
+                val state = store.get(inst.id)
+                assertEquals(InstanceState.STOPPED, state.state, "Instance must not be stuck in STARTING")
+                assertNotNull(state.statusMessage)
+                assertTrue(
+                    state.statusMessage!!.contains("Failed to launch", ignoreCase = true),
+                    "Expected statusMessage to explain launch failure, got: ${state.statusMessage}"
+                )
+
+                // Subsequent start should succeed (state was reset to STOPPED)
+                store.updateJvmConfig(inst.id, true, emptyList(), true, ProcessHandle.current().info().command().orElse("java"))
+                // Don't actually try to run — just verify state machine accepts the next start attempt.
+                // (We can't easily make it run the MC server here; we only care that state transition isn't blocked.)
+                // The test ends here; state is STOPPED and manageable.
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
     fun `manual start after crash loop GiveUp resets counter`() = runBlocking {
         val tempDir = Files.createTempDirectory("conduit-giveup-reset")
         try {

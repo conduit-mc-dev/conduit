@@ -417,14 +417,16 @@ Starts the Minecraft server process for this instance.
 
 **Response `200 OK`:** Returns `ServerStatus` with `state: "starting"`.
 
-Idempotent: if already running, returns current status.
+Idempotent: new start requests are rejected while the server is running or a power action is in progress.
 
 **Errors:**
 
 | Status | Code | Description |
 |--------|------|-------------|
-| 409 | `SERVER_ALREADY_RUNNING` | Server is in a transitional state |
+| 409 | `SERVER_ALREADY_RUNNING` | Server is already running or in a transitional state |
+| 409 | `POWER_LOCKED` | Another power action (start/stop) is in progress; retry shortly |
 | 409 | `EULA_NOT_ACCEPTED` | EULA must be accepted before starting |
+| 500 | `LAUNCH_FAILED` | Failed to launch the server process (check javaPath, permissions, instance directory) |
 
 #### Stop Server
 
@@ -1657,6 +1659,7 @@ All error responses follow this envelope:
 | `SERVER_MUST_BE_STOPPED` | 409 | Operation requires the server to be stopped |
 | `EULA_NOT_ACCEPTED` | 409 | EULA must be accepted before starting |
 | `INSTANCE_INITIALIZING` | 409 | Instance is still downloading server.jar |
+| `LAUNCH_FAILED` | 500 | Failed to launch the server process (check javaPath, permissions, instance directory) |
 
 #### Loader
 
@@ -1784,6 +1787,7 @@ stateDiagram-v2
     initializing --> [*] : download failed (instance removed)
     stopped --> starting : start
     starting --> running : process ready
+    starting --> stopping : startup timeout
     running --> stopping : stop
     stopping --> stopped : process exited
     running --> stopped : kill (SIGKILL)

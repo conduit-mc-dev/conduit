@@ -70,7 +70,8 @@
   - **Task 1 — STARTING 超时（60s watchdog）**：`ServerProcessManager.start()` 追加 startup timeout job，用 `transitionState(STARTING → STOPPING)` CAS 原子仲裁 SERVER_DONE 竞态。测试 +1（`ProcessLifecycleTest.startup timeout forces STOPPED`）。
   - **Task 2 — 实例级 Power Lock**：`ConcurrentHashMap<String, Mutex>` + `tryLock()` 包裹 start/stop；kill 绕过锁（Wings 模式）。失败抛 `POWER_LOCKED 409`（api-protocol.md §9.2 新增）。测试 +3（并发 HTTP、manager-级 at-most-one、确定性 POWER_LOCKED）。
   - **Task 3 — 崩溃恢复**：`DaemonConfig` 加 3 字段（`autoRestartEnabled` 默认 false、`autoRestartMaxTimes` 默认 3、`crashLoopTimeoutSeconds` 默认 60）；`ManagedProcess.intentionalExit` 区分用户 stop/kill 与崩溃；`monitorJob` 退出分支调用 `shouldAutoRestart` + `decideCrashRecovery`；循环检测基于滑动 `lastCrashAt` + `consecutiveCrashes`。测试 +3（默认关不重启 / 启用重启 / 循环放弃）。
-  - 测试合计：195 → 198（+3，加上前两步共 +7）；文件改动：4 prod + 2 test + 2 docs。
+  - **Task 4 — 合并前收尾**：`ProcessBuilder.start()` 用 try/catch 包裹——失败时将 STARTING 状态回滚为 STOPPED 并写 `statusMessage`，然后抛 `LAUNCH_FAILED 500`（原本 state 会卡死，下一次 /start 被 `INVALID_STATE` 拒绝）。api-protocol.md §11.A mermaid 补 `starting --> stopping : startup timeout` 边；§4.1 /server/start 幂等描述改为明确返回 409；§9.2 错误表新增 `LAUNCH_FAILED`。测试 +1（`start reverts to STOPPED when ProcessBuilder fails`）。
+  - 测试合计：192 → 200（+8，分布：Task 1 超时 +1、Task 2 mutex +3、Task 2 fix 确定性锁 +1、Task 3 崩溃恢复 +3、Task 3 fix 手动 start 重置 +1、Task 4 收尾 launch 失败恢复 +1 — 数字有重叠，以 gradle 实测 200 为准）；文件改动：5 prod + 3 test + 2 docs。
 
 - [x] `server.stats` 订阅一致性（2026-05-01）
   - **起因**：审计指出 spec §5.5 订阅列表把 `server.stats` 列为 "Explicit subscribe required"，但 daemon 代码从未 broadcast SERVER_STATS（`WsBroadcaster.kt:24` 仅注册频道），订阅 stats 的客户端永等不到事件
