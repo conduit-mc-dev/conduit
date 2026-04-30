@@ -444,4 +444,108 @@ class ProcessLifecycleTest {
             tempDir.toFile().deleteRecursively()
         }
     }
+
+    @Test
+    fun `manual start after crash loop GiveUp resets counter`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-giveup-reset")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            dataDir.configPath.parent?.toFile()?.mkdirs()
+            dataDir.configPath.toFile().writeText(
+                """{"autoRestartEnabled":true,"autoRestartMaxTimes":1,"crashLoopTimeoutSeconds":30}"""
+            )
+
+            val store = InstanceStore(dataDir)
+            val javaPath = ProcessHandle.current().info().command().orElse("java")
+            val classpath = System.getProperty("java.class.path")
+            val jvmArgs = listOf("-cp", classpath, CrashExitMcServer::class.qualifiedName!!)
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "Give Up Reset", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+                // Trigger initial crash loop: maxTimes=1, so 1 auto-restart, then GiveUp on second crash.
+                client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                // Wait for GiveUp to fire
+                val giveUpDeadline = System.currentTimeMillis() + 20_000
+                while (System.currentTimeMillis() < giveUpDeadline) {
+                    val s = store.get(inst.id)
+                    if (s.state == InstanceState.STOPPED &&
+                        s.statusMessage?.contains("Crash loop", ignoreCase = true) == true) break
+                    delay(200)
+                }
+                val afterGiveUp = store.get(inst.id)
+                assertTrue(
+                    afterGiveUp.statusMessage?.contains("Crash loop", ignoreCase = true) == true,
+                    "Precondition: expected GiveUp after crash loop, got: $afterGiveUp"
+                )
+
+                // Manually start again. Counter should reset; the ensuing crash should NOT re-trigger GiveUp
+                // on the first post-manual-start crash.
+                val startResp = client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+                assertEquals(HttpStatusCode.OK, startResp.status,
+                    "Manual start after GiveUp must succeed (counter reset clears the block)")
+
+                // After manual start, counter is reset. First crash in this fresh cycle is crash #1.
+                // With maxTimes=1, that's still Restart (not GiveUp).
+                // First, wait for state to leave STOPPED (manual start worked)
+                val startingDeadline = System.currentTimeMillis() + 5_000
+                while (System.currentTimeMillis() < startingDeadline) {
+                    val s = store.get(inst.id).state
+                    if (s == InstanceState.STARTING || s == InstanceState.RUNNING) break
+                    delay(100)
+                }
+
+                // Then wait for next STOPPED (process crashed again)
+                val crashAgainDeadline = System.currentTimeMillis() + 10_000
+                var afterFirstManualCrash: InstanceSummary? = null
+                while (System.currentTimeMillis() < crashAgainDeadline) {
+                    val s = store.get(inst.id)
+                    if (s.state == InstanceState.STOPPED && s.statusMessage != afterGiveUp.statusMessage) {
+                        afterFirstManualCrash = s
+                        break
+                    }
+                    delay(200)
+                }
+                assertNotNull(afterFirstManualCrash, "Expected another STOPPED transition after manual start")
+                // Counter was reset → first crash in fresh cycle should NOT say "Crash loop"
+                assertFalse(
+                    afterFirstManualCrash.statusMessage?.contains("Crash loop", ignoreCase = true) == true,
+                    "First crash after manual start must NOT be GiveUp (counter should have reset). Got: ${afterFirstManualCrash.statusMessage}"
+                )
+
+                // Cleanup: kill to prevent cascade
+                runCatching {
+                    client.post("/api/v1/instances/${inst.id}/server/kill") {
+                        header(HttpHeaders.Authorization, "Bearer $token")
+                    }
+                }
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
 }

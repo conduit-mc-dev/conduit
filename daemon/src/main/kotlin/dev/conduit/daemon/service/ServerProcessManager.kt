@@ -59,6 +59,10 @@ class ServerProcessManager(
     )
     private val crashHistory = ConcurrentHashMap<String, CrashHistory>()
 
+    // Scheduled auto-restart jobs pending the 2-second backoff delay. stop()/kill() cancel
+    // these so the user can preempt auto-restart during the visible STOPPED window.
+    private val pendingRestart = ConcurrentHashMap<String, Job>()
+
     // Per-instance power-action mutex. Entries are intentionally never removed —
     // the memory overhead of a few orphan Mutex objects is negligible, and avoiding
     // removal sidesteps a subtle lifetime dance with in-flight lock holders.
@@ -70,11 +74,18 @@ class ServerProcessManager(
     private val logDetector = LogPatternDetector()
 
     fun start(instanceId: String) {
+        startInternal(instanceId, clearCrashHistory = true)
+    }
+
+    private fun startInternal(instanceId: String, clearCrashHistory: Boolean) {
         val lock = lockFor(instanceId)
         if (!lock.tryLock()) {
             throw ApiException(HttpStatusCode.Conflict, "POWER_LOCKED", "Another power action is in progress")
         }
         try {
+            if (clearCrashHistory) {
+                crashHistory.remove(instanceId)
+            }
             if (processes.containsKey(instanceId)) {
                 throw ApiException(HttpStatusCode.Conflict, "SERVER_ALREADY_RUNNING", "Server is already running")
             }
@@ -175,12 +186,21 @@ class ServerProcessManager(
                 if (recoveryDecision is CrashRecoveryDecision.Restart) {
                     log.info("Auto-restarting instance {} (attempt {} of {})", instanceId,
                         recoveryDecision.attemptNumber, recoveryDecision.maxAttempts)
-                    delay(2.seconds)  // small backoff so UI observes STOPPED
-                    try {
-                        start(instanceId)
-                    } catch (e: Exception) {
-                        log.warn("Auto-restart failed for instance {}", instanceId, e)
+                    val restartJob = scope.launch {
+                        try {
+                            delay(2.seconds)  // UI observes STOPPED briefly before STARTING
+                            pendingRestart.remove(instanceId)
+                            try {
+                                startInternal(instanceId, clearCrashHistory = false)
+                            } catch (e: Exception) {
+                                log.warn("Auto-restart failed for instance {}", instanceId, e)
+                            }
+                        } catch (_: CancellationException) {
+                            pendingRestart.remove(instanceId)
+                            log.info("Auto-restart for instance {} cancelled by user action", instanceId)
+                        }
                     }
+                    pendingRestart[instanceId] = restartJob
                 }
             }
 
@@ -212,6 +232,11 @@ class ServerProcessManager(
             throw ApiException(HttpStatusCode.Conflict, "POWER_LOCKED", "Another power action is in progress")
         }
         try {
+            pendingRestart.remove(instanceId)?.let {
+                it.cancel()
+                log.info("Cancelled pending auto-restart for instance {} (user stop)", instanceId)
+                return  // state is already STOPPED (from monitorJob before the restart was scheduled)
+            }
             processes[instanceId]?.startupTimeoutJob?.cancel()
             processes[instanceId]?.intentionalExit = true
             val current = instanceStore.get(instanceId).state
@@ -252,6 +277,11 @@ class ServerProcessManager(
     }
 
     fun kill(instanceId: String) {
+        pendingRestart.remove(instanceId)?.let {
+            it.cancel()
+            log.info("Cancelled pending auto-restart for instance {} (user kill)", instanceId)
+            return  // state is already STOPPED; caller wanted "kill", we preempted the restart
+        }
         val managed = processes[instanceId]
         if (managed == null) {
             val current = instanceStore.get(instanceId).state
