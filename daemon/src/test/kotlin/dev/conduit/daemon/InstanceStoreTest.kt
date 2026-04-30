@@ -123,16 +123,35 @@ class InstanceStoreTest {
     }
 
     @Test
-    fun `multiple instances load correctly`() = withTempDir { dir ->
+    fun `updatePlayerInfo reports change and surfaces via getPlayerSample`() = withTempDir { dir ->
         val store = createStore(dir)
-        val id1 = createInstance(store, "Server A")
-        val id2 = createInstance(store, "Server B")
-        val id3 = createInstance(store, "Server C")
+        val id = createInstance(store)
 
+        // Default is 0 / 20 / empty — first real update reports change
+        val firstChange = store.updatePlayerInfo(id, playerCount = 2, maxPlayers = 20, sample = listOf("Steve", "Alex"))
+        assertTrue(firstChange, "First transition from 0→2 players should be reported as a change")
+        assertEquals(2, store.get(id).playerCount)
+        assertEquals(20, store.get(id).maxPlayers)
+        assertEquals(listOf("Steve", "Alex"), store.getPlayerSample(id))
+
+        // Idempotent update (same count) reports no change even if sample differs
+        val sameCount = store.updatePlayerInfo(id, playerCount = 2, maxPlayers = 20, sample = listOf("Steve", "Bob"))
+        assertFalse(sameCount, "playerCount unchanged -> should not report change regardless of sample diff")
+        assertEquals(listOf("Steve", "Bob"), store.getPlayerSample(id), "Sample should still be updated for UI consumption")
+
+        // maxPlayers change alone still reports change (server reconfigured)
+        val maxChange = store.updatePlayerInfo(id, playerCount = 2, maxPlayers = 50, sample = listOf("Steve", "Bob"))
+        assertTrue(maxChange, "maxPlayers change should be reported")
+    }
+
+    @Test
+    fun `player info is not persisted across reload`() = withTempDir { dir ->
+        val id = createInstance(createStore(dir)).also {
+            val store = createStore(dir) // same dir
+            store.updatePlayerInfo(it, playerCount = 5, maxPlayers = 20, sample = listOf("X"))
+        }
         val reloaded = createStore(dir)
-        assertEquals(3, reloaded.list().size)
-        assertEquals("Server A", reloaded.get(id1).name)
-        assertEquals("Server B", reloaded.get(id2).name)
-        assertEquals("Server C", reloaded.get(id3).name)
+        assertEquals(0, reloaded.get(id).playerCount, "Player count is in-memory only, must reset on daemon restart")
+        assertEquals(emptyList(), reloaded.getPlayerSample(id))
     }
 }

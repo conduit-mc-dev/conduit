@@ -115,7 +115,7 @@ private fun buildServerStatus(
         state = summary.state,
         playerCount = summary.playerCount,
         maxPlayers = summary.maxPlayers,
-        players = emptyList(),
+        players = instanceStore.getPlayerSample(id),
         uptime = processManager.getUptimeSeconds(id),
         mcVersion = summary.mcVersion,
         loader = summary.loader,

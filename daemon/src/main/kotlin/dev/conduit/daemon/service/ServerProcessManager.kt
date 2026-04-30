@@ -1,7 +1,9 @@
 package dev.conduit.daemon.service
 
+import dev.conduit.core.mcping.MinecraftPingClient
 import dev.conduit.core.model.ConsoleOutputPayload
 import dev.conduit.core.model.InstanceState
+import dev.conduit.core.model.PlayersChangedPayload
 import dev.conduit.core.model.StateChangedPayload
 import dev.conduit.core.model.WsMessage
 import dev.conduit.daemon.ApiException
@@ -22,6 +24,7 @@ class ServerProcessManager(
     private val dataDirectory: DataDirectory,
     private val broadcaster: WsBroadcaster,
     private val scope: CoroutineScope,
+    private val pingClient: MinecraftPingClient = MinecraftPingClient(),
     private val json: Json = Json { encodeDefaults = true },
 ) {
     private val log = LoggerFactory.getLogger(ServerProcessManager::class.java)
@@ -32,6 +35,7 @@ class ServerProcessManager(
         val outputJob: Job,
         val monitorJob: Job,
         val startedAt: Instant,
+        @Volatile var pingJob: Job? = null,
     )
 
     private val processes = ConcurrentHashMap<String, ManagedProcess>()
@@ -81,6 +85,7 @@ class ServerProcessManager(
                                 try {
                                     instanceStore.transitionState(instanceId, InstanceState.STARTING, InstanceState.RUNNING)
                                     broadcastStateChanged(instanceId, InstanceState.STARTING, InstanceState.RUNNING)
+                                    startPingPolling(instanceId)
                                 } catch (_: ApiException) {
                                     // 状态已不是 STARTING（被 stop 抢先），忽略
                                 }
@@ -101,7 +106,10 @@ class ServerProcessManager(
 
         val monitorJob = scope.launch(Dispatchers.IO) {
             val exitCode = process.waitFor()
-            processes.remove(instanceId)
+            processes.remove(instanceId)?.pingJob?.cancel()
+            // 清玩家信息，前端人数归零；若之前非 0 则广播一次
+            val hadPlayers = instanceStore.updatePlayerInfo(instanceId, 0, 20, emptyList())
+            if (hadPlayers) broadcastPlayersChanged(instanceId, 0, 20)
             val snapshot = try { instanceStore.get(instanceId) } catch (_: Exception) { null }
             val oldState = snapshot?.state ?: InstanceState.RUNNING
             val existingMessage = snapshot?.statusMessage
@@ -223,5 +231,34 @@ class ServerProcessManager(
         scope.launch {
             broadcaster.broadcast(instanceId, WsMessage.STATE_CHANGED, payload)
         }
+    }
+
+    private fun broadcastPlayersChanged(instanceId: String, playerCount: Int, maxPlayers: Int) {
+        val payload = json.encodeToJsonElement(PlayersChangedPayload(playerCount, maxPlayers))
+        scope.launch {
+            broadcaster.broadcast(instanceId, WsMessage.PLAYERS_CHANGED, payload)
+        }
+    }
+
+    private fun startPingPolling(instanceId: String) {
+        val mcPort = runCatching { instanceStore.getProcessConfig(instanceId).mcPort }.getOrNull() ?: return
+        val managed = processes[instanceId] ?: return
+        val job = scope.launch(Dispatchers.IO) {
+            delay(5.seconds) // Grace period: MC opens socket slightly after "Done"
+            while (isActive) {
+                val result = runCatching { pingClient.ping("127.0.0.1", mcPort) }.getOrNull()
+                if (result != null) {
+                    val changed = instanceStore.updatePlayerInfo(
+                        instanceId,
+                        playerCount = result.onlinePlayers,
+                        maxPlayers = result.maxPlayers,
+                        sample = result.sample,
+                    )
+                    if (changed) broadcastPlayersChanged(instanceId, result.onlinePlayers, result.maxPlayers)
+                }
+                delay(30.seconds)
+            }
+        }
+        managed.pingJob = job
     }
 }

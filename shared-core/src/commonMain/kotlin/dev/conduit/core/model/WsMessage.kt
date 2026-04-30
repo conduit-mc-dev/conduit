@@ -16,6 +16,7 @@ data class WsMessage(
         const val CONSOLE_INPUT = "console.input"
         const val STATE_CHANGED = "server.state_changed"
         const val SERVER_STATS = "server.stats"
+        const val PLAYERS_CHANGED = "server.players_changed"
         const val SUBSCRIBE = "subscribe"
         const val UNSUBSCRIBE = "unsubscribe"
         const val PING = "ping"
@@ -47,6 +48,12 @@ data class ConsoleInputPayload(
 data class StateChangedPayload(
     val oldState: InstanceState,
     val newState: InstanceState,
+)
+
+@Serializable
+data class PlayersChangedPayload(
+    val playerCount: Int,
+    val maxPlayers: Int,
 )
 
 @Serializable

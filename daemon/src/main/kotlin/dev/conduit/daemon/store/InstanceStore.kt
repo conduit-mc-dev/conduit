@@ -55,6 +55,9 @@ class InstanceStore(
         val createdAt: Instant,
         val taskId: String?,
         val statusMessage: String?,
+        val playerCount: Int = 0,
+        val maxPlayers: Int = 20,
+        val playerSample: List<String> = emptyList(),
     ) {
         fun toSummary() = InstanceSummary(
             id = id,
@@ -64,8 +67,8 @@ class InstanceStore(
             mcVersion = mcVersion,
             loader = loader,
             mcPort = mcPort,
-            playerCount = 0,
-            maxPlayers = 20,
+            playerCount = playerCount,
+            maxPlayers = maxPlayers,
             createdAt = createdAt,
             taskId = taskId,
             statusMessage = statusMessage,
@@ -267,6 +270,22 @@ class InstanceStore(
     }
 
     fun getLoader(id: String): LoaderInfo? = requireInstance(id).loader
+
+    fun getPlayerSample(id: String): List<String> = requireInstance(id).playerSample
+
+    /**
+     * Updates the live player info from an MC Server List Ping response.
+     * Returns true iff `playerCount` or `maxPlayers` actually changed (useful for deciding whether to broadcast).
+     */
+    fun updatePlayerInfo(id: String, playerCount: Int, maxPlayers: Int, sample: List<String>): Boolean {
+        var changed = false
+        instances.compute(id) { _, existing ->
+            if (existing == null) return@compute null
+            if (existing.playerCount != playerCount || existing.maxPlayers != maxPlayers) changed = true
+            existing.copy(playerCount = playerCount, maxPlayers = maxPlayers, playerSample = sample)
+        }
+        return changed
+    }
 
     private fun requireInstance(id: String): Instance =
         instances[id] ?: throw ApiException(HttpStatusCode.NotFound, "INSTANCE_NOT_FOUND", "Instance not found")
