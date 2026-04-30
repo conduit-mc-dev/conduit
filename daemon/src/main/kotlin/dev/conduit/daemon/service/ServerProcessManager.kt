@@ -38,13 +38,13 @@ class ServerProcessManager(
         val stdin: BufferedWriter,
         val outputJob: Job,
         val monitorJob: Job,
+        val startupTimeoutJob: Job,
         val startedAt: Instant,
         @Volatile var pingJob: Job? = null,
-        @Volatile var startupTimeoutJob: Job? = null,
     )
 
     private val processes = ConcurrentHashMap<String, ManagedProcess>()
-    private val startupTimedOut = ConcurrentHashMap<String, Boolean>()
+    private val startupTimedOut: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     private val logDetector = LogPatternDetector()
 
@@ -116,7 +116,7 @@ class ServerProcessManager(
             val removed = processes.remove(instanceId)
             removed?.pingJob?.cancel()
             removed?.startupTimeoutJob?.cancel()
-            val timedOut = startupTimedOut.remove(instanceId) == true
+            val timedOut = startupTimedOut.remove(instanceId)
             // 清玩家信息，前端人数归零；若之前非 0 则广播一次
             val hadPlayers = instanceStore.updatePlayerInfo(instanceId, 0, 20, emptyList())
             if (hadPlayers) broadcastPlayersChanged(instanceId, 0, 20)
@@ -134,18 +134,23 @@ class ServerProcessManager(
             log.info("Instance {} process exited with code {}", instanceId, exitCode)
         }
 
-        processes[instanceId] = ManagedProcess(process, stdin, outputJob, monitorJob, Clock.System.now())
-
-        val managed = processes[instanceId]
-        managed?.startupTimeoutJob = scope.launch {
+        val startupTimeoutJob = scope.launch {
             delay(STARTUP_TIMEOUT_SECONDS.seconds)
-            val current = try { instanceStore.get(instanceId).state } catch (_: Exception) { return@launch }
-            if (current == InstanceState.STARTING) {
+            val latched = try {
+                instanceStore.transitionState(instanceId, InstanceState.STARTING, InstanceState.STOPPING)
+                true
+            } catch (_: ApiException) {
+                false  // SERVER_DONE already transitioned to RUNNING, or state isn't STARTING anymore
+            }
+            if (latched) {
                 log.warn("Instance {} stuck in STARTING after {}s, forcing stop", instanceId, STARTUP_TIMEOUT_SECONDS)
-                startupTimedOut[instanceId] = true
-                managed.process.destroyForcibly()
+                broadcastStateChanged(instanceId, InstanceState.STARTING, InstanceState.STOPPING)
+                startupTimedOut.add(instanceId)
+                process.destroyForcibly()
             }
         }
+
+        processes[instanceId] = ManagedProcess(process, stdin, outputJob, monitorJob, startupTimeoutJob, Clock.System.now())
     }
 
     fun stop(instanceId: String) {

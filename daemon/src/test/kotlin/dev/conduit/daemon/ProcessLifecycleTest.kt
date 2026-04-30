@@ -22,6 +22,9 @@ class ProcessLifecycleTest {
 
     @Test
     fun `startup timeout forces STOPPED when Done never appears`() = runBlocking {
+        // Ktor 3.4.3's testApplication enforces a 60s runtime timeout that collides with our 75s
+        // STOPPED-poll. We wrap runTestApplication in runBlocking to bypass it. TODO: revisit when
+        // Ktor offers a per-test-application timeout override (track Ktor issue KTOR-<xxx>).
         val tempDir = Files.createTempDirectory("conduit-timeout")
         try {
             val dataDir = DataDirectory(tempDir)
@@ -51,6 +54,7 @@ class ProcessLifecycleTest {
                 }
                 store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
 
+                val startNanos = System.nanoTime()
                 client.post("/api/v1/instances/${inst.id}/server/start") {
                     header(HttpHeaders.Authorization, "Bearer $token")
                 }
@@ -59,11 +63,13 @@ class ProcessLifecycleTest {
                 val stoppedDeadline = System.currentTimeMillis() + 75_000
                 var finalState: InstanceState? = null
                 var finalMessage: String? = null
+                var elapsedMs: Long = -1
                 while (System.currentTimeMillis() < stoppedDeadline) {
                     val s = store.get(inst.id)
                     if (s.state == InstanceState.STOPPED) {
                         finalState = s.state
                         finalMessage = s.statusMessage
+                        elapsedMs = (System.nanoTime() - startNanos) / 1_000_000
                         break
                     }
                     delay(500)
@@ -73,6 +79,10 @@ class ProcessLifecycleTest {
                 assertTrue(
                     finalMessage.contains("timed out", ignoreCase = true),
                     "Expected statusMessage to mention timeout, got: $finalMessage"
+                )
+                assertTrue(
+                    elapsedMs in 55_000..75_000,
+                    "Expected timeout to fire near 60s (got ${elapsedMs}ms) — bug if much shorter or longer"
                 )
             }
         } finally {
