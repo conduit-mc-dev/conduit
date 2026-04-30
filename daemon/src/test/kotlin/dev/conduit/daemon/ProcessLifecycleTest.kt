@@ -161,7 +161,7 @@ class ProcessLifecycleTest {
     }
 
     @Test
-    fun `mutex prevents concurrent start calls at manager level`() = runBlocking {
+    fun `at most one of N concurrent starts results in a running process`() = runBlocking {
         val tempDir = Files.createTempDirectory("conduit-mutex")
         try {
             val dataDir = DataDirectory(tempDir)
@@ -199,6 +199,48 @@ class ProcessLifecycleTest {
 
             manager.kill(inst.id)
             manager.awaitProcessExit(inst.id)
+            scope.cancel()
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `start throws POWER_LOCKED when power lock is already held`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-lock-det")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val scope = kotlinx.coroutines.CoroutineScope(
+                SupervisorJob() + Dispatchers.IO
+            )
+            val broadcaster = dev.conduit.daemon.service.WsBroadcaster(AppJson)
+            val manager = dev.conduit.daemon.service.ServerProcessManager(
+                store, DataDirectory(tempDir), broadcaster, scope, json = AppJson
+            )
+
+            val inst = store.create(CreateInstanceRequest(name = "DeterministicLock", mcVersion = "1.20.4"))
+            store.markInitialized(inst.id)
+
+            // Reach into the private powerLocks map via reflection and pre-acquire the mutex.
+            // This is a test-only hack to deterministically exercise the POWER_LOCKED rejection path
+            // without adding production API surface. See Task 2 code-review feedback I-1.
+            val powerLocksField = manager.javaClass.getDeclaredField("powerLocks").apply { isAccessible = true }
+            @Suppress("UNCHECKED_CAST")
+            val powerLocks = powerLocksField.get(manager) as java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.sync.Mutex>
+            val lock = powerLocks.computeIfAbsent(inst.id) { kotlinx.coroutines.sync.Mutex() }
+            assertTrue(lock.tryLock(), "precondition: test must acquire lock before calling manager.start()")
+
+            try {
+                val ex = assertFailsWith<ApiException> { manager.start(inst.id) }
+                assertEquals("POWER_LOCKED", ex.code)
+                // State unchanged — no transition to STARTING happened
+                assertEquals(InstanceState.STOPPED, store.get(inst.id).state)
+                assertFalse(manager.isRunning(inst.id))
+            } finally {
+                lock.unlock()
+            }
+
             scope.cancel()
         } finally {
             tempDir.toFile().deleteRecursively()

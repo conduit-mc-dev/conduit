@@ -201,7 +201,7 @@ class ServerProcessManager(
                 log.warn("Failed to send stop command to instance {}", instanceId, e)
             }
 
-            // 超时后强制终止
+            // 超时后强制终止（scope.launch 立即返回；30 秒等待发生在锁释放之后）
             scope.launch {
                 delay(30.seconds)
                 if (processes.containsKey(instanceId)) {
