@@ -315,4 +315,19 @@ class ServerRoutesTest {
             assertTrue(response.readText().contains(WsMessage.PONG))
         }
     }
+
+    @Test
+    fun `websocket console input for unknown instance does not close connection`() = testApplication {
+        setupTestModule()
+        val jsonClient = jsonClient()
+        val token = pairAndGetToken(jsonClient)
+        val client = wsClient()
+
+        client.webSocket("/api/v1/ws?token=$token") {
+            send(Frame.Text("""{"type":"${WsMessage.CONSOLE_INPUT}","instanceId":"nonexistent","payload":{"command":"list"},"timestamp":"2026-05-01T00:00:00Z"}"""))
+            send(Frame.Text("""{"type":"${WsMessage.PING}"}"""))
+            val response = incoming.receive() as Frame.Text
+            assertTrue(response.readText().contains(WsMessage.PONG))
+        }
+    }
 }

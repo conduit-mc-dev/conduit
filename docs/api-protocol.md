@@ -1368,7 +1368,7 @@ All messages (both directions) use the same envelope format:
 
 | Type | Fields | Description |
 |------|--------|-------------|
-| `console.input` | `instanceId`, `{ "command": "/say hello" }` | Send command to MC console ⚠️ _(not yet handled by daemon — tracked in progress.md Next)_ |
+| `console.input` | `instanceId`, `{ "command": "/say hello" }` | Send command to MC console |
 | `subscribe` | `{ "instanceId": "a3kx9", "channels": ["console", "stats"] }` | Subscribe to event channels for a specific instance |
 | `unsubscribe` | `{ "instanceId": "a3kx9", "channels": ["stats"] }` | Unsubscribe from channels |
 | `ping` | `{}` | Keep-alive heartbeat |

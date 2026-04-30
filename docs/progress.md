@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-30（文档整理：清理陈旧条目、对齐代码实际状态）
+> 最新更新：2026-05-01（WebSocket `console.input` 支持完成）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -22,7 +22,6 @@
 3. [ ] Player 追踪（MVP 前）— MVP 用 stdout 日志解析（`joinPattern`/`leavePattern`），未来用 MC Ping 补充。详见 `architecture-notes.md` "Player 追踪" 章节
 4. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
 5. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
-6. [ ] WebSocket `console.input` 消息支持 — `api-protocol.md` 列为 Client→Server 消息，但 `WsRoutes.kt:37-56` 的 `when (type)` 无此分支，目前静默忽略。需添加分支 → `processManager.sendCommand()`，并补测试
 
 ### 技术债（非阻塞）
 
@@ -62,6 +61,15 @@
 ---
 
 ## Done
+
+- [x] WebSocket `console.input` 消息支持（2026-05-01）
+  - **协议对齐**：`api-protocol.md` 5.4 节定义的 `console.input` Client→Server 消息此前未被 daemon 处理（静默丢弃）。现在 `WsRoutes.kt` 新增分支：解析 `payload.command` 后调用 `processManager.sendCommand(instanceId, command)`，与 HTTP POST `/server/command` 走同一路径。
+  - **错误处理**：`sendCommand` 抛 `ApiException`（`SERVER_NOT_RUNNING` 或 `COMMAND_FAILED`）时在 WS 侧 debug 日志记录，不断开连接——与 subscribe/ping 的容错风格一致。
+  - **WsMessage 扩展**：新增 `CONSOLE_INPUT` 常量和 `ConsoleInputPayload` 数据类（`command: String`），与 `ConsoleOutputPayload` 对称。
+  - **测试** +2（187 → 189）：
+    - `E2ELifecycleTest.console input sent via WebSocket reaches process` — mock MC server 环境下通过 WS 发 `list` 命令，断言收到 "players online" 输出
+    - `ServerRoutesTest.websocket console input for unknown instance does not close connection` — 未知 instanceId 不断开连接（后续 ping 仍能 pong）
+  - 文件：`shared-core/.../WsMessage.kt`、`daemon/.../WsRoutes.kt`（+ processManager 参数）、`daemon/.../Application.kt:68`
 
 - [x] 测试系统重构 Phase 6：JSON fixture 文件化（2026-04-28）
   - **shared-core**：`ModrinthClientTest`（2 个 fixture）、`MojangClientTest`（2 个）、`MojangManifestParseTest`（3 个）共 7 个 fixture 文件迁移到 `shared-core/src/jvmTest/resources/fixtures/{modrinth,mojang}/`

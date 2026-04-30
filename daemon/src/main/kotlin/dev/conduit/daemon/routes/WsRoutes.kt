@@ -1,6 +1,8 @@
 package dev.conduit.daemon.routes
 
 import dev.conduit.core.model.WsMessage
+import dev.conduit.daemon.ApiException
+import dev.conduit.daemon.service.ServerProcessManager
 import dev.conduit.daemon.service.WsBroadcaster
 import dev.conduit.daemon.store.TokenStore
 import io.ktor.server.routing.*
@@ -17,7 +19,12 @@ import kotlin.time.Clock
 
 private val log = LoggerFactory.getLogger("dev.conduit.daemon.routes.WsRoutes")
 
-fun Route.wsRoutes(broadcaster: WsBroadcaster, tokenStore: TokenStore, json: Json) {
+fun Route.wsRoutes(
+    broadcaster: WsBroadcaster,
+    tokenStore: TokenStore,
+    processManager: ServerProcessManager,
+    json: Json,
+) {
     webSocket("/api/v1/ws") {
         val token = call.request.queryParameters["token"]
         if (token == null || tokenStore.validateToken(token) == null) {
@@ -53,6 +60,15 @@ fun Route.wsRoutes(broadcaster: WsBroadcaster, tokenStore: TokenStore, json: Jso
                                     timestamp = Clock.System.now(),
                                 )
                                 send(Frame.Text(json.encodeToString(WsMessage.serializer(), pong)))
+                            }
+                            WsMessage.CONSOLE_INPUT -> {
+                                val instanceId = msg["instanceId"]?.jsonPrimitive?.content ?: continue
+                                val command = msg["payload"]?.jsonObject?.get("command")?.jsonPrimitive?.content ?: continue
+                                try {
+                                    processManager.sendCommand(instanceId, command)
+                                } catch (e: ApiException) {
+                                    log.debug("console.input dropped for instance {}: {}", instanceId, e.code)
+                                }
                             }
                         }
                     } catch (e: Exception) {

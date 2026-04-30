@@ -65,7 +65,7 @@ fun Application.module(
     routing {
         publicRoutes(instanceStore, modStore, packStore, processManager, dataDirectory)
         pairRoutes(tokenStore, rateLimiter)
-        wsRoutes(broadcaster, tokenStore, AppJson)
+        wsRoutes(broadcaster, tokenStore, processManager, AppJson)
         authenticate("bearer") {
             instanceRoutes(instanceStore, serverJarService, dataDirectory, broadcaster, AppJson)
             minecraftRoutes(actualMojangClient)

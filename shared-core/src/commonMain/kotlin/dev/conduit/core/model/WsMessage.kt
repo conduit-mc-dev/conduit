@@ -13,6 +13,7 @@ data class WsMessage(
 ) {
     companion object {
         const val CONSOLE_OUTPUT = "console.output"
+        const val CONSOLE_INPUT = "console.input"
         const val STATE_CHANGED = "server.state_changed"
         const val SERVER_STATS = "server.stats"
         const val SUBSCRIBE = "subscribe"
@@ -35,6 +36,11 @@ data class WsMessage(
 data class ConsoleOutputPayload(
     val line: String,
     val level: String = "info",
+)
+
+@Serializable
+data class ConsoleInputPayload(
+    val command: String,
 )
 
 @Serializable

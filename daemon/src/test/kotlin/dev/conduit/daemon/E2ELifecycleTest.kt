@@ -234,6 +234,34 @@ class E2ELifecycleTest {
     }
 
     @Test
+    fun `console input sent via WebSocket reaches process`() = runWithMockServer("WS Input Test") { (client, token, id) ->
+        val ws = wsClient()
+        ws.webSocket("/api/v1/ws?token=$token") {
+            send(Frame.Text("""{"type":"subscribe","instanceId":"$id","channels":["console"]}"""))
+            delay(200)
+
+            send(Frame.Text("""{"type":"console.input","instanceId":"$id","payload":{"command":"list"},"timestamp":"2026-05-01T00:00:00Z"}"""))
+
+            val consoleLines = mutableListOf<String>()
+            val deadline = System.currentTimeMillis() + 5_000
+            while (System.currentTimeMillis() < deadline) {
+                val frame = incoming.tryReceive().getOrNull() as? Frame.Text ?: run {
+                    delay(100)
+                    continue
+                }
+                val msg = Json.parseToJsonElement(frame.readText()).jsonObject
+                if (msg["type"]?.jsonPrimitive?.content == WsMessage.CONSOLE_OUTPUT) {
+                    val line = msg["payload"]?.jsonObject?.get("line")?.jsonPrimitive?.content ?: ""
+                    consoleLines.add(line)
+                    if (line.contains("players online")) break
+                }
+            }
+
+            assertTrue(consoleLines.any { it.contains("players online") }, "Expected player count from WS-sent command, got: $consoleLines")
+        }
+    }
+
+    @Test
     fun `graceful stop terminates process`() = runWithMockServer("Stop Test") { (client, token, id) ->
         val stopResp = client.post("/api/v1/instances/$id/server/stop") {
             header(HttpHeaders.Authorization, "Bearer $token")
