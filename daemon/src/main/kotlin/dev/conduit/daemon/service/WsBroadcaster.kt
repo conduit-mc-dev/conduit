@@ -21,6 +21,8 @@ class WsBroadcaster(private val json: Json) {
         // 需要显式订阅频道才接收的事件类型；其余事件自动广播给所有已连接 session
         private val CHANNEL_EVENT_TYPES = mapOf(
             WsMessage.CONSOLE_OUTPUT to CHANNEL_CONSOLE,
+            // SERVER_STATS broadcast 尚未实现——待 RCON 基础设施（Memory/TPS 监控，见 progress.md 延迟项）。
+            // 订阅 stats 频道目前是接受但无事件；spec §5.3/§5.5 已标 ⚠️。
             WsMessage.SERVER_STATS to CHANNEL_STATS,
         )
     }

@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-01（Player 追踪通过 MC Server List Ping 实现：30s 轮询、变化广播、无语言依赖）
+> 最新更新：2026-05-01（`server.stats` 订阅一致性：spec §5.5 订阅列表补 ⚠️ 与 §5.3 对齐，`WsBroadcaster.kt:24` 代码注释标明 broadcast 尚未实现）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -17,9 +17,16 @@
 
 ## Next（下一步）
 
-1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
-2. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
+### 主线
+
+1. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、实例级 Mutex power lock（并发 start/stop 保护）、**STARTING 状态超时检测**（60s 无 "Done" 强制 STOPPED，`ServerProcessManager.kt:76-99` 无 timeout job）。详见 `architecture-notes.md` "进程生命周期改进" 章节
+2. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
 3. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+
+### spec 补遗（低成本，代码已实现或已部分偏离）
+
+- [ ] `api-protocol.md` §9.2 错误码表补 `COMMAND_FAILED`（500，`ServerProcessManager.kt:185` 已抛）和 `DEVICE_NOT_FOUND`（404，`TokenStore.kt:103` 已抛）
+- [ ] `api-protocol.md` §7 `server.json.pack` 字段标注 "required only if pack has been built; null otherwise"（`PublicRoutes.kt:59-68` 未构建时返回 null）
 
 ### 技术债（非阻塞）
 
@@ -59,6 +66,28 @@
 ---
 
 ## Done
+
+- [x] `server.stats` 订阅一致性（2026-05-01）
+  - **起因**：审计指出 spec §5.5 订阅列表把 `server.stats` 列为 "Explicit subscribe required"，但 daemon 代码从未 broadcast SERVER_STATS（`WsBroadcaster.kt:24` 仅注册频道），订阅 stats 的客户端永等不到事件
+  - **发现**：审计描述部分假阳性——spec §5.3 事件表 line 1356 **早已**给 `server.stats` 标 ⚠️ 并交叉引用 "Memory/TPS 监控"（progress.md 延迟项）。真正漏洞仅是 §5.5 订阅列表 line 1390 没同步 ⚠️ 标记
+  - **决策**：走 Option A（spec 标 ⚠️）而非 Option B（daemon 订阅时主动回告未实现）。理由：spec 头部 line 5 已确立 ⚠️ 为"保留但未实现"的官方 convention，Option B 会增加临时协议表面积，未来实现时需拆除（YAGNI）
+  - **改动**：
+    - `api-protocol.md:1390` 订阅列表补 `⚠️ _(subscribe is accepted but no events will fire until implementation; see §5.3 note and progress.md)_`
+    - `WsBroadcaster.kt:23-24` 在 CHANNEL_EVENT_TYPES 的 SERVER_STATS 行上方加注释：broadcast 待 RCON 基础设施，spec §5.3/§5.5 已标 ⚠️
+  - **验证**：daemon 191 测试跑一遍确认 0 回归（仅注释 + 文档改动，无代码逻辑变更）
+
+- [x] `Content-Length` 响应头回归测试（2026-05-01）
+  - **起因**：审计报告指出 spec §6.3/§6.4 明文要求 `Content-Length: {bytes}`，但 `PublicRoutes.kt` 的 `pack.mrpack` 和 `/{instanceId}/mods/{fileName}` 两个端点只调用 `call.respondFile(...)`，是否自动填 `Content-Length` 随 Ktor 引擎而异——未被任何测试断言
+  - **测试结论**：对既有 `pack-mrpack serves file after build` 和 `custom mod download serves file` 两个测试加 `assertEquals(bodyBytes.size.toString(), response.headers[HttpHeaders.ContentLength])` 断言——**直接 GREEN**，证明 Ktor `respondFile`（由 `LocalFileContent` 的 `contentLength()` 驱动）本就自动填。spec 无实际违反
+  - **TDD sanity demotion**：因为测试第一次就过属于 TDD 红旗（"passing immediately proves nothing"），临时把期望值改成 `"SANITY_DEMOTION_SHOULD_FAIL"` 跑一次，确认 `ComparisonFailure`——证明断言真的在比 response 里的 Content-Length 字段，不是 null==null 的自欺。还原后恢复 GREEN
+  - **未改生产代码**：加显式 `call.response.header(HttpHeaders.ContentLength, ...)` 可能与 `respondFile` 内部的 Content-Length 计算冲突（`LocalFileContent` 走 HTTP streaming）。当前框架默认已合规，测试作为未来 Ktor 升级时的漂移护栏
+  - daemon 191 全绿（测试数不变——仅强化断言，无新 case）
+
+- [x] `FILE_PROTECTED` 错误码对齐（2026-05-01）
+  - **起因**：2026-05-01 服务端计划审计发现 spec §9.2 已定义 `FILE_PROTECTED`（422）专用码，但 `FileService.validateNotProtected()` 一直抛 `VALIDATION_ERROR`——Desktop 无法区分"路径非法"和"受保护文件"两类语义，只能靠 HTTP status 兜底，且 status 相同（都是 422）= 无法区分
+  - **改动**：`FileService.kt` 三条路径（PROTECTED_PATHS 精确匹配 / PROTECTED_PREFIXES 前缀 / `mods/*.jar` 模式）统一改抛 `FILE_PROTECTED`；`api-protocol.md:1104,1114` 两处内联文本同步从 `VALIDATION_ERROR` 修正为 `FILE_PROTECTED`（§9.2 错误码表定义不变）
+  - **测试**：既有 `FileRoutesTest` 3 个代表性保护文件测试（server.jar / mods/*.jar / pack/）补加 `assertEquals("FILE_PROTECTED", error.code)` 强断言，覆盖三条代码分支；路径穿越测试保持 status-only（它们抛 `VALIDATION_ERROR`，语义不同）。FileRoutesTest 28 全绿，daemon 191 全绿
+  - **TDD 纪律**：先加 RED 断言 → 运行确认 `ComparisonFailure`（实际 VALIDATION_ERROR，期望 FILE_PROTECTED）→ 生产代码 3 行改字符串 → GREEN → refactor 阶段加固另外 2 条分支的测试
 
 - [x] Player 追踪 via Minecraft Server List Ping（2026-05-01）
   - **方案选择**：stdout 日志解析（原 Next 条目假设）/ RCON / MC Ping 三方案对比后选 Ping。理由：stdout 和 RCON 都依赖 Vanilla 英文翻译字符串（`multiplayer.player.joined` / `commands.list.players`），服务器改语言或 Mojang 改文本就炸；MC Ping 是二进制协议返回 JSON，**语言中立 + 协议稳定 + 无额外配置**。MCSManager `mc_ping.ts` 也是这个思路，行业实践验证。

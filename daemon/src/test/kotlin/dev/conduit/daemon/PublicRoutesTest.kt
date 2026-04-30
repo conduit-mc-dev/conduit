@@ -107,8 +107,10 @@ class PublicRoutesTest {
 
         val response = client.get("/public/${instance.id}/pack.mrpack")
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsBytes().isNotEmpty())
+        val bodyBytes = response.bodyAsBytes()
+        assertTrue(bodyBytes.isNotEmpty())
         assertNotNull(response.headers[HttpHeaders.ETag])
+        assertEquals(bodyBytes.size.toString(), response.headers[HttpHeaders.ContentLength])
     }
 
     @Test
@@ -131,7 +133,9 @@ class PublicRoutesTest {
 
         val response = client.get("/public/${instance.id}/mods/custom-mod.jar")
         assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsBytes().isNotEmpty())
+        val bodyBytes = response.bodyAsBytes()
+        assertTrue(bodyBytes.isNotEmpty())
+        assertEquals(bodyBytes.size.toString(), response.headers[HttpHeaders.ContentLength])
     }
 
     @Test

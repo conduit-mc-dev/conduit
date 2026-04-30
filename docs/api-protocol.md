@@ -1101,7 +1101,7 @@ Creates or replaces a file. The request body is the raw file content.
 }
 ```
 
-**Error: `422 VALIDATION_ERROR`** if the path targets a protected file (see below).
+**Error: `422 FILE_PROTECTED`** if the path targets a protected file (see below).
 
 #### Delete File
 
@@ -1111,7 +1111,7 @@ Deletes a file.
 
 **Response `204 No Content`.**
 
-**Error: `422 VALIDATION_ERROR`** if the path targets a protected file.
+**Error: `422 FILE_PROTECTED`** if the path targets a protected file.
 
 #### Safety Constraints
 
@@ -1387,7 +1387,7 @@ All messages (both directions) use the same envelope format:
 
 **Explicit subscribe required:**
 - `console.output` — per instance
-- `server.stats` — per instance
+- `server.stats` — per instance ⚠️ _(subscribe is accepted but no events will fire until implementation; see §5.3 note and `progress.md`)_
 
 This avoids flooding the client with high-volume data (console logs, stats)
 when it's not viewing a specific instance's console or dashboard.

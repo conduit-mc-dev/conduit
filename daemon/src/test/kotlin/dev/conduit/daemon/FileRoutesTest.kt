@@ -221,6 +221,7 @@ class FileRoutesTest {
             setBody("fake jar")
         }
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals("FILE_PROTECTED", response.body<ErrorResponse>().error.code)
     }
 
     @Test
@@ -235,6 +236,7 @@ class FileRoutesTest {
             setBody("fake")
         }
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals("FILE_PROTECTED", response.body<ErrorResponse>().error.code)
     }
 
     @Test
@@ -249,6 +251,7 @@ class FileRoutesTest {
             setBody("fake")
         }
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals("FILE_PROTECTED", response.body<ErrorResponse>().error.code)
     }
 
     @Test

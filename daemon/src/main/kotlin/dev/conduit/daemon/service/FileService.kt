@@ -81,16 +81,16 @@ class FileService(private val dataDirectory: DataDirectory) {
     fun validateNotProtected(relativePath: String) {
         val normalized = relativePath.replace('\\', '/')
         if (normalized in PROTECTED_PATHS) {
-            throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Protected file: $relativePath")
+            throw ApiException(HttpStatusCode.UnprocessableEntity, "FILE_PROTECTED", "Protected file: $relativePath")
         }
         val withSlash = if (normalized.endsWith("/")) normalized else "$normalized/"
         for (prefix in PROTECTED_PREFIXES) {
             if (normalized.startsWith(prefix) || withSlash == prefix) {
-                throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Protected directory: $relativePath")
+                throw ApiException(HttpStatusCode.UnprocessableEntity, "FILE_PROTECTED", "Protected directory: $relativePath")
             }
         }
         if (normalized.startsWith("mods/") && normalized.endsWith(".jar")) {
-            throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "Protected file: $relativePath")
+            throw ApiException(HttpStatusCode.UnprocessableEntity, "FILE_PROTECTED", "Protected file: $relativePath")
         }
     }
 
