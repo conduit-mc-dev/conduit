@@ -19,9 +19,8 @@
 
 ### 主线
 
-1. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、实例级 Mutex power lock（并发 start/stop 保护）、**STARTING 状态超时检测**（60s 无 "Done" 强制 STOPPED，`ServerProcessManager.kt:76-99` 无 timeout job）。详见 `architecture-notes.md` "进程生命周期改进" 章节
-2. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
-3. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
+2. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
 
 ### spec 补遗（低成本，代码已实现或已部分偏离）
 
@@ -66,6 +65,12 @@
 ---
 
 ## Done
+
+- [x] 进程生命周期改进（MVP 前）（2026-05-01）
+  - **Task 1 — STARTING 超时（60s watchdog）**：`ServerProcessManager.start()` 追加 startup timeout job，用 `transitionState(STARTING → STOPPING)` CAS 原子仲裁 SERVER_DONE 竞态。测试 +1（`ProcessLifecycleTest.startup timeout forces STOPPED`）。
+  - **Task 2 — 实例级 Power Lock**：`ConcurrentHashMap<String, Mutex>` + `tryLock()` 包裹 start/stop；kill 绕过锁（Wings 模式）。失败抛 `POWER_LOCKED 409`（api-protocol.md §9.2 新增）。测试 +3（并发 HTTP、manager-级 at-most-one、确定性 POWER_LOCKED）。
+  - **Task 3 — 崩溃恢复**：`DaemonConfig` 加 3 字段（`autoRestartEnabled` 默认 false、`autoRestartMaxTimes` 默认 3、`crashLoopTimeoutSeconds` 默认 60）；`ManagedProcess.intentionalExit` 区分用户 stop/kill 与崩溃；`monitorJob` 退出分支调用 `shouldAutoRestart` + `decideCrashRecovery`；循环检测基于滑动 `lastCrashAt` + `consecutiveCrashes`。测试 +3（默认关不重启 / 启用重启 / 循环放弃）。
+  - 测试合计：195 → 198（+3，加上前两步共 +7）；文件改动：4 prod + 2 test + 2 docs。
 
 - [x] `server.stats` 订阅一致性（2026-05-01）
   - **起因**：审计指出 spec §5.5 订阅列表把 `server.stats` 列为 "Explicit subscribe required"，但 daemon 代码从未 broadcast SERVER_STATS（`WsBroadcaster.kt:24` 仅注册频道），订阅 stats 的客户端永等不到事件

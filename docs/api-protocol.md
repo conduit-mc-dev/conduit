@@ -1268,7 +1268,10 @@ override is set.
   "publicEndpointEnabled": true,
   "defaultJvmArgs": ["-Xmx4G", "-Xms2G"],
   "downloadSource": "mojang",
-  "customMirrorUrl": null
+  "customMirrorUrl": null,
+  "autoRestartEnabled": false,
+  "autoRestartMaxTimes": 3,
+  "crashLoopTimeoutSeconds": 60
 }
 ```
 
@@ -1276,11 +1279,27 @@ override is set.
 |-------|------|---------|-------------|
 | `downloadSource` | string | `"mojang"` | Download source for Mojang assets: `"mojang"`, `"bmclapi"`, or `"custom"` |
 | `customMirrorUrl` | string\|null | `null` | Base URL for custom mirror (only used when `downloadSource` is `"custom"`) |
+| `autoRestartEnabled` | boolean | `false` | Whether daemon auto-restarts crashed instances. Default: `false` |
+| `autoRestartMaxTimes` | int | `3` | Max consecutive restarts within `crashLoopTimeoutSeconds` before giving up. Default: `3` |
+| `crashLoopTimeoutSeconds` | int | `60` | Window size for crash loop detection. Default: `60` |
 
 **`PUT /api/v1/config/daemon`** — Requires auth.
 
 Updates Daemon-level configuration. Changes to `port` require a Daemon restart.
 Changes to `downloadSource` and `customMirrorUrl` take effect on the next download.
+
+**Request body fields (all optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `port` | int | Daemon listen port (requires restart) |
+| `publicEndpointEnabled` | boolean | Global toggle for public endpoints |
+| `defaultJvmArgs` | string[] | Default JVM args for new instances |
+| `downloadSource` | string | `"mojang"`, `"bmclapi"`, or `"custom"` |
+| `customMirrorUrl` | string\|null | Base URL for custom mirror |
+| `autoRestartEnabled` | boolean | Enable auto-restart of crashed instances |
+| `autoRestartMaxTimes` | int | Max consecutive restart attempts within crash-loop window |
+| `crashLoopTimeoutSeconds` | int | Crash-loop detection window (seconds) |
 
 ### 4.11 Invite Link (per-instance)
 

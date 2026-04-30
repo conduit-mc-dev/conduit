@@ -25,6 +25,7 @@ class ServerProcessManager(
     private val dataDirectory: DataDirectory,
     private val broadcaster: WsBroadcaster,
     private val scope: CoroutineScope,
+    private val daemonConfigStore: dev.conduit.daemon.store.DaemonConfigStore? = null,
     private val pingClient: MinecraftPingClient = MinecraftPingClient(),
     private val json: Json = Json { encodeDefaults = true },
 ) {
@@ -42,10 +43,21 @@ class ServerProcessManager(
         val startupTimeoutJob: Job,
         val startedAt: Instant,
         @Volatile var pingJob: Job? = null,
+        @Volatile var intentionalExit: Boolean = false,
     )
 
     private val processes = ConcurrentHashMap<String, ManagedProcess>()
     private val startupTimedOut: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    // Per-instance crash history for auto-restart loop detection.
+    // Entries are never removed (same rationale as `powerLocks`) — negligible memory overhead,
+    // and we want history to persist across stop/start so a user toggling an unstable instance
+    // can't reset the counter by stopping/re-starting.
+    private data class CrashHistory(
+        @Volatile var lastCrashAt: Instant? = null,
+        @Volatile var consecutiveCrashes: Int = 0,
+    )
+    private val crashHistory = ConcurrentHashMap<String, CrashHistory>()
 
     // Per-instance power-action mutex. Entries are intentionally never removed —
     // the memory overhead of a few orphan Mutex objects is negligible, and avoiding
@@ -131,21 +143,45 @@ class ServerProcessManager(
                 removed?.pingJob?.cancel()
                 removed?.startupTimeoutJob?.cancel()
                 val timedOut = startupTimedOut.remove(instanceId)
+                val intentional = removed?.intentionalExit == true
+
                 // 清玩家信息，前端人数归零；若之前非 0 则广播一次
                 val hadPlayers = instanceStore.updatePlayerInfo(instanceId, 0, 20, emptyList())
                 if (hadPlayers) broadcastPlayersChanged(instanceId, 0, 20)
+
                 val snapshot = try { instanceStore.get(instanceId) } catch (_: Exception) { null }
                 val oldState = snapshot?.state ?: InstanceState.RUNNING
                 val existingMessage = snapshot?.statusMessage
+
+                // Decide whether to auto-restart BEFORE writing STOPPED.
+                val shouldRecover = shouldAutoRestart(oldState, intentional, timedOut)
+                val recoveryDecision = if (shouldRecover) decideCrashRecovery(instanceId) else CrashRecoveryDecision.NoOp
+
                 val statusMessage = when {
                     existingMessage?.startsWith("Initialization failed") == true -> existingMessage
                     timedOut -> "Startup timed out after ${STARTUP_TIMEOUT_SECONDS}s"
+                    recoveryDecision is CrashRecoveryDecision.GiveUp ->
+                        "Crash loop detected (${recoveryDecision.count} crashes in ${recoveryDecision.windowSeconds}s); auto-restart disabled. Last exit code: $exitCode"
                     exitCode != 0 -> "Process exited with code $exitCode"
-                    else -> null
+                    intentional -> null
+                    else -> "Process exited unexpectedly (code $exitCode)"
                 }
+
                 instanceStore.forceState(instanceId, InstanceState.STOPPED, statusMessage)
                 broadcastStateChanged(instanceId, oldState, InstanceState.STOPPED)
                 log.info("Instance {} process exited with code {}", instanceId, exitCode)
+
+                // Auto-restart AFTER STOPPED is published — subscribers see STOPPED briefly then STARTING.
+                if (recoveryDecision is CrashRecoveryDecision.Restart) {
+                    log.info("Auto-restarting instance {} (attempt {} of {})", instanceId,
+                        recoveryDecision.attemptNumber, recoveryDecision.maxAttempts)
+                    delay(2.seconds)  // small backoff so UI observes STOPPED
+                    try {
+                        start(instanceId)
+                    } catch (e: Exception) {
+                        log.warn("Auto-restart failed for instance {}", instanceId, e)
+                    }
+                }
             }
 
             val startupTimeoutJob = scope.launch {
@@ -177,6 +213,7 @@ class ServerProcessManager(
         }
         try {
             processes[instanceId]?.startupTimeoutJob?.cancel()
+            processes[instanceId]?.intentionalExit = true
             val current = instanceStore.get(instanceId).state
             when (current) {
                 InstanceState.STOPPED -> throw ApiException(HttpStatusCode.Conflict, "SERVER_NOT_RUNNING", "Server is not running")
@@ -224,6 +261,7 @@ class ServerProcessManager(
             instanceStore.forceState(instanceId, InstanceState.STOPPED)
             return
         }
+        managed.intentionalExit = true
         managed.process.destroyForcibly()
         // monitorJob 会处理后续状态清理
     }
@@ -253,6 +291,7 @@ class ServerProcessManager(
     fun shutdownAll() {
         for ((instanceId, managed) in processes) {
             log.info("Shutting down instance {}", instanceId)
+            managed.intentionalExit = true
             try {
                 managed.stdin.write("stop\n")
                 managed.stdin.flush()
@@ -313,5 +352,39 @@ class ServerProcessManager(
             }
         }
         managed.pingJob = job
+    }
+
+    private sealed class CrashRecoveryDecision {
+        data object NoOp : CrashRecoveryDecision()
+        data class Restart(val attemptNumber: Int, val maxAttempts: Int) : CrashRecoveryDecision()
+        data class GiveUp(val count: Int, val windowSeconds: Int) : CrashRecoveryDecision()
+    }
+
+    private fun shouldAutoRestart(
+        oldState: InstanceState, intentional: Boolean, timedOut: Boolean,
+    ): Boolean {
+        if (intentional || timedOut) return false
+        if (oldState != InstanceState.RUNNING) return false  // don't retry startup failures
+        val store = daemonConfigStore ?: return false
+        return store.get().autoRestartEnabled
+    }
+
+    private fun decideCrashRecovery(instanceId: String): CrashRecoveryDecision {
+        val config = daemonConfigStore?.get() ?: return CrashRecoveryDecision.NoOp
+        val history = crashHistory.computeIfAbsent(instanceId) { CrashHistory() }
+        val now = Clock.System.now()
+        val windowSec = config.crashLoopTimeoutSeconds
+        val last = history.lastCrashAt
+        history.consecutiveCrashes = if (last != null && (now - last).inWholeSeconds < windowSec) {
+            history.consecutiveCrashes + 1
+        } else {
+            1
+        }
+        history.lastCrashAt = now
+        return if (history.consecutiveCrashes > config.autoRestartMaxTimes) {
+            CrashRecoveryDecision.GiveUp(history.consecutiveCrashes, windowSec)
+        } else {
+            CrashRecoveryDecision.Restart(history.consecutiveCrashes, config.autoRestartMaxTimes)
+        }
     }
 }

@@ -39,7 +39,11 @@ fun Application.module(
     val actualMojangClient = mojangClient ?: MojangClient(
         downloadSourceProvider = { daemonConfigStore.get().let { it.downloadSource to it.customMirrorUrl } },
     )
-    val processManager = ServerProcessManager(instanceStore, dataDirectory, broadcaster, appScope, json = AppJson)
+    val processManager = ServerProcessManager(
+        instanceStore, dataDirectory, broadcaster, appScope,
+        daemonConfigStore = daemonConfigStore,
+        json = AppJson,
+    )
 
     val taskStore = dev.conduit.daemon.store.TaskStore(broadcaster, AppJson)
     val serverJarService = ServerJarService(

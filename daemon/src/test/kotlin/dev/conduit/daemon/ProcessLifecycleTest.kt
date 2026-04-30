@@ -246,4 +246,202 @@ class ProcessLifecycleTest {
             tempDir.toFile().deleteRecursively()
         }
     }
+
+    @Test
+    fun `crashed process stays STOPPED when autoRestart disabled by default`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-crash-off")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val javaPath = ProcessHandle.current().info().command().orElse("java")
+            val classpath = System.getProperty("java.class.path")
+            val jvmArgs = listOf("-cp", classpath, CrashExitMcServer::class.qualifiedName!!)
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "Crash Off", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+                client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                // Wait for crash → STOPPED. Poll up to 10s.
+                val deadline = System.currentTimeMillis() + 10_000
+                var sawRestart = false
+                var sawStopped = false
+                while (System.currentTimeMillis() < deadline) {
+                    val s = store.get(inst.id).state
+                    if (s == InstanceState.STOPPED) sawStopped = true
+                    // If state returns to STARTING after having been STOPPED, that's a restart attempt
+                    if (sawStopped && s == InstanceState.STARTING) sawRestart = true
+                    delay(200)
+                }
+
+                val final = store.get(inst.id)
+                assertEquals(InstanceState.STOPPED, final.state)
+                assertFalse(sawRestart, "autoRestart=false should not restart crashed process")
+                assertNotNull(final.statusMessage)
+                assertTrue(
+                    final.statusMessage!!.contains("exited with code"),
+                    "Expected exit-code message, got: ${final.statusMessage}"
+                )
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `crashed process auto-restarts when enabled and within maxTimes`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-crash-on")
+        try {
+            val dataDir = DataDirectory(tempDir)
+
+            // Write DaemonConfig BEFORE bootstrap so autoRestart=true when ServerProcessManager reads config.
+            dataDir.configPath.parent?.toFile()?.mkdirs()
+            dataDir.configPath.toFile().writeText(
+                """{"autoRestartEnabled":true,"autoRestartMaxTimes":2,"crashLoopTimeoutSeconds":30}"""
+            )
+
+            val store = InstanceStore(dataDir)
+            val javaPath = ProcessHandle.current().info().command().orElse("java")
+            val classpath = System.getProperty("java.class.path")
+            val jvmArgs = listOf("-cp", classpath, CrashExitMcServer::class.qualifiedName!!)
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "Crash On", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+                client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                // Observe state transitions: expect at least 2 STARTING events (initial + auto-restart)
+                val transitions = mutableListOf<InstanceState>()
+                val deadline = System.currentTimeMillis() + 20_000
+                var lastState: InstanceState? = null
+                while (System.currentTimeMillis() < deadline) {
+                    val s = store.get(inst.id).state
+                    if (s != lastState) {
+                        transitions.add(s)
+                        lastState = s
+                    }
+                    if (transitions.count { it == InstanceState.STARTING } >= 2) break
+                    delay(100)
+                }
+
+                assertTrue(
+                    transitions.count { it == InstanceState.STARTING } >= 2,
+                    "Expected at least 2 STARTING transitions (initial + auto-restart), got: $transitions"
+                )
+
+                // Cleanup — kill so auto-restart doesn't keep firing past test end
+                runCatching {
+                    client.post("/api/v1/instances/${inst.id}/server/kill") {
+                        header(HttpHeaders.Authorization, "Bearer $token")
+                    }
+                }
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `crash loop detection gives up after maxTimes within window`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-crash-loop")
+        try {
+            val dataDir = DataDirectory(tempDir)
+
+            dataDir.configPath.parent?.toFile()?.mkdirs()
+            dataDir.configPath.toFile().writeText(
+                """{"autoRestartEnabled":true,"autoRestartMaxTimes":2,"crashLoopTimeoutSeconds":30}"""
+            )
+
+            val store = InstanceStore(dataDir)
+            val javaPath = ProcessHandle.current().info().command().orElse("java")
+            val classpath = System.getProperty("java.class.path")
+            val jvmArgs = listOf("-cp", classpath, CrashExitMcServer::class.qualifiedName!!)
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "Crash Loop", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+                client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                // maxTimes=2, 30s window. Expect: start → crash → restart → crash → restart → crash → give up.
+                // That's 3 crashes total. Give 30s.
+                val deadline = System.currentTimeMillis() + 30_000
+                var finalMsg: String? = null
+                while (System.currentTimeMillis() < deadline) {
+                    val s = store.get(inst.id)
+                    if (s.state == InstanceState.STOPPED &&
+                        s.statusMessage?.contains("Crash loop", ignoreCase = true) == true) {
+                        finalMsg = s.statusMessage
+                        break
+                    }
+                    delay(500)
+                }
+                assertNotNull(finalMsg, "Expected crash-loop statusMessage, final state: ${store.get(inst.id)}")
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
 }
