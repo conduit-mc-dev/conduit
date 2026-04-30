@@ -31,34 +31,60 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Real-network Forge install smoke test. Skipped unless CONDUIT_RUN_SLOW_TESTS=true.
+ * Real-network mod-loader install smoke tests. Skipped unless CONDUIT_RUN_SLOW_TESTS=true.
  *
- * Hits maven.minecraftforge.net and launcher.mojang.com for real. Downloads ~45 MB
- * of vanilla server.jar plus ~150 MB of Forge libraries. Expect 2-4 minutes total.
+ * Hits the real Maven repos for NeoForge and Forge plus launcher.mojang.com. Each case
+ * downloads ~45 MB of vanilla server.jar plus ~100-200 MB of loader libraries. Expect
+ * ~100s per case.
  *
- * Bypasses ktor's testApplication (runTest has a 60s timeout that this test exceeds).
- * Boots embeddedServer on a random port and talks to it via CIO.
+ * Bypasses ktor's testApplication (runTest has a 60s timeout that a real install
+ * exceeds). Boots embeddedServer on a random port and talks to it via CIO, which also
+ * exercises the real network stack instead of the test-host in-memory engine.
  *
  * Prerequisites:
- * - `java` on PATH is Java 17+ (Forge 1.20.4 requirement)
+ * - `java` on PATH is Java 17+ (Forge/NeoForge 1.20.4 requirement)
  * - Outbound HTTPS to maven.minecraftforge.net, maven.neoforged.net, launcher.mojang.com
  *
  * To run:
- *   CONDUIT_RUN_SLOW_TESTS=true ./gradlew :daemon:test --tests "*ForgeInstallE2ETest*" --rerun-tasks
+ *   CONDUIT_RUN_SLOW_TESTS=true ./gradlew :daemon:test --tests "*ModLoaderInstallE2ETest*" --rerun-tasks
  */
-class ForgeInstallE2ETest {
+class ModLoaderInstallE2ETest {
 
-    private val forgeVersion = "1.20.4-49.0.14"
     private val mcVersion = "1.20.4"
 
     @Test
-    fun `Forge install downloads installer, runs --installServer, produces argfile`() = runBlocking {
+    fun `NeoForge install produces version-scoped unix argfile`() = runBlocking {
+        assumeSlowTests()
+        verifyLoaderInstall(
+            loader = LoaderType.NEOFORGE,
+            version = "20.4.237",
+            expectedArgfile = "libraries/net/neoforged/neoforge/20.4.237/unix_args.txt",
+        )
+    }
+
+    @Test
+    fun `Forge install produces version-scoped unix argfile`() = runBlocking {
+        assumeSlowTests()
+        verifyLoaderInstall(
+            loader = LoaderType.FORGE,
+            version = "1.20.4-49.0.14",
+            expectedArgfile = "libraries/net/minecraftforge/forge/1.20.4-49.0.14/unix_args.txt",
+        )
+    }
+
+    private fun assumeSlowTests() {
         assumeTrue(
             "Set CONDUIT_RUN_SLOW_TESTS=true to opt in to this slow network test",
             System.getenv("CONDUIT_RUN_SLOW_TESTS") == "true",
         )
+    }
 
-        val tempDir = Files.createTempDirectory("conduit-forge-e2e")
+    private suspend fun verifyLoaderInstall(
+        loader: LoaderType,
+        version: String,
+        expectedArgfile: String,
+    ) {
+        val tempDir = Files.createTempDirectory("conduit-loader-e2e")
         val port = freePort()
         val dataDir = DataDirectory(tempDir)
         val store = InstanceStore(dataDir)
@@ -71,9 +97,7 @@ class ForgeInstallE2ETest {
             install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
             install(WebSockets)
             install(HttpTimeout) { requestTimeoutMillis = 300_000 }
-            defaultRequest {
-                url("http://127.0.0.1:$port")
-            }
+            defaultRequest { url("http://127.0.0.1:$port") }
         }
 
         try {
@@ -82,7 +106,7 @@ class ForgeInstallE2ETest {
             val instance = client.post("/api/v1/instances") {
                 header(HttpHeaders.Authorization, "Bearer $token")
                 contentType(ContentType.Application.Json)
-                setBody(CreateInstanceRequest(name = "Forge E2E", mcVersion = mcVersion))
+                setBody(CreateInstanceRequest(name = "${loader.name} E2E", mcVersion = mcVersion))
             }.body<InstanceSummary>()
 
             pollUntilInitialized(client, token, instance.id, timeoutMs = 180_000)
@@ -97,26 +121,26 @@ class ForgeInstallE2ETest {
                 val installResp = client.post("/api/v1/instances/${instance.id}/loader/install") {
                     header(HttpHeaders.Authorization, "Bearer $token")
                     contentType(ContentType.Application.Json)
-                    setBody(InstallLoaderRequest(type = LoaderType.FORGE, version = forgeVersion))
+                    setBody(InstallLoaderRequest(type = loader, version = version))
                 }.body<TaskResponse>()
 
                 val completion = awaitTaskCompletion(installResp.taskId, timeoutMs = 300_000)
                 assertTrue(
                     completion.success,
-                    "Forge install task failed: ${completion.message}",
+                    "${loader.name} install task failed: ${completion.message}",
                 )
             }
 
             val argFile = tempDir
                 .resolve("instances/${instance.id}")
-                .resolve("libraries/net/minecraftforge/forge/$forgeVersion/unix_args.txt")
-            assertTrue(argFile.exists(), "Expected argfile at $argFile after Forge install")
+                .resolve(expectedArgfile)
+            assertTrue(argFile.exists(), "Expected argfile at $argFile after ${loader.name} install")
 
-            val loader = client.get("/api/v1/instances/${instance.id}/loader") {
+            val loaderInfo = client.get("/api/v1/instances/${instance.id}/loader") {
                 header(HttpHeaders.Authorization, "Bearer $token")
             }.body<LoaderInfo>()
-            assertEquals(LoaderType.FORGE, loader.type)
-            assertEquals(forgeVersion, loader.version)
+            assertEquals(loader, loaderInfo.type)
+            assertEquals(version, loaderInfo.version)
         } finally {
             client.close()
             server.stop(1_000, 5_000)
@@ -128,7 +152,7 @@ class ForgeInstallE2ETest {
         val code = client.post("/api/v1/pair/initiate").body<PairInitiateResponse>().code
         return client.post("/api/v1/pair/confirm") {
             contentType(ContentType.Application.Json)
-            setBody(PairConfirmRequest(code = code, deviceName = "e2e-forge"))
+            setBody(PairConfirmRequest(code = code, deviceName = "e2e-loader"))
         }.body<PairConfirmResponse>().token
     }
 
