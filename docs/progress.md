@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-04-28（测试系统重构 Phase 6：JSON fixture 文件化）
+> 最新更新：2026-04-30（文档整理：清理陈旧条目、对齐代码实际状态）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -18,10 +18,11 @@
 ## Next（下一步）
 
 1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
-2. [ ] Forge/NeoForge 安装支持（MVP 前）— `LoaderService.kt:108-110` 当前 throw stub，需实现 `--installServer` subprocess 模式。调研结论：不复制 HMCL/Prism 的客户端 pipeline，直接调用官方 installer JAR。详见 `architecture-notes.md` "Forge/NeoForge 服务端安装" 章节
+2. [ ] Forge/NeoForge 安装支持（MVP 前）— `LoaderService.kt:109-110` 当前 throw stub，需实现 `--installServer` subprocess 模式。调研结论：不复制 HMCL/Prism 的客户端 pipeline，直接调用官方 installer JAR。详见 `architecture-notes.md` "Forge/NeoForge 服务端安装" 章节
 3. [ ] Player 追踪（MVP 前）— MVP 用 stdout 日志解析（`joinPattern`/`leavePattern`），未来用 MC Ping 补充。详见 `architecture-notes.md` "Player 追踪" 章节
 4. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
 5. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+6. [ ] WebSocket `console.input` 消息支持 — `api-protocol.md` 列为 Client→Server 消息，但 `WsRoutes.kt:37-56` 的 `when (type)` 无此分支，目前静默忽略。需添加分支 → `processManager.sendCommand()`，并补测试
 
 ### 技术债（非阻塞）
 
@@ -38,10 +39,8 @@
 ### 测试缺口清单（按优先级，参考 HMCL/PrismLauncher/Wings/MCSManager 调研）
 
 **高优先级（MVP 前应补）**
-- [x] FileRoutes GET 路由安全加固 — `validateNotProtected` 已在 GET /files 和 GET /files/content 调用，+7 测试
-- [x] resolveSafePath symlink 防护 — `toRealPath()` 替代 `normalize()`，处理不存在文件/目录场景
-- [x] PublicRoutes/ModService 路径穿越 — `PathValidator.sanitizeFileName()` 防御外部输入的恶意文件名，+2 测试
 - [ ] 协程取消清理 — 取消安装/下载后无残留文件、状态回 STOPPED（参考 HMCL `TaskTest`）
+- [ ] `pack.mrpack` 响应头断言 — `api-protocol.md` 第 1448 行要求 `Content-Length: {bytes}`，`PublicRoutes.kt:95-98` 未显式设置（Ktor `respondFile` 可能自动填）。需测试断言验证；缺失则手工添加
 - [ ] Fabric/Quilt 安装流程测试 — `installFabric()`/`installQuilt()` 执行路径无测试（参考 MCSManager `quick_install.ts`）
 - [ ] 启动超时检测 — `Done` 永不出现时实例停留在 STARTING 无限期
 
@@ -193,11 +192,4 @@
   - ConduitApiClient: start/stop/kill 返回 `ServerStatusResponse`, sendCommand 返回 `CommandAcceptedResponse`, listMinecraftVersions 返回包装类型
   - Desktop ViewModel: 适配新 API 返回类型
   - 延迟项（需后续基础设施）: playerCount/maxPlayers 实时追踪, memory/tps, server.stats/players_changed 事件
-- [x] Desktop MVP 迭代 1-3（配对 / 创建实例 / 服务器生命周期）
-  - 详细记录见 git log（`8817c9d`、`7f168e0`、`fcedad8`）
-  - 自动化测试 35 个
-- [x] Daemon 骨架（Ktor + 配对流程 + 实例 CRUD + 服务器生命周期）
-- [x] Gradle 多模块脚手架（shared-core / daemon / desktop / web）
-- [x] API 协议规范（`docs/api-protocol.md`）
-- [x] 项目定位、技术栈选型、命名、Logo、README、LICENSE
-- [x] 文档整合：CLAUDE.md 内联所有约束，移除 .codebuddy 多层引用
+> 更早的条目（v0.0 初始化：项目脚手架、API 协议制定、Desktop MVP 迭代 1-3、Daemon 骨架）已归档至 [`progress-archive.md`](progress-archive.md)。
