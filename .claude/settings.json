@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true,
+    "andrej-karpathy-skills@karpathy-skills": true,
+    "episodic-memory@superpowers-marketplace": true,
+    "elements-of-style@superpowers-marketplace": true,
+    "claude-session-driver@superpowers-marketplace": true,
+    "double-shot-latte@superpowers-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "forrestchang/andrej-karpathy-skills"
+      }
+    }
+  }
+}

@@ -47,72 +47,25 @@ conduit-mc/
 - ❌ MVP 不做 Web 面板
 - ❌ 不做原生移动 App（初期）
 
-## 编码准则
+## 技能框架
 
-减少 AI 编码常见错误的行为准则。偏向谨慎而非速度，简单任务可自行判断。
+本工程启用 6 个 Claude Code 插件（配置见 `.claude/settings.json`）。
 
-### 1. 先思考再动手
+**核心两个 — 决定 AI 的姿态与工作流：**
 
-**不要假设，不要隐藏困惑，主动暴露权衡。**
+- **`andrej-karpathy-skills`** — 4 条通用行为准则（Think Before Coding / Simplicity First / Surgical Changes / Goal-Driven Execution），在写/审/重构代码时由 skill 自动加载。
+- **`superpowers`** — 具体工作流 skill 集合（brainstorming、systematic-debugging、test-driven-development、writing-plans / executing-plans、requesting / receiving-code-review、verification-before-completion 等）。按任务类型自动触发。
 
-- 明确陈述你的假设。不确定就问。
-- 如果存在多种理解，列出来让用户选——不要自己默默选一个。
-- 如果有更简单的方案，说出来。该反驳时就反驳。
-- 如果有不清楚的地方，停下来，指出困惑点，然后问。
+**辅助四个 — 在对应场景自动生效：**
 
-### 2. 简洁优先
+- **`episodic-memory`** — 跨 session 的对话语义检索。当你说"上次怎么搞的"或 Claude 判定历史经验相关时，自动搜 `~/.claude/projects/` 下的过往对话。
+- **`elements-of-style`** — 写文档、commit message、错误信息、PR 描述时，自动套 Strunk《The Elements of Style》的简洁写作规则。
+- **`claude-session-driver`** — 通过 tmux 启动并监控 worker Claude 会话，支持并行任务拆分（配合 `superpowers:dispatching-parallel-agents`）。
+- **`double-shot-latte`** — Claude 即将 stop 时评估是否真的完工；未完则续跑。防过早 stop，与 `superpowers:verification-before-completion` 组成双保险。
 
-**用最少的代码解决问题，不做任何投机性编码。**
+首次克隆后 Claude Code 会提示信任两个 marketplace（`superpowers-marketplace`、`karpathy-skills`），批准一次后全部 6 个插件激活。通用行为准则由 skill 提供，**CLAUDE.md 只保留 skill 不覆盖的工程特有条款**。
 
-- 不加用户没要求的功能。
-- 不为只用一次的代码创建抽象。
-- 不加没被要求的"灵活性"或"可配置性"。
-- 不为不可能的场景做错误处理。
-- 如果写了 200 行但 50 行能搞定，重写。
-
-自检：高级工程师会觉得这段代码过度复杂吗？如果会，精简它。
-
-### 3. 精准修改
-
-**只动该动的，只清理自己造成的。**
-
-编辑现有代码时：
-- 不要"顺手改进"周围的代码、注释或格式。
-- 不要重构没坏的东西。
-- 匹配现有风格，即使你会用不同的写法。
-- 如果发现不相关的死代码，提一嘴——但不要删。
-
-当你的改动造成了孤立代码时：
-- 删除**你的改动**导致不再使用的 import / 变量 / 函数。
-- 不要删除改动之前就已存在的死代码，除非被要求。
-
-检验标准：每一行改动都应直接追溯到用户的请求。
-
-### 4. 目标驱动执行
-
-**定义成功标准，循环验证直到达成。**
-
-把任务转化为可验证的目标：
-- "加验证" → "为无效输入写测试，然后让测试通过"
-- "修 bug" → "写一个能复现 bug 的测试，然后让它通过"
-- "重构 X" → "确保重构前后测试都通过"
-
-多步任务时，先列简要计划：
-```
-1. [步骤] → 验证：[检查点]
-2. [步骤] → 验证：[检查点]
-3. [步骤] → 验证：[检查点]
-```
-
-### 5. 唯一信息源
-
-**项目知识存仓库，不存 AI 工具的本地记忆。**
-
-- 唯一存储位置是仓库中的项目文档（`docs/`、`CLAUDE.md` 等）。
-- 不要在 AI 工具的本地存储中重复保存项目文档已有的信息。
-- 新 session 通过 `CLAUDE.md` → `docs/progress.md` → 具体文档的引导链找到上下文。
-
-### 6. 规范即验收标准
+## 规范即验收标准
 
 **实现 API 端点时，以 `docs/api-protocol.md` 为准，逐字段核对。**
 
