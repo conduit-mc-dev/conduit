@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-01（Forge/NeoForge Windows VM 端到端验证通过：Windows 11 ARM64 上 2/2 case pass）
+> 最新更新：2026-05-01（Player 追踪通过 MC Server List Ping 实现：30s 轮询、变化广播、无语言依赖）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -18,9 +18,8 @@
 ## Next（下一步）
 
 1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
-2. [ ] Player 追踪（MVP 前）— MVP 用 stdout 日志解析（`joinPattern`/`leavePattern`），未来用 MC Ping 补充。详见 `architecture-notes.md` "Player 追踪" 章节
-3. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
-4. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+2. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
+3. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
 
 ### 技术债（非阻塞）
 
@@ -60,6 +59,15 @@
 ---
 
 ## Done
+
+- [x] Player 追踪 via Minecraft Server List Ping（2026-05-01）
+  - **方案选择**：stdout 日志解析（原 Next 条目假设）/ RCON / MC Ping 三方案对比后选 Ping。理由：stdout 和 RCON 都依赖 Vanilla 英文翻译字符串（`multiplayer.player.joined` / `commands.list.players`），服务器改语言或 Mojang 改文本就炸；MC Ping 是二进制协议返回 JSON，**语言中立 + 协议稳定 + 无额外配置**。MCSManager `mc_ping.ts` 也是这个思路，行业实践验证。
+  - **实现**：`shared-core/src/jvmMain/dev/conduit/core/mcping/MinecraftPingClient.kt` 手写 SLP 协议（~130 行）：TCP socket + varint + handshake + status_request + JSON 解码。零新依赖
+  - **轮询**：`ServerProcessManager` 在 `SERVER_DONE` 检测到后启动 30s 间隔的 Ping job（`127.0.0.1:mcPort`），`monitorJob`（进程退出）时 cancel。首次 Ping 延迟 5s 让 MC 有时间绑端口
+  - **InstanceStore**：`Instance` 加 `playerCount` / `maxPlayers` / `playerSample` 三个纯内存字段（不持久化——daemon 重启时进程也死，保留会是假数据）；`updatePlayerInfo()` 返回是否发生变化，`ServerProcessManager` 只在变化时广播 `server.players_changed`
+  - **API 变更**：`server.players_changed` payload 简化为 `{ playerCount, maxPlayers }`——删掉原规范里的 `joined`/`left` 字段（Ping 只有 sample ≤12 名字，不足以可靠计算 delta）。完整名单由 `GET /server/status.players` 暴露（从 sample 读）
+  - **测试 +6**：`MinecraftPingClientTest`（+4，真 TCP roundtrip：happy path、server offline → null、malformed JSON → null、无 sample 字段）；`InstanceStoreTest`（+2，update 是否报告变化 + 不持久化）。shared-core 17 → 21，daemon 190 → 192
+  - **未做**：Ping 轮询的自动化测试——需要真 MC 进程，性价比低。`ModLoaderInstallE2ETest` 未来可扩展一个 "server 启动后 ping 到 0 玩家" 的 smoke 测试
 
 - [x] Forge/NeoForge Windows VM 端到端验证（2026-05-01）
   - **环境**：Windows 11 Pro 24H2 ARM64（VMware Fusion + Apple Silicon 宿主），Microsoft OpenJDK 21.0.10 ARM64

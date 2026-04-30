@@ -1352,7 +1352,7 @@ All messages (both directions) use the same envelope format:
 |------|---------|-------------|
 | `console.output` | `{ "line": "...", "level": "info\|warn\|error" }` | MC server console line |
 | `server.state_changed` | `{ "oldState": "stopped", "newState": "starting" }` | State machine transition |
-| `server.players_changed` | `{ "playerCount": 3, "maxPlayers": 20, "joined": "Steve", "left": null }` | Player join/leave ⚠️ _(not yet implemented — tracked as "Player 追踪" in progress.md)_ |
+| `server.players_changed` | `{ "playerCount": 3, "maxPlayers": 20 }` | Online player count changed. Daemon polls the server every 30s via Minecraft Server List Ping; event fires only when `playerCount` or `maxPlayers` changes. Player names are not included because the Ping protocol's `sample` field is capped at ≤12 names by the server; use `GET /instances/{id}/server/status` to fetch the current partial name list. |
 | `server.stats` | `{ "tps": 19.8, "memoryUsedMb": 2100, "memoryMaxMb": 4096 }` | Periodic stats (every 10s) ⚠️ _(not yet implemented — tracked as "Memory/TPS 监控" in progress.md)_ |
 | `task.progress` | `{ "taskId": "...", "type": "server_jar_download\|loader_install\|pack_build", "progress": 0.5, "message": "..." }` | Long operation progress |
 | `task.completed` | `{ "taskId": "...", "type": "...", "success": true, "message": "..." }` | Long operation finished |
