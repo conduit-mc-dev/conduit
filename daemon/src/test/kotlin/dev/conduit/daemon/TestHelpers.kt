@@ -128,6 +128,8 @@ fun createMockMojangClient(): MojangClient {
 }
 
 fun createMockLoaderHttpClient(): HttpClient {
+    val forgeMetadata = loadFixture("loader/forge-maven-metadata.xml")
+    val neoforgeMetadata = loadFixture("loader/neoforge-maven-metadata.xml")
     return HttpClient(MockEngine { request ->
         val url = request.url.toString()
         when {
@@ -141,6 +143,10 @@ fun createMockLoaderHttpClient(): HttpClient {
                     """[{"loader":{"version":"0.26.1"}},{"loader":{"version":"0.26.0"}}]""",
                     headers = headersOf(HttpHeaders.ContentType, "application/json"),
                 )
+            url.contains("maven.minecraftforge.net") && url.endsWith("/forge/maven-metadata.xml") ->
+                respond(forgeMetadata, headers = headersOf(HttpHeaders.ContentType, "application/xml"))
+            url.contains("maven.neoforged.net") && url.endsWith("/neoforge/maven-metadata.xml") ->
+                respond(neoforgeMetadata, headers = headersOf(HttpHeaders.ContentType, "application/xml"))
             else -> respondError(HttpStatusCode.NotFound)
         }
     }) {

@@ -17,7 +17,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.xml.sax.InputSource
 import java.io.Closeable
+import java.io.StringReader
+import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.path.*
 
 class LoaderService(
@@ -62,6 +65,24 @@ class LoaderService(
             }
         } catch (e: Exception) {
             log.warn("Failed to fetch Quilt versions for MC {}", mcVersion, e)
+        }
+
+        try {
+            val forgeVersions = fetchForgeVersions(mcVersion)
+            if (forgeVersions.isNotEmpty()) {
+                loaders.add(AvailableLoader(type = LoaderType.FORGE, versions = forgeVersions))
+            }
+        } catch (e: Exception) {
+            log.warn("Failed to fetch Forge versions for MC {}", mcVersion, e)
+        }
+
+        try {
+            val neoforgeVersions = fetchNeoForgeVersions(mcVersion)
+            if (neoforgeVersions.isNotEmpty()) {
+                loaders.add(AvailableLoader(type = LoaderType.NEOFORGE, versions = neoforgeVersions))
+            }
+        } catch (e: Exception) {
+            log.warn("Failed to fetch NeoForge versions for MC {}", mcVersion, e)
         }
 
         return loaders
@@ -153,6 +174,20 @@ class LoaderService(
         return versions.map { it.loader.version }
     }
 
+    private suspend fun fetchForgeVersions(mcVersion: String): List<String> {
+        val response = client.get("https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml")
+        if (response.status != HttpStatusCode.OK) return emptyList()
+        val prefix = "$mcVersion-"
+        return parseMavenVersions(response.bodyAsText()).filter { it.startsWith(prefix) }
+    }
+
+    private suspend fun fetchNeoForgeVersions(mcVersion: String): List<String> {
+        val prefix = neoforgeVersionPrefix(mcVersion) ?: return emptyList()
+        val response = client.get("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml")
+        if (response.status != HttpStatusCode.OK) return emptyList()
+        return parseMavenVersions(response.bodyAsText()).filter { it.startsWith(prefix) }
+    }
+
     override fun close() {
         client.close()
     }
@@ -172,3 +207,30 @@ private data class QuiltLoaderEntry(val loader: QuiltLoaderInfo)
 
 @Serializable
 private data class QuiltLoaderInfo(val version: String)
+
+private val mavenMetadataDocumentBuilderFactory: DocumentBuilderFactory =
+    DocumentBuilderFactory.newInstance().apply {
+        isNamespaceAware = false
+        isXIncludeAware = false
+        isExpandEntityReferences = false
+        setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        setFeature("http://xml.org/sax/features/external-general-entities", false)
+        setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+    }
+
+internal fun parseMavenVersions(xml: String): List<String> {
+    val doc = mavenMetadataDocumentBuilderFactory.newDocumentBuilder()
+        .parse(InputSource(StringReader(xml)))
+    val nodes = doc.getElementsByTagName("version")
+    return (0 until nodes.length)
+        .map { nodes.item(it).textContent.trim() }
+        .filter { it.isNotEmpty() }
+}
+
+internal fun neoforgeVersionPrefix(mcVersion: String): String? {
+    val parts = mcVersion.split(".")
+    if (parts.size < 2 || parts[0] != "1") return null
+    val major = parts[1]
+    val minor = parts.getOrNull(2) ?: "0"
+    return "$major.$minor."
+}

@@ -73,10 +73,11 @@ class ServerRoutesTest {
 
     @Test
     fun `server status endpoint returns full status`() = testApplication {
-        setupTestModule()
+        val env = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token)
+        env.forceInitializing(instance.id)
 
         val response = client.get("/api/v1/instances/${instance.id}/server/status") {
             header(HttpHeaders.Authorization, "Bearer $token")

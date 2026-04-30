@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-01（WebSocket `console.input` 支持完成）
+> 最新更新：2026-05-01（Forge/NeoForge 版本列表支持完成，Phase A）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -18,7 +18,7 @@
 ## Next（下一步）
 
 1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
-2. [ ] Forge/NeoForge 安装支持（MVP 前）— `LoaderService.kt:109-110` 当前 throw stub，需实现 `--installServer` subprocess 模式。调研结论：不复制 HMCL/Prism 的客户端 pipeline，直接调用官方 installer JAR。详见 `architecture-notes.md` "Forge/NeoForge 服务端安装" 章节
+2. [ ] Forge/NeoForge 安装 Phase B（MVP 前）— Phase A（版本列表）已完成；剩余：`LoaderService.kt:109-110` 仍 throw stub，需(1) 下载 installer JAR、(2) `--installServer` subprocess 执行 + 进度解析、(3) 产物检测（`run.sh` vs patched JAR）、(4) `ServerProcessManager.kt:51-57` 启动命令从硬编码 `java -jar server.jar` 改为按 loader 分支（新 Forge/NeoForge 用 `bash run.sh` 或从脚本解析 classpath）。仅支持 MC ≥ 1.17 的新 Forge 和 NeoForge（旧 Forge 返回 `UNSUPPORTED_MC_VERSION`）。详见 `architecture-notes.md` "Forge/NeoForge 服务端安装" 章节
 3. [ ] Player 追踪（MVP 前）— MVP 用 stdout 日志解析（`joinPattern`/`leavePattern`），未来用 MC Ping 补充。详见 `architecture-notes.md` "Player 追踪" 章节
 4. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
 5. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
@@ -62,6 +62,19 @@
 
 ## Done
 
+- [x] Forge/NeoForge 版本列表（Phase A，2026-05-01）
+  - **目标**：`GET /instances/{id}/loader/available` 此前仅返回 Fabric/Quilt，Forge/NeoForge 始终缺席。Phase A 补齐版本枚举路径，不触碰安装流程——让前端能看到可选版本。
+  - **Forge**：`https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml`，按 `{mcVersion}-` 前缀过滤
+  - **NeoForge**：`https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml`；MC 版本→NeoForge 前缀通过 `neoforgeVersionPrefix`（`1.A.B` → `A.B.`，`1.A` → `A.0.`）转换
+  - **XML 解析**：`parseMavenVersions` 使用 JDK 自带 `javax.xml.parsers.DocumentBuilderFactory`（JAXP）做 DOM 解析，`getElementsByTagName("version")` 取所有版本节点；启用 XXE 防护（`disallow-doctype-decl` + 禁用外部实体）。零新增依赖，正式标准库。
+  - **失败容错**：每个 loader 独立 try/catch，单个源失败不影响其他 loader 列表，与现有 Fabric/Quilt 模式一致
+  - **冲突检查**：经评估，`LoaderService.install():75-77` 的 `LOADER_ALREADY_INSTALLED` 已经覆盖所有 loader 互斥场景，比 Prism 的 `KNOWN_MODLOADERS` 表更严格，**无需**额外实现
+  - 测试 +6（187 → 195）：
+    - `LoaderRoutesTest.available loaders includes Forge filtered by MC version`
+    - `LoaderRoutesTest.available loaders includes NeoForge mapped from MC version`
+    - `LoaderVersionMappingTest`（4 用例）：NeoForge 前缀映射边界（带/不带 patch、非法 MC 版本）+ Maven XML 正则提取
+  - **顺带修复**：`ServerRoutesTest.server status endpoint returns full status` 缺 `forceInitializing`，偶发抢到 STOPPED 状态；补齐调用
+  - Fixture 文件：`daemon/src/test/resources/fixtures/loader/{forge,neoforge}-maven-metadata.xml`
 - [x] WebSocket `console.input` 消息支持（2026-05-01）
   - **协议对齐**：`api-protocol.md` 5.4 节定义的 `console.input` Client→Server 消息此前未被 daemon 处理（静默丢弃）。现在 `WsRoutes.kt` 新增分支：解析 `payload.command` 后调用 `processManager.sendCommand(instanceId, command)`，与 HTTP POST `/server/command` 走同一路径。
   - **错误处理**：`sendCommand` 抛 `ApiException`（`SERVER_NOT_RUNNING` 或 `COMMAND_FAILED`）时在 WS 侧 debug 日志记录，不断开连接——与 subscribe/ping 的容错风格一致。
