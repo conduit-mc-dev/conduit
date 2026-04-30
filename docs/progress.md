@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-01（Forge/NeoForge 安装 Phase B 完成：installer subprocess + argfile 启动）
+> 最新更新：2026-05-01（Forge/NeoForge Windows 代码层支持；VM 验证步骤见 Done 条目）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -18,8 +18,7 @@
 ## Next（下一步）
 
 1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
-2. [ ] Forge/NeoForge Windows 支持（MVP 前）— Phase A + B 完成（Unix）；Windows 需要 `win_args.txt` 路径分支 + 启动命令调整。`ServerProcessManager.kt` 目前 `LaunchTarget.ArgFile` 硬编码 `unix_args.txt` 路径；Windows 上 Forge installer 会生成 `win_args.txt`。追加条件判断即可。
-3. [ ] Forge/NeoForge 端到端手工验证（MVP 前）— 自动化测试覆盖纯函数（版本校验、LaunchTarget 解析）和版本列表；installer subprocess + 实际启动未集成测试（成本过高）。需在真实环境（VPS 或本地 Linux/macOS）做一次：创建实例 → 装 Forge → 启动 → 确认"Done"出现 → 放一个 mod 测试加载。
+2. [ ] Forge/NeoForge 端到端手工验证（MVP 前）— 自动化测试覆盖纯函数（版本校验、LaunchTarget 解析、Windows 分支）和版本列表；Linux/macOS 端到端已跑通（`ModLoaderInstallE2ETest`）；Windows 端到端待在 Windows VM 跑同一测试确认
 3. [ ] Player 追踪（MVP 前）— MVP 用 stdout 日志解析（`joinPattern`/`leavePattern`），未来用 MC Ping 补充。详见 `architecture-notes.md` "Player 追踪" 章节
 4. [ ] 进程生命周期改进（MVP 前）— 崩溃恢复（Wings CrashHandler 模式 + MCSManager maxTimes）、power lock（并发 start/stop 保护）。详见 `architecture-notes.md` "进程生命周期改进" 章节
 5. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
@@ -63,6 +62,16 @@
 
 ## Done
 
+- [x] Forge/NeoForge Windows 代码层支持（2026-05-01）
+  - **改动**：`LaunchTarget.kt` 加 `IS_WINDOWS` val（读 `os.name`）+ `resolveLaunchTarget(loader, isWindows = IS_WINDOWS)` 可选参数。Forge/NeoForge 分支按 `isWindows` 选 `win_args.txt` 或 `unix_args.txt`。`ProcessBuilder`、`JavaDetector`、`PathValidator`、`FileService` 等已在之前迭代中 Windows-aware——审计结论见下
+  - **Windows 审计结论**：除 `LaunchTarget.ArgFile` 外无其他 Windows 阻塞。潜在脆弱点（Windows 保留文件名 CON/NUL/PRN、Windows 260 字符路径限制）为极罕见边缘案例，非 MVP 阻塞
+  - **测试 +2**：Forge 和 NeoForge 各加一个 `isWindows = true` 分支的 `resolveLaunchTarget` 单元测试；既有 4 个测试更新为显式传 `isWindows = false`（消除"当前 OS"漂移）。daemon 188 → 190
+  - **e2e 测试兼容**：`ModLoaderInstallE2ETest` 的 `argFileName()` helper 按 OS 选文件名，同一个测试在 Linux/macOS 和 Windows 都能跑
+  - **Windows VM 验证步骤**（待执行）：
+    1. Windows VM 装 Adoptium Temurin JDK 17+（`JavaDetector` 默认扫 `C:\Program Files\Java` 和 `%LOCALAPPDATA%\Programs\Eclipse Adoptium`）
+    2. clone `https://github.com/conduit-mc-dev/conduit.git` 到 VM
+    3. PowerShell 或 CMD：`$env:CONDUIT_RUN_SLOW_TESTS="true"; .\gradlew.bat :daemon:test --tests "*ModLoaderInstallE2ETest*" --rerun-tasks`
+    4. 两个 case（NeoForge + Forge）应 pass；若 installer 报 "Try again" 的 transient 网络错，重跑一次
 - [x] Forge/NeoForge 安装 Phase B（Unix，2026-05-01）
   - **目标**：`LoaderService.installLoader()` 的 Forge/NeoForge stub 替换为真实安装路径；启动命令适配新 Forge/NeoForge 的 argfile 模式。MVP 仅支持 MC ≥ 1.17 的新 Forge 和 NeoForge。
   - **installer 子进程**：`runModLoaderInstaller` 下载 installer JAR → `ProcessBuilder(javaPath, -jar, installer.jar, --installServer)` → `redirectOutput(installer.log)`（避免 stdout 管道阻塞）→ `waitFor()`。成功清理 `installer.jar`、`installer.log`、`installer.jar.log`；失败保留 log 前 2000 字符作为异常 message

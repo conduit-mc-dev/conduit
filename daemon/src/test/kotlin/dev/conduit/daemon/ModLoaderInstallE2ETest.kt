@@ -58,7 +58,7 @@ class ModLoaderInstallE2ETest {
         verifyLoaderInstall(
             loader = LoaderType.NEOFORGE,
             version = "20.4.237",
-            expectedArgfile = "libraries/net/neoforged/neoforge/20.4.237/unix_args.txt",
+            expectedArgfile = "libraries/net/neoforged/neoforge/20.4.237/${argFileName()}",
         )
     }
 
@@ -68,9 +68,12 @@ class ModLoaderInstallE2ETest {
         verifyLoaderInstall(
             loader = LoaderType.FORGE,
             version = "1.20.4-49.0.14",
-            expectedArgfile = "libraries/net/minecraftforge/forge/1.20.4-49.0.14/unix_args.txt",
+            expectedArgfile = "libraries/net/minecraftforge/forge/1.20.4-49.0.14/${argFileName()}",
         )
     }
+
+    private fun argFileName(): String =
+        if (System.getProperty("os.name", "").lowercase().contains("windows")) "win_args.txt" else "unix_args.txt"
 
     private fun assumeSlowTests() {
         assumeTrue(

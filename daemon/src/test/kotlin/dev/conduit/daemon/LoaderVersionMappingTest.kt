@@ -88,24 +88,28 @@ class LoaderVersionMappingTest {
 
     @Test
     fun `launch target is VanillaJar when no loader installed`() {
-        assertEquals(LaunchTarget.VanillaJar, resolveLaunchTarget(null))
+        assertEquals(LaunchTarget.VanillaJar, resolveLaunchTarget(null, isWindows = false))
+        assertEquals(LaunchTarget.VanillaJar, resolveLaunchTarget(null, isWindows = true))
     }
 
     @Test
     fun `launch target is VanillaJar for Fabric and Quilt`() {
         assertEquals(
             LaunchTarget.VanillaJar,
-            resolveLaunchTarget(LoaderInfo(LoaderType.FABRIC, "0.16.14")),
+            resolveLaunchTarget(LoaderInfo(LoaderType.FABRIC, "0.16.14"), isWindows = false),
         )
         assertEquals(
             LaunchTarget.VanillaJar,
-            resolveLaunchTarget(LoaderInfo(LoaderType.QUILT, "0.26.1")),
+            resolveLaunchTarget(LoaderInfo(LoaderType.QUILT, "0.26.1"), isWindows = true),
         )
     }
 
     @Test
-    fun `launch target is Forge argfile with version-scoped path`() {
-        val target = resolveLaunchTarget(LoaderInfo(LoaderType.FORGE, "1.20.4-49.0.14"))
+    fun `launch target is Forge unix argfile on non-Windows`() {
+        val target = resolveLaunchTarget(
+            LoaderInfo(LoaderType.FORGE, "1.20.4-49.0.14"),
+            isWindows = false,
+        )
         assertEquals(
             LaunchTarget.ArgFile("libraries/net/minecraftforge/forge/1.20.4-49.0.14/unix_args.txt"),
             target,
@@ -113,10 +117,37 @@ class LoaderVersionMappingTest {
     }
 
     @Test
-    fun `launch target is NeoForge argfile with version-scoped path`() {
-        val target = resolveLaunchTarget(LoaderInfo(LoaderType.NEOFORGE, "21.0.167"))
+    fun `launch target is Forge Windows argfile on Windows`() {
+        val target = resolveLaunchTarget(
+            LoaderInfo(LoaderType.FORGE, "1.20.4-49.0.14"),
+            isWindows = true,
+        )
+        assertEquals(
+            LaunchTarget.ArgFile("libraries/net/minecraftforge/forge/1.20.4-49.0.14/win_args.txt"),
+            target,
+        )
+    }
+
+    @Test
+    fun `launch target is NeoForge unix argfile on non-Windows`() {
+        val target = resolveLaunchTarget(
+            LoaderInfo(LoaderType.NEOFORGE, "21.0.167"),
+            isWindows = false,
+        )
         assertEquals(
             LaunchTarget.ArgFile("libraries/net/neoforged/neoforge/21.0.167/unix_args.txt"),
+            target,
+        )
+    }
+
+    @Test
+    fun `launch target is NeoForge Windows argfile on Windows`() {
+        val target = resolveLaunchTarget(
+            LoaderInfo(LoaderType.NEOFORGE, "21.0.167"),
+            isWindows = true,
+        )
+        assertEquals(
+            LaunchTarget.ArgFile("libraries/net/neoforged/neoforge/21.0.167/win_args.txt"),
             target,
         )
     }
