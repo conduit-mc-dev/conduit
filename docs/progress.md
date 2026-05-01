@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-01（Daemon 全面打磨：spec 补遗 + 技术债清零 + 测试缺口补齐；shared-core 21→38 tests, daemon 208→214 tests）
+> 最新更新：2026-05-01（进入 Daemon 功能收尾冲刺 B1-B9，9 件事清零所有非 Desktop 依赖的 MVP 空白 / spec 偏差 / 技术债；shared-core 38 tests / daemon 214 tests 起点）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,42 +11,63 @@
 
 ## Now（进行中）
 
-（暂无，等待下一任务）
+**Daemon 功能收尾冲刺（2026-05-01 起）**：把所有非 Desktop-依赖的功能空白 / spec 偏差 / 技术债一次性清零，目标让 Daemon 达到"MVP 完整可用"状态。详见 Next 主线清单 B1-B9。起点状态：端点覆盖 47/47、生产代码零 TODO、shared-core 38 tests / daemon 214 tests 全绿。
 
 ---
 
 ## Next（下一步）
 
-### 主线
+### 主线 — Daemon MVP 完整化（优先顺序）
 
-1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
-2. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+**快胜利（1-4 小时估工，每条独立可单独 commit）**
 
-### 测试缺口（按优先级）
+1. [ ] **B1 — 修 `PUT /api/v1/java/default` silent no-op**：`JavaRoutes.kt:23` 验证 Java 路径后返回 `isDefault=true` 但从不持久化。需要 `DaemonConfigStore` 加 `defaultJavaPath: String?` 字段 + `updateDefaultJava()`，重启后仍保留。测试覆盖 persist+reload
+2. [ ] **B2 — 修 `installFromModrinth` 把 `env` 字段写空（spec/实现偏差）**：`ModService.kt:63` 写 `env = ModEnvSupport()` 空对象，违反 `api-protocol.md §4.3` schema（承诺 `client`/`server` 语义）。需要从 Modrinth 响应的 `client_side` / `server_side` 字段映射到 `ModEnvSupport`
+3. [ ] **B3 — 自定义 JAR 上传加 ZIP 头校验**：`ModService.kt:87` 只查 `.jar` 后缀，`malicious.exe.jar` 能上传成功。加 `PK\x03\x04` magic bytes 前 4 字节校验，拒绝非 ZIP 返回 400 `INVALID_FILE_FORMAT`
+4. [ ] **B4 — `maxPlayers` 从 `server.properties` 实时读取**：`InstanceStore.kt:59` 硬编码 20。读取路径：`ServerPropertiesService.getAll()` 已存在，加 `max-players` 解析即可；server.properties 不存在时回退 20
 
-### 延迟项（MVP 后）
+**组合拳（模组持久化闭环，半天量级）**
+
+5. [ ] **B6 — 实现 `parseModMetadata(path: Path): ModMetadata`**：解析 JAR 内 `fabric.mod.json` / `quilt.mod.json` / `META-INF/mods.toml`，提取 name、version、loaders、env。激活 `ModMetadataParseTest` 的 `@Ignore` 占位测试
+6. [ ] **B7 — ModStore 持久化 + 启动恢复**：JSON 序列化到 `<instance>/mods.json`（与 `instance.json` 同目录），daemon 启动扫 `mods/` + `mods-disabled/` + `mods-custom/`，优先读 mods.json，缺失字段用 `parseModMetadata()` 补。目标：重启后 UI 列表不丢、禁用状态保留、update-check 能继续工作
+
+**大件（取消基础设施，半天到一天）**
+
+7. [ ] **B5 — 协程取消基础设施（5 件构件）**：
+    - `TaskStore.cancel(taskId)` — 设置 CANCELLED 状态并触发关联 Job 取消
+    - Job 追踪 — ServiceRegistry 或 TaskStore 内维护 `taskId → Job` 映射
+    - `LoaderService` / `PackService` / `ServerJarService` finally 块清理残留文件
+    - `DELETE /api/v1/instances/{id}/tasks/{taskId}` API 端点 + spec 补入 `api-protocol.md`
+    - 激活 `CancellationCleanupTest` 的 `@Ignore`，补真实测试
+
+**扫尾**
+
+8. [ ] **B8 — Modrinth 批量更新检查**：`ModrinthClient.batchCheckUpdates(hashes, algorithm, loaders, gameVersions)` 调 `POST /v2/version_files/update`，替换 `ModService.checkUpdates()` 的逐个查询循环。架构笔记 §3 有详细方案
+9. [ ] **B9 — Modrinth 搜索 client/server facets**：`ModrinthClient.search` 加 `clientSide?` / `serverSide?` 参数，映射到 facets `["client_side:required"]` 等；`ModrinthRoutes` 接受查询参数透传
+
+### Desktop 依赖（Daemon 完工后再动）
+
+- [ ] shared-core ConduitWsClient 重连逻辑 + 5 个测试用例
+- [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+
+### 延迟项（MVP 后 / v0.2+）
 
 - [ ] Memory/TPS 监控 — 需 RCON 基础设施，实现 `memory`/`tps` 字段和 `server.stats` WS 事件
-- [ ] `maxPlayers` 从 `server.properties` 实时读取（当前硬编码 20）
-- [ ] ModStore 持久化 — 当前纯内存，daemon 重启丢失。参考 MCSManager 的 JAR 元数据扫描 + mtime/size 缓存
-- [ ] Modrinth 批量更新检查 — 改用 `POST /v2/version_files/update` 替代逐个查询
+- [ ] Mod 依赖解析 — `architecture-notes.md §2` 决定 MVP 不做；Desktop 启动器需要时参考 Prism `GetModDependenciesTask.cpp` 递归 + 去重算法
 - [ ] UI/UX 设计参考文档 — 独立文件，参考 GDLauncher + MCSManager/Pelican 面板布局
 
-### 测试缺口清单（按优先级，参考 HMCL/PrismLauncher/Wings/MCSManager 调研）
+### 测试缺口清单（历史；高优全部已在 Next 主线覆盖）
 
-**高优先级（MVP 前应补）**
-- [ ] 协程取消清理 — 取消安装/下载后无残留文件、状态回 STOPPED。**现状**：`@Ignore` 占位测试已创建（`CancellationCleanupTest.kt`），等 5 个基础设施到位后激活：TaskStore.cancel() / Job 追踪 / LoaderService/PackService finally 清理 / cancel API 端点
-- [ ] 取消基础设施建完后的真实测试（见上条）
-
-**中优先级（v0.2 前应补）**
+**已完成（2026-05-01）**
 - [x] MC 版本排序正确性 — `compareMcVersions()` + `listVersions()` 排序集成，14 用例
-- [x] server.properties round-trip 特殊字符 — `#` 注释、`=` 在值内、Unicode 中文，3 用例
-- [x] WebSocket 背压/满 channel 行为 — `RapidOutputMcServer` mock（~500 行/秒）+ `WsBackpressureTest`
-- [x] 请求头断言 — User-Agent for MojangClient + ModrinthClient，2 用例
-- [x] 重试次数精确计数验证 — `MojangClientTest` +1
-- [ ] Mod 元数据解析 — **现状**：`@Ignore` 占位测试已创建（`ModMetadataParseTest.kt`），`parseModMetadata()` 不存在，等 ModStore 持久化时一并实现
+- [x] server.properties round-trip 特殊字符 — 3 用例
+- [x] WebSocket 背压/满 channel 行为 — `RapidOutputMcServer` + 1 用例
+- [x] 请求头断言 — User-Agent 2 用例
+- [x] 重试次数精确计数 — 1 用例
+- [x] 协程取消清理 `@Ignore` 占位 → **升级到 Next 主线 B5**
+- [x] Mod 元数据解析 `@Ignore` 占位 → **升级到 Next 主线 B6**
 
-**低优先级（可选增强）**
+**低优先级（可选增强，v0.2+）**
 - [ ] JVM 参数构建测试（参考 HMCL `CommandBuilderTest`）
 - [ ] 文件名跨平台验证 — Windows 保留名（参考 HMCL `FileUtilsTest`）
 - [ ] 控制台输出限流测试（参考 Wings `rate_test.go`）
