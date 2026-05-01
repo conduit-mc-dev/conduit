@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package dev.conduit.core.api
 
 import dev.conduit.core.model.WsConnectionState
@@ -64,6 +66,7 @@ class ConduitWsClientTest {
             client.connectionState.collect { states.add(it) }
         }
 
+        // Connect to a non-existent server — CONNECTING is set synchronously before the CIO call
         client.connect(backgroundScope)
         runCurrent()
 

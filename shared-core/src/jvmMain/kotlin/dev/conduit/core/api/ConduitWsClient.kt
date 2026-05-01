@@ -95,6 +95,8 @@ class ConduitWsClient(
 
                 if (!isActive) break
 
+                _connectionState.value = WsConnectionState.DISCONNECTED
+
                 // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s cap
                 attempt++
                 val delayMs = min(1_000L * 2.0.pow(attempt - 1).toLong(), 30_000L)
