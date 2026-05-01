@@ -29,7 +29,7 @@ fun Route.configRoutes(
     route("/api/v1/instances/{id}") {
         get("/config/jvm") {
             val id = call.requireInstanceId()
-            call.respond(buildJvmConfig(id, instanceStore))
+            call.respond(buildJvmConfig(id, instanceStore, daemonConfigStore))
         }
 
         put("/config/jvm") {
@@ -53,7 +53,7 @@ fun Route.configRoutes(
             } else null
 
             instanceStore.updateJvmConfig(id, hasJvmArgs, jvmArgs, hasJavaPath, javaPath)
-            call.respond(buildJvmConfig(id, instanceStore))
+            call.respond(buildJvmConfig(id, instanceStore, daemonConfigStore))
         }
 
         get("/invite") {
@@ -73,12 +73,12 @@ fun Route.configRoutes(
     }
 }
 
-private fun buildJvmConfig(id: String, instanceStore: InstanceStore): JvmConfig {
+private fun buildJvmConfig(id: String, instanceStore: InstanceStore, daemonConfigStore: DaemonConfigStore): JvmConfig {
     val data = instanceStore.getJvmConfigData(id)
     return JvmConfig(
         jvmArgs = data.jvmArgs,
         javaPath = data.javaPath,
-        effectiveJavaPath = data.javaPath ?: "java",
+        effectiveJavaPath = data.javaPath ?: daemonConfigStore.get().defaultJavaPath ?: "java",
     )
 }
 

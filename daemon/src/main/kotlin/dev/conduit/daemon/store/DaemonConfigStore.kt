@@ -26,6 +26,7 @@ class DaemonConfigStore(private val configPath: Path) {
             autoRestartEnabled = request.autoRestartEnabled ?: config.autoRestartEnabled,
             autoRestartMaxTimes = request.autoRestartMaxTimes ?: config.autoRestartMaxTimes,
             crashLoopTimeoutSeconds = request.crashLoopTimeoutSeconds ?: config.crashLoopTimeoutSeconds,
+            defaultJavaPath = request.defaultJavaPath ?: config.defaultJavaPath,
         )
         config = updated
         save(updated)

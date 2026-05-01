@@ -90,7 +90,10 @@ class ServerProcessManager(
                 throw ApiException(HttpStatusCode.Conflict, "SERVER_ALREADY_RUNNING", "Server is already running")
             }
 
-            val config = instanceStore.getProcessConfig(instanceId)
+            val config = instanceStore.getProcessConfig(
+                instanceId,
+                defaultJavaPath = daemonConfigStore?.get()?.defaultJavaPath,
+            )
             val launchTarget = resolveLaunchTarget(instanceStore.getLoader(instanceId))
             instanceStore.transitionState(instanceId, InstanceState.STOPPED, InstanceState.STARTING)
             broadcastStateChanged(instanceId, InstanceState.STOPPED, InstanceState.STARTING)

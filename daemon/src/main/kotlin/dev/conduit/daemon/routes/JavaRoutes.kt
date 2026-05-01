@@ -2,6 +2,7 @@ package dev.conduit.daemon.routes
 
 import dev.conduit.core.model.JavaInstallation
 import dev.conduit.core.model.SetDefaultJavaRequest
+import dev.conduit.core.model.UpdateDaemonConfigRequest
 import dev.conduit.daemon.ApiException
 import dev.conduit.daemon.service.JavaDetector
 import dev.conduit.daemon.store.DaemonConfigStore
@@ -28,6 +29,7 @@ fun Route.javaRoutes(
                     "JAVA_NOT_FOUND",
                     "Not a valid Java executable: ${request.path}",
                 )
+            daemonConfigStore.update(UpdateDaemonConfigRequest(defaultJavaPath = request.path))
             call.respond(installation.copy(isDefault = true))
         }
     }

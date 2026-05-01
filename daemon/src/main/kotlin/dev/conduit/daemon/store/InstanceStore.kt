@@ -230,11 +230,11 @@ class InstanceStore(
         updated?.let { persist(it) }
     }
 
-    fun getProcessConfig(id: String): ProcessConfig {
+    fun getProcessConfig(id: String, defaultJavaPath: String? = null): ProcessConfig {
         val instance = requireInstance(id)
         return ProcessConfig(
             jvmArgs = instance.jvmArgs ?: emptyList(),
-            javaPath = instance.javaPath ?: "java",
+            javaPath = instance.javaPath ?: defaultJavaPath ?: "java",
             mcPort = instance.mcPort,
         )
     }

@@ -24,6 +24,7 @@ data class DaemonConfig(
     val autoRestartEnabled: Boolean = false,
     val autoRestartMaxTimes: Int = 3,
     val crashLoopTimeoutSeconds: Int = 60,
+    val defaultJavaPath: String? = null,
 )
 
 @Serializable
@@ -36,6 +37,7 @@ data class UpdateDaemonConfigRequest(
     val autoRestartEnabled: Boolean? = null,
     val autoRestartMaxTimes: Int? = null,
     val crashLoopTimeoutSeconds: Int? = null,
+    val defaultJavaPath: String? = null,
 )
 
 // --- 实例 JVM 配置 ---
