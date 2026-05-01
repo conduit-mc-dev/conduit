@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-01（Windows VM 全套验证：默认套件 208/208 + 真网 smoke 4/4 含新 Quilt，跨平台无回归）
+> 最新更新：2026-05-01（Daemon 全面打磨：spec 补遗 + 技术债清零 + 测试缺口补齐；shared-core 21→38 tests, daemon 208→214 tests）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -22,15 +22,7 @@
 1. [ ] shared-core ConduitWsClient 测试 — 等加重连逻辑时一起实施（5 个用例）
 2. [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
 
-### spec 补遗（低成本，代码已实现或已部分偏离）
-
-- [ ] `api-protocol.md` §9.2 错误码表补 `COMMAND_FAILED`（500，`ServerProcessManager.kt:185` 已抛）和 `DEVICE_NOT_FOUND`（404，`TokenStore.kt:103` 已抛）
-- [ ] `api-protocol.md` §7 `server.json.pack` 字段标注 "required only if pack has been built; null otherwise"（`PublicRoutes.kt:59-68` 未构建时返回 null）
-
-### 技术债（非阻塞）
-
-- [ ] shared-core/daemon 测试工具跨模块共享 — 目前 `loadFixture` 和 `withTempDir` 在 shared-core `TestUtils.kt` 和 daemon `TestHelpers.kt` 各有一份完全相同的实现。根因是无 `java-test-fixtures` 插件或独立 `test-utils` 模块。方案：给 shared-core 加 `java-test-fixtures` → daemon `testImplementation(testFixtures(project(":shared-core")))`
-- [ ] `ProcessLifecycleTest.crashed process auto-restarts when enabled and within maxTimes` 断言 flake — 2026-05-01 观察：同一 HEAD 全量套件 3 次跑里 2 次断言 `Expected at least 2 STARTING transitions, got: [STARTING, RUNNING, STOPPED, RUNNING, STOPPED, RUNNING, STOPPED]`。自动重启确实发生（`RUNNING↔STOPPED` 交替 3 次），但中间的 `STARTING` 瞬态在高 JVM 负载下被事件捕获漏过。失败率 ~67%——需尽快加 jitter tolerance 或改用 barrier-style 等待，而不是靠 `StateFlow.value` 窗口观察
+### 测试缺口（按优先级）
 
 ### 延迟项（MVP 后）
 
@@ -43,15 +35,16 @@
 ### 测试缺口清单（按优先级，参考 HMCL/PrismLauncher/Wings/MCSManager 调研）
 
 **高优先级（MVP 前应补）**
-- [ ] 协程取消清理 — 取消安装/下载后无残留文件、状态回 STOPPED（参考 HMCL `TaskTest`）
+- [ ] 协程取消清理 — 取消安装/下载后无残留文件、状态回 STOPPED。**现状**：`@Ignore` 占位测试已创建（`CancellationCleanupTest.kt`），等 5 个基础设施到位后激活：TaskStore.cancel() / Job 追踪 / LoaderService/PackService finally 清理 / cancel API 端点
+- [ ] 取消基础设施建完后的真实测试（见上条）
 
 **中优先级（v0.2 前应补）**
-- [ ] MC 版本排序正确性 — shuffle + sort = 已知顺序（参考 HMCL `GameVersionNumberTest`）
-- [ ] server.properties round-trip 特殊字符 — `#` 注释、`=` 在值内、Unicode（参考 PrismLauncher `INIFile_test`）
-- [ ] WebSocket 背压/满 channel 行为（参考 Wings `sink_pool_test.go`）
-- [ ] 请求头断言 — 验证 User-Agent/Authorization（参考 Wings `http_test.go`）
-- [ ] 重试次数精确计数验证（参考 Wings `http_test.go`）
-- [ ] Mod 元数据解析 — fixture JAR 中的 fabric.mod.json/mods.toml/plugin.yml（参考 MCSManager/PrismLauncher）
+- [x] MC 版本排序正确性 — `compareMcVersions()` + `listVersions()` 排序集成，14 用例
+- [x] server.properties round-trip 特殊字符 — `#` 注释、`=` 在值内、Unicode 中文，3 用例
+- [x] WebSocket 背压/满 channel 行为 — `RapidOutputMcServer` mock（~500 行/秒）+ `WsBackpressureTest`
+- [x] 请求头断言 — User-Agent for MojangClient + ModrinthClient，2 用例
+- [x] 重试次数精确计数验证 — `MojangClientTest` +1
+- [ ] Mod 元数据解析 — **现状**：`@Ignore` 占位测试已创建（`ModMetadataParseTest.kt`），`parseModMetadata()` 不存在，等 ModStore 持久化时一并实现
 
 **低优先级（可选增强）**
 - [ ] JVM 参数构建测试（参考 HMCL `CommandBuilderTest`）
@@ -63,6 +56,21 @@
 ---
 
 ## Done
+
+- [x] Daemon 全面打磨（2026-05-01）
+  - **Round 1 — Spec 补遗**：`api-protocol.md` §9.2 错误码表补 `DEVICE_NOT_FOUND` (404) + `COMMAND_FAILED` (500)；§7 `server.json.pack` 字段 Required 改为 conditional + nullable 标注
+  - **Round 2 — 技术债**：`ProcessLifecycleTest` flaky test 修复（断言从 STARTING 次数改为 RUNNING 重复次数，5/5 稳定）；shared-core 加 `java-test-fixtures` 插件 → `loadFixture`/`withTempDir` 移至 `src/jvmTestFixtures/` → daemon `TestHelpers.kt` 委托调用，消除两处完全重复的 17 行实现
+  - **Round 3 — 测试缺口**：
+    - 协程取消清理测试 `@Ignore`（取消基础设施不存在，5 个待建能力已文档化）
+    - MC 版本排序：实现 `compareMcVersions()` 比较器 + 集成到 `listVersions()` → 14 用例
+    - server.properties round-trip：评论保留 / `=` 在值内 / Unicode 中文 → 3 用例
+    - Mod 元数据解析测试 `@Ignore`（`parseModMetadata()` 不存在，占位文档化）
+    - User-Agent 请求头断言 → 2 用例
+    - 重试次数精确计数 → 1 用例
+    - WebSocket 背压 smoke 测试：`RapidOutputMcServer` mock（~500 行/秒）→ WS 连接存活验证
+  - **测试增长**：shared-core 21 → 38 (+17)，daemon 208 → 214 (+6，含 2 @Ignore)。全量 GREEN，零回归
+  - **改动**：2 docs + 3 build + 8 test + 2 helper + 1 prod（`compareMcVersions` + `listVersions` 排序集成）。commit: `3e70c90`..`9fcce5e`（9 commits）
+  - **Out of scope 确认**：ConduitWsClient 测试（缺重连逻辑）、Desktop MVP、Memory/TPS 监控、ModStore 持久化、Modrinth 批量更新 — 均保留在 Next 或延迟项
 
 - [x] Quilt 修复 + Fabric/Quilt 测试 Windows VM 全套验证（2026-05-01）
   - **环境**：Windows 11 Pro 24H2 ARM64（VMware Fusion + Apple Silicon 宿主，Microsoft OpenJDK 21.0.10 ARM64），通过 git bundle + SSH 同步 HEAD `5cb59e0`
