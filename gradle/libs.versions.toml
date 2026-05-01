@@ -10,6 +10,7 @@ koin = "4.2.1"
 navigation-compose = "2.9.2"
 lifecycle = "2.9.6"
 ktoml = "0.7.0"
+mockk = "1.14.0"
 
 [libraries]
 # kotlinx
@@ -52,6 +53,7 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref 
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 # ktoml
 ktoml-core = { module = "com.akuleshov7:ktoml-core", version.ref = "ktoml" }

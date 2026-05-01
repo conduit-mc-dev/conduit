@@ -24,8 +24,8 @@ class InstanceListViewModel(private val apiClient: ConduitApiClient) : ViewModel
     }
 
     fun refresh() {
+        _state.value = _state.value.copy(isLoading = true, error = null)
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 val instances = apiClient.listInstances()
                 _state.value = _state.value.copy(instances = instances, isLoading = false)

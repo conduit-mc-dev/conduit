@@ -45,8 +45,8 @@ class ConduitApiClientTest {
     @Test
     fun `health returns ok`() = withDaemonAndClient { client ->
         val health = client.health()
-        assertEquals("ok", health["status"])
-        assertNotNull(health["conduitVersion"])
+        assertEquals("ok", health.status)
+        assertNotNull(health.conduitVersion)
     }
 
     @Test

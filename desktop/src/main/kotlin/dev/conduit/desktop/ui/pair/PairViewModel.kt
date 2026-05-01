@@ -45,7 +45,7 @@ class PairViewModel(private val apiClient: ConduitApiClient) : ViewModel() {
                 val health = apiClient.health()
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    healthStatus = "Conduit Daemon v${health["conduitVersion"]}",
+                    healthStatus = "Conduit Daemon v${health.conduitVersion}",
                     step = PairStep.ENTER_CODE,
                 )
             } catch (e: ConduitApiException) {

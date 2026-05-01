@@ -9,6 +9,12 @@ data class MemoryInfo(
 )
 
 @Serializable
+data class HealthResponse(
+    val status: String = "ok",
+    val conduitVersion: String,
+)
+
+@Serializable
 data class ServerStatusResponse(
     val state: InstanceState,
     val playerCount: Int,

@@ -15,6 +15,7 @@ import java.io.Closeable
 class ConduitApiClient(
     baseUrl: String,
     token: String? = null,
+    httpClient: HttpClient? = null,
 ) : Closeable {
 
     @Volatile
@@ -30,7 +31,7 @@ class ConduitApiClient(
         encodeDefaults = true
     }
 
-    private val client = HttpClient(CIO) {
+    private val client = httpClient ?: HttpClient(CIO) {
         install(ContentNegotiation) { json(this@ConduitApiClient.json) }
         expectSuccess = false
     }
@@ -45,7 +46,7 @@ class ConduitApiClient(
 
     // --- 公共端点 ---
 
-    suspend fun health(): Map<String, String> =
+    suspend fun health(): HealthResponse =
         get("/public/health")
 
     // --- 配对 ---
@@ -253,7 +254,10 @@ class ConduitApiClient(
             @Suppress("UNCHECKED_CAST")
             return Unit as T
         }
-        return response.body()
+        // Use manual JSON deserialization to avoid Ktor MockEngine + ContentNegotiation
+        // losing reified type parameters through private inline function chains.
+        val text = response.bodyAsText()
+        return json.decodeFromString(text)
     }
 
     override fun close() {

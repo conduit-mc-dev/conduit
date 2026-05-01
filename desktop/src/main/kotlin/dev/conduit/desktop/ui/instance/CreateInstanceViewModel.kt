@@ -47,8 +47,8 @@ class CreateInstanceViewModel(private val apiClient: ConduitApiClient) : ViewMod
     }
 
     fun loadVersions() {
+        _state.value = _state.value.copy(isLoadingVersions = true, versionsError = null)
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoadingVersions = true, versionsError = null)
             try {
                 val response = apiClient.listMinecraftVersions()
                 _state.value = _state.value.copy(

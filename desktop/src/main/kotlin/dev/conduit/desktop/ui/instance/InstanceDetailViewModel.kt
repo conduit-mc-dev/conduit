@@ -48,8 +48,8 @@ class InstanceDetailViewModel(
     }
 
     fun loadInstance() {
+        _state.value = _state.value.copy(isLoading = true, error = null)
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true, error = null)
             try {
                 val instance = apiClient.getInstance(instanceId)
                 val eula = apiClient.getEula(instanceId)
