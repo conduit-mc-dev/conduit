@@ -13,6 +13,7 @@ enum class TaskStatus(val value: String) {
     RUNNING("running"),
     DONE("done"),
     ERROR("error"),
+    CANCELLED("cancelled"),
 }
 
 data class TaskState(
@@ -71,6 +72,22 @@ class TaskStore(
         broadcaster.broadcast(state.instanceId, WsMessage.TASK_COMPLETED, payload)
     }
 
+    suspend fun cancel(taskId: String, message: String) {
+        tasks.compute(taskId) { _, state ->
+            if (state != null && state.status == TaskStatus.RUNNING) {
+                state.copy(status = TaskStatus.CANCELLED, message = message)
+            } else {
+                state
+            }
+        }
+        val state = tasks[taskId] ?: return
+        if (state.status != TaskStatus.CANCELLED) return
+        val payload = json.encodeToJsonElement(
+            TaskCompletedPayload(taskId = taskId, success = false, message = message)
+        )
+        broadcaster.broadcast(state.instanceId, WsMessage.TASK_COMPLETED, payload)
+    }
+
     fun get(taskId: String): TaskState? = tasks[taskId]
 
     fun getByInstance(instanceId: String, type: String): TaskState? =
@@ -78,6 +95,6 @@ class TaskStore(
 
     private fun evictCompleted() {
         if (tasks.size <= 100) return
-        tasks.entries.removeIf { it.value.status in listOf(TaskStatus.DONE, TaskStatus.ERROR) }
+        tasks.entries.removeIf { it.value.status in listOf(TaskStatus.DONE, TaskStatus.ERROR, TaskStatus.CANCELLED) }
     }
 }

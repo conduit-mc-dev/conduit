@@ -7,8 +7,12 @@ import dev.conduit.daemon.store.ModStore
 import dev.conduit.daemon.store.BuildState
 import dev.conduit.daemon.store.PackStore
 import dev.conduit.daemon.store.TaskStore
+import dev.conduit.daemon.store.TaskStatus
 import io.ktor.http.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -16,6 +20,7 @@ import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.io.path.*
@@ -29,6 +34,11 @@ class PackService(
     private val scope: CoroutineScope,
     private val json: Json,
 ) {
+    private val buildJobs = ConcurrentHashMap<String, Job>()
+
+    /** Test hook: delay in ms before generating the mrpack. Default 0 (no delay). */
+    @Volatile var buildDelayMs: Long = 0
+
     fun getPackInfo(instanceId: String): PackInfo {
         val pack = packStore.get(instanceId)
             ?: throw ApiException(HttpStatusCode.NotFound, "PACK_NOT_BUILT", "No pack has been built yet")
@@ -57,12 +67,14 @@ class PackService(
             it.copy(buildState = BuildState.BUILDING, buildProgress = 0.0, buildMessage = "Starting build...")
         }
 
-        scope.launch {
+        val job = scope.launch {
             try {
                 taskStore.updateProgress(taskId, 0.3, "Generating modrinth.index.json...")
                 packStore.update(instanceId) {
                     it.copy(buildProgress = 0.3, buildMessage = "Generating modrinth.index.json...")
                 }
+
+                if (buildDelayMs > 0) delay(buildDelayMs)
 
                 val mods = modStore.list(instanceId).filter { it.enabled }
                 val instance = instanceStore.get(instanceId)
@@ -92,6 +104,13 @@ class PackService(
                     )
                 }
                 taskStore.complete(taskId, success = true, "Pack built successfully")
+            } catch (e: CancellationException) {
+                dataDirectory.packMrpackPath(instanceId).deleteIfExists()
+                packStore.update(instanceId) {
+                    it.copy(buildState = BuildState.IDLE, buildProgress = 0.0, buildMessage = "")
+                }
+                taskStore.cancel(taskId, "Build cancelled")
+                throw e
             } catch (e: Exception) {
                 packStore.update(instanceId) {
                     it.copy(buildState = BuildState.ERROR, buildMessage = "Build failed: ${e.message}")
@@ -99,6 +118,7 @@ class PackService(
                 taskStore.complete(taskId, success = false, "Build failed: ${e.message}")
             }
         }
+        buildJobs[taskId] = job
 
         return taskId
     }
@@ -110,6 +130,18 @@ class PackService(
             progress = pack?.buildProgress ?: 0.0,
             message = pack?.buildMessage ?: "",
         )
+    }
+
+    suspend fun cancelBuild(taskId: String) {
+        val task = taskStore.get(taskId) ?: return
+        if (task.status != TaskStatus.RUNNING) return
+        buildJobs.remove(taskId)?.cancel()
+        // Clean up regardless of whether the coroutine started
+        dataDirectory.packMrpackPath(task.instanceId).deleteIfExists()
+        packStore.update(task.instanceId) {
+            it.copy(buildState = BuildState.IDLE, buildProgress = 0.0, buildMessage = "")
+        }
+        taskStore.cancel(taskId, "Build cancelled by user")
     }
 
     private fun generateMrpack(

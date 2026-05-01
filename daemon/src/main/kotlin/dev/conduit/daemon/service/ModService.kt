@@ -7,10 +7,17 @@ import dev.conduit.daemon.store.InstanceStore
 import dev.conduit.daemon.store.ModStore
 import dev.conduit.daemon.util.IdGenerator
 import io.ktor.http.*
+import com.akuleshov7.ktoml.Toml
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import java.io.ByteArrayOutputStream
+import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.zip.ZipInputStream
 import kotlin.io.path.*
 
 class ModService(
@@ -220,6 +227,108 @@ class ModService(
         return ModUpdatesResponse(updatesAvailable = updates.size, mods = updates)
     }
 
+    fun parseModMetadata(path: Path): ParsedModMetadata {
+        val entries = mutableMapOf<String, String>()
+        ZipInputStream(path.inputStream()).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory) {
+                    val name = entry.name
+                    val out = ByteArrayOutputStream()
+                    zip.copyTo(out)
+                    entries[name] = out.toString(Charsets.UTF_8)
+                }
+                entry = zip.nextEntry
+            }
+        }
+
+        return when {
+            entries.containsKey("fabric.mod.json") -> {
+                val content = entries["fabric.mod.json"] ?: ""
+                parseFabricModJson(content)
+            }
+            entries.containsKey("quilt.mod.json") -> {
+                val content = entries["quilt.mod.json"] ?: ""
+                parseQuiltModJson(content)
+            }
+            entries.containsKey("META-INF/mods.toml") -> {
+                val content = entries["META-INF/mods.toml"] ?: ""
+                parseModsToml(content)
+            }
+            else -> ParsedModMetadata()
+        }
+    }
+
+    private fun parseFabricModJson(content: String): ParsedModMetadata {
+        val root = json.parseToJsonElement(content).jsonObject
+        val id = root["id"]?.jsonPrimitive?.content
+        val name = root["name"]?.jsonPrimitive?.content
+        val version = root["version"]?.jsonPrimitive?.content
+        val envRaw = root["environment"]?.jsonPrimitive?.content
+        val env = fabricEnvToModEnvSupport(envRaw)
+        return ParsedModMetadata(
+            name = name ?: id,
+            version = version,
+            loaders = listOf(LoaderType.FABRIC, LoaderType.QUILT),
+            env = env,
+        )
+    }
+
+    private fun parseQuiltModJson(content: String): ParsedModMetadata {
+        val root = json.parseToJsonElement(content).jsonObject
+        val loader = root["quilt_loader"]?.jsonObject
+        val id = loader?.get("id")?.jsonPrimitive?.content
+        val version = loader?.get("version")?.jsonPrimitive?.content
+        val metadata = loader?.get("metadata")?.jsonObject
+        val name = metadata?.get("name")?.jsonPrimitive?.content
+        val envRaw = root["environment"]?.jsonPrimitive?.content
+        val env = fabricEnvToModEnvSupport(envRaw)
+        return ParsedModMetadata(
+            name = name ?: id,
+            version = version,
+            loaders = listOf(LoaderType.QUILT, LoaderType.FABRIC),
+            env = env,
+        )
+    }
+
+    private fun parseModsToml(content: String): ParsedModMetadata {
+        return try {
+            val toml = Toml(
+                inputConfig = com.akuleshov7.ktoml.TomlInputConfig(ignoreUnknownNames = true),
+            )
+            val result = toml.decodeFromString(ModsTomlRoot.serializer(), content)
+            val first = result.mods.firstOrNull() ?: return ParsedModMetadata()
+            ParsedModMetadata(
+                name = first.displayName ?: first.modId.ifEmpty { null },
+                version = first.version.ifEmpty { null },
+                loaders = listOf(LoaderType.FORGE, LoaderType.NEOFORGE),
+                env = forgeSideToModEnvSupport(first.side),
+            )
+        } catch (e: Exception) {
+            ParsedModMetadata()
+        }
+    }
+
+    private fun fabricEnvToModEnvSupport(env: String?): ModEnvSupport? {
+        return when (env?.lowercase()?.trim()) {
+            "*", "both", "all" -> ModEnvSupport(client = "required", server = "required")
+            "client" -> ModEnvSupport(client = "required", server = "unsupported")
+            "server" -> ModEnvSupport(client = "unsupported", server = "required")
+            null -> null
+            else -> ModEnvSupport(client = "required", server = "required")
+        }
+    }
+
+    private fun forgeSideToModEnvSupport(side: String?): ModEnvSupport? {
+        return when (side?.lowercase()?.trim()) {
+            "both" -> ModEnvSupport(client = "required", server = "required")
+            "client" -> ModEnvSupport(client = "required", server = "unsupported")
+            "server" -> ModEnvSupport(client = "unsupported", server = "required")
+            null -> null
+            else -> ModEnvSupport(client = "required", server = "required")
+        }
+    }
+
     private fun computeHashes(bytes: ByteArray): ModHashes {
         val sha1 = MessageDigest.getInstance("SHA-1").digest(bytes)
             .joinToString("") { "%02x".format(it) }
@@ -236,3 +345,16 @@ class ModService(
         broadcaster.broadcast(instanceId, WsMessage.PACK_DIRTY, payload)
     }
 }
+
+@Serializable
+private data class ModsTomlRoot(
+    val mods: List<ModsTomlEntry> = emptyList(),
+)
+
+@Serializable
+private data class ModsTomlEntry(
+    val modId: String = "",
+    val displayName: String? = null,
+    val version: String = "",
+    val side: String? = null,
+)

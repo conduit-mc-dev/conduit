@@ -3,9 +3,14 @@ package dev.conduit.daemon.service
 import dev.conduit.core.download.MojangClient
 import dev.conduit.daemon.store.InstanceStore
 import dev.conduit.daemon.store.TaskStore
+import dev.conduit.daemon.store.TaskStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.io.path.*
 
 class ServerJarService(
     private val mojangClient: MojangClient,
@@ -17,8 +22,10 @@ class ServerJarService(
 
     private val log = LoggerFactory.getLogger(ServerJarService::class.java)
 
+    private val downloadJobs = ConcurrentHashMap<String, Job>()
+
     fun startDownload(instanceId: String, mcVersion: String, taskId: String) {
-        scope.launch {
+        val job = scope.launch {
             taskStore.create(instanceId, TaskStore.TYPE_SERVER_JAR_DOWNLOAD, "Downloading server.jar...", taskId = taskId)
             try {
                 val destination = dataDirectory.serverJarPath(instanceId)
@@ -42,11 +49,24 @@ class ServerJarService(
                 log.info("Downloaded server.jar for instance {} ({} bytes)", instanceId, bytes)
                 instanceStore.markInitialized(instanceId)
                 taskStore.complete(taskId, success = true, "Server JAR downloaded successfully")
+            } catch (e: CancellationException) {
+                dataDirectory.serverJarPath(instanceId).deleteIfExists()
+                taskStore.cancel(taskId, "Download cancelled")
+                throw e
             } catch (e: Exception) {
                 log.error("Failed to download server.jar for instance {}", instanceId, e)
                 instanceStore.markInitializationFailed(instanceId, e.message ?: "Unknown error")
                 taskStore.complete(taskId, success = false, "Download failed: ${e.message}")
             }
         }
+        downloadJobs[taskId] = job
+    }
+
+    suspend fun cancelDownload(taskId: String) {
+        val task = taskStore.get(taskId) ?: return
+        if (task.status != TaskStatus.RUNNING) return
+        downloadJobs.remove(taskId)?.cancel()
+        dataDirectory.serverJarPath(task.instanceId).deleteIfExists()
+        taskStore.cancel(taskId, "Download cancelled by user")
     }
 }

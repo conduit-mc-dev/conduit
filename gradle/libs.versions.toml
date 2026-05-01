@@ -4,11 +4,12 @@ compose-multiplatform = "1.10.3"
 ktor = "3.4.3"
 kotlinx-serialization = "1.11.0"
 kotlinx-coroutines = "1.10.2"
-kotlinx-datetime = "0.7.1"
+kotlinx-datetime = "0.6.2"
 logback = "1.5.32"
 koin = "4.2.1"
 navigation-compose = "2.9.2"
 lifecycle = "2.9.6"
+ktoml = "0.7.0"
 
 [libraries]
 # kotlinx
@@ -51,6 +52,9 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref 
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+
+# ktoml
+ktoml-core = { module = "com.akuleshov7:ktoml-core", version.ref = "ktoml" }
 
 
 [plugins]

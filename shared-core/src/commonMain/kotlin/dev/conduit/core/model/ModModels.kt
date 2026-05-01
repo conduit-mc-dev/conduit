@@ -54,3 +54,11 @@ data class ModUpdateEntry(
     val latestVersionId: String,
     val changelog: String? = null,
 )
+
+@Serializable
+data class ParsedModMetadata(
+    val name: String? = null,
+    val version: String? = null,
+    val loaders: List<LoaderType> = emptyList(),
+    val env: ModEnvSupport? = null,
+)

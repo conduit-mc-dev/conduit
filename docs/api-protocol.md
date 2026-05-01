@@ -1336,6 +1336,32 @@ Enables or disables the public endpoint for this instance.
 
 When disabled, `GET /public/{instanceId}/server.json` returns `404`.
 
+### 4.12 Task Cancellation (Global)
+
+**`POST /api/v1/tasks/{taskId}/cancel`** — Requires auth.
+
+Cancels a running asynchronous task (loader install, pack build, or server JAR
+download). The task must be in `RUNNING` status to be cancellable.
+
+**Response `200 OK`:**
+
+```json
+{
+  "cancelled": true
+}
+```
+
+On successful cancellation, the coroutine is cancelled, partial files are
+cleaned up, and the task status transitions to `cancelled`. A
+`task.completed` WebSocket event with `success: false` is broadcast.
+
+**Errors:**
+
+| Status | Code | Description |
+|--------|------|-------------|
+| 404 | `TASK_NOT_FOUND` | Task ID does not exist |
+| 409 | `TASK_NOT_CANCELLABLE` | Task is not in `RUNNING` status (already completed, failed, or cancelled) |
+
 ---
 
 ## 5. WebSocket Protocol (Desktop–Daemon)
@@ -1696,6 +1722,13 @@ All error responses follow this envelope:
 | `MC_VERSION_NOT_FOUND` | 422 | Unsupported or unknown Minecraft version |
 | `SERVER_JAR_DOWNLOAD_FAILED` | 502 | Failed to download server.jar from Mojang |
 
+#### Task
+
+| Code | HTTP | Description |
+|------|------|-------------|
+| `TASK_NOT_FOUND` | 404 | Task ID does not exist |
+| `TASK_NOT_CANCELLABLE` | 409 | Task is not in a cancellable state (already completed or cancelled) |
+
 #### External & General
 
 | Code | HTTP | Description |
@@ -1958,6 +1991,7 @@ Each instance is stored in its own directory under the Daemon's data root:
 | `PUT` | `/api/v1/java/default` | yes | Set default Java |
 | `GET` | `/api/v1/config/daemon` | yes | Get Daemon config |
 | `PUT` | `/api/v1/config/daemon` | yes | Update Daemon config |
+| `POST` | `/api/v1/tasks/{taskId}/cancel` | yes | Cancel a running task |
 | `WS` | `/api/v1/ws` | yes | WebSocket connection |
 
 #### Instance Endpoints (`/api/v1/instances/{id}/...`)

@@ -3,6 +3,7 @@ package dev.conduit.daemon.service
 import dev.conduit.core.model.*
 import dev.conduit.daemon.ApiException
 import dev.conduit.daemon.store.InstanceStore
+import dev.conduit.daemon.store.TaskStatus
 import dev.conduit.daemon.store.TaskStore
 import org.slf4j.LoggerFactory
 import io.ktor.client.*
@@ -13,8 +14,10 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -22,6 +25,7 @@ import kotlinx.serialization.json.Json
 import org.xml.sax.InputSource
 import java.io.Closeable
 import java.io.StringReader
+import java.util.concurrent.ConcurrentHashMap
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.io.path.*
 
@@ -35,6 +39,8 @@ class LoaderService(
 
     private val log = LoggerFactory.getLogger(LoaderService::class.java)
     private val json = Json { ignoreUnknownKeys = true }
+
+    private val installJobs = ConcurrentHashMap<String, Job>()
 
     companion object {
         // Pinned Quilt installer version. Bump when QuiltMC publishes a breaking CLI change.
@@ -108,17 +114,21 @@ class LoaderService(
         }
 
         val taskId = taskStore.create(instanceId, TaskStore.TYPE_LOADER_INSTALL, "Installing ${type.name} $version...")
-        scope.launch {
+        val job = scope.launch {
             try {
                 taskStore.updateProgress(taskId, 0.1, "Downloading installer...")
                 installLoader(instanceId, instance.mcVersion, type, version)
                 taskStore.updateProgress(taskId, 0.9, "Updating metadata...")
                 instanceStore.setLoader(instanceId, LoaderInfo(type = type, version = version, mcVersion = instance.mcVersion))
                 taskStore.complete(taskId, success = true, "Loader installed successfully")
+            } catch (e: CancellationException) {
+                taskStore.cancel(taskId, "Installation cancelled")
+                throw e
             } catch (e: Exception) {
                 taskStore.complete(taskId, success = false, "Installation failed: ${e.message}")
             }
         }
+        installJobs[taskId] = job
         return taskId
     }
 
@@ -131,6 +141,13 @@ class LoaderService(
             throw ApiException(HttpStatusCode.NotFound, "NO_LOADER_INSTALLED", "No loader is installed")
         }
         instanceStore.setLoader(instanceId, null)
+    }
+
+    suspend fun cancelInstall(taskId: String) {
+        val task = taskStore.get(taskId) ?: return
+        if (task.status != TaskStatus.RUNNING) return
+        installJobs.remove(taskId)?.cancel()
+        taskStore.cancel(taskId, "Installation cancelled by user")
     }
 
     private suspend fun installLoader(instanceId: String, mcVersion: String, type: LoaderType, version: String) {
@@ -161,50 +178,57 @@ class LoaderService(
         val installerJar = instanceDir.resolve("installer.jar")
         val installerLog = instanceDir.resolve("installer.log")
 
-        val response = client.get(installerUrl)
-        if (response.status != HttpStatusCode.OK) {
-            throw RuntimeException("Failed to download installer ($installerUrl): ${response.status}")
+        try {
+            val response = client.get(installerUrl)
+            if (response.status != HttpStatusCode.OK) {
+                throw RuntimeException("Failed to download installer ($installerUrl): ${response.status}")
+            }
+            installerJar.writeBytes(response.bodyAsBytes())
+
+            val javaPath = instanceStore.getProcessConfig(instanceId).javaPath
+
+            val exitCode = withContext(Dispatchers.IO) {
+                val process = ProcessBuilder(
+                    listOf(javaPath, "-jar", installerJar.fileName.toString()) + installerArgs
+                )
+                    .directory(instanceDir.toFile())
+                    .redirectErrorStream(true)
+                    .redirectOutput(installerLog.toFile())
+                    .start()
+                process.waitFor()
+            }
+
+            if (exitCode != 0) {
+                val tail = runCatching { installerLog.readText().takeLast(2000) }.getOrDefault("(no output captured)")
+                throw RuntimeException("Installer exited with code $exitCode. Log tail:\n$tail")
+            }
+        } finally {
+            installerJar.deleteIfExists()
+            installerLog.deleteIfExists()
+            instanceDir.resolve("installer.jar.log").deleteIfExists()
         }
-        installerJar.writeBytes(response.bodyAsBytes())
-
-        val javaPath = instanceStore.getProcessConfig(instanceId).javaPath
-
-        val exitCode = withContext(Dispatchers.IO) {
-            val process = ProcessBuilder(
-                listOf(javaPath, "-jar", installerJar.fileName.toString()) + installerArgs
-            )
-                .directory(instanceDir.toFile())
-                .redirectErrorStream(true)
-                .redirectOutput(installerLog.toFile())
-                .start()
-            process.waitFor()
-        }
-
-        if (exitCode != 0) {
-            val tail = runCatching { installerLog.readText().takeLast(2000) }.getOrDefault("(no output captured)")
-            throw RuntimeException("Installer exited with code $exitCode. Log tail:\n$tail")
-        }
-
-        installerJar.deleteIfExists()
-        installerLog.deleteIfExists()
-        instanceDir.resolve("installer.jar.log").deleteIfExists()
     }
 
     private suspend fun installFabric(instanceId: String, mcVersion: String, loaderVersion: String) {
-        val installerVersions = client.get("https://meta.fabricmc.net/v2/versions/installer")
-            .bodyAsText().let { json.decodeFromString<List<FabricInstallerVersion>>(it) }
-        val installerVersion = installerVersions.firstOrNull { it.stable }?.version
-            ?: installerVersions.firstOrNull()?.version
-            ?: throw RuntimeException("No Fabric installer version found")
-
-        val serverJarUrl = "https://meta.fabricmc.net/v2/versions/loader/$mcVersion/$loaderVersion/$installerVersion/server/jar"
-        val response = client.get(serverJarUrl)
-        if (response.status != HttpStatusCode.OK) {
-            throw RuntimeException("Failed to download Fabric server jar: ${response.status}")
-        }
-        val bytes = response.bodyAsBytes()
         val destination = dataDirectory.serverJarPath(instanceId)
-        destination.writeBytes(bytes)
+        try {
+            val installerVersions = client.get("https://meta.fabricmc.net/v2/versions/installer")
+                .bodyAsText().let { json.decodeFromString<List<FabricInstallerVersion>>(it) }
+            val installerVersion = installerVersions.firstOrNull { it.stable }?.version
+                ?: installerVersions.firstOrNull()?.version
+                ?: throw RuntimeException("No Fabric installer version found")
+
+            val serverJarUrl = "https://meta.fabricmc.net/v2/versions/loader/$mcVersion/$loaderVersion/$installerVersion/server/jar"
+            val response = client.get(serverJarUrl)
+            if (response.status != HttpStatusCode.OK) {
+                throw RuntimeException("Failed to download Fabric server jar: ${response.status}")
+            }
+            val bytes = response.bodyAsBytes()
+            destination.writeBytes(bytes)
+        } catch (e: Exception) {
+            destination.deleteIfExists()
+            throw e
+        }
     }
 
     private suspend fun installQuilt(instanceId: String, mcVersion: String, loaderVersion: String) {

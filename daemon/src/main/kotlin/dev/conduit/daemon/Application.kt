@@ -81,6 +81,7 @@ fun Application.module(
             modRoutes(instanceStore, modService)
             loaderRoutes(instanceStore, loaderService)
             packRoutes(instanceStore, packService)
+            taskRoutes(taskStore, loaderService, packService, serverJarService)
         }
     }
 }
