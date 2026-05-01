@@ -475,7 +475,9 @@ class ProcessLifecycleTest {
                     setBody(AcceptEulaRequest(accepted = true))
                 }
                 // Invalid javaPath — ProcessBuilder.start() throws IOException
-                store.updateJvmConfig(inst.id, true, emptyList(), true, "/nonexistent/bin/no-such-java-binary")
+                val invalidJavaPath = if (System.getProperty("os.name", "").lowercase().contains("windows"))
+                    "C:\\nonexistent\\no-such-java.exe" else "/nonexistent/bin/no-such-java-binary"
+                store.updateJvmConfig(inst.id, true, emptyList(), true, invalidJavaPath)
 
                 val startResp = client.post("/api/v1/instances/${inst.id}/server/start") {
                     header(HttpHeaders.Authorization, "Bearer $token")
