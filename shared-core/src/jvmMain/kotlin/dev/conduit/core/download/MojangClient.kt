@@ -20,6 +20,49 @@ import kotlin.io.path.createDirectories
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.outputStream
 
+/**
+ * Compares two Minecraft version strings in descending order (newest first).
+ *
+ * Handles release versions (1.21.5), snapshots (25w14a), pre-releases (1.21-pre1),
+ * and release candidates (1.21-rc1).
+ *
+ * @return negative if [a] is newer than [b], zero if equal, positive if [b] is newer than [a].
+ */
+fun compareMcVersions(a: String, b: String): Int {
+    val aParts = a.split(".", "-")
+    val bParts = b.split(".", "-")
+    val minLen = minOf(aParts.size, bParts.size)
+    for (i in 0 until minLen) {
+        val aInt = aParts[i].toIntOrNull()
+        val bInt = bParts[i].toIntOrNull()
+        if (aInt != null && bInt != null) {
+            // Numeric comparison, descending
+            val diff = bInt - aInt
+            if (diff != 0) return diff
+        } else if (aInt != null) {
+            // a segment is numeric, b segment is not — numeric is newer
+            return -1
+        } else if (bInt != null) {
+            // b segment is numeric, a segment is not — numeric is newer
+            return 1
+        } else {
+            // Lexicographic comparison, descending
+            val cmp = bParts[i].compareTo(aParts[i])
+            if (cmp != 0) return cmp
+        }
+    }
+    // One is a prefix of the other.
+    if (aParts.size == bParts.size) return 0
+    val nextSegment = (if (aParts.size > bParts.size) aParts else bParts)[minLen]
+    // If the extra segment starts with a letter (pre-release suffix like "pre1", "rc1"),
+    // the shorter version (without the suffix) is considered newer.
+    if (nextSegment.firstOrNull()?.isLetter() == true) {
+        return if (aParts.size > bParts.size) 1 else -1
+    }
+    // Otherwise (numeric extra segment), the longer version is newer.
+    return bParts.size - aParts.size
+}
+
 class MojangClient(
     private val downloadSourceProvider: () -> Pair<DownloadSource, String?> = { Pair(DownloadSource.MOJANG, null) },
     httpClient: HttpClient? = null,
@@ -71,6 +114,10 @@ class MojangClient(
                     else -> versions
                 }
             }
+            .sortedWith(
+                compareBy<MojangVersionEntry> { it.type != "release" }
+                    .thenComparator { a, b -> compareMcVersions(a.id, b.id) },
+            )
             .map { MinecraftVersion(id = it.id, type = it.type, releaseTime = it.releaseTime) }
     }
 
