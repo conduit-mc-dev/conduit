@@ -417,14 +417,16 @@ Starts the Minecraft server process for this instance.
 
 **Response `200 OK`:** Returns `ServerStatus` with `state: "starting"`.
 
-Idempotent: if already running, returns current status.
+Idempotent: new start requests are rejected while the server is running or a power action is in progress.
 
 **Errors:**
 
 | Status | Code | Description |
 |--------|------|-------------|
-| 409 | `SERVER_ALREADY_RUNNING` | Server is in a transitional state |
+| 409 | `SERVER_ALREADY_RUNNING` | Server is already running or in a transitional state |
+| 409 | `POWER_LOCKED` | Another power action (start/stop) is in progress; retry shortly |
 | 409 | `EULA_NOT_ACCEPTED` | EULA must be accepted before starting |
+| 500 | `LAUNCH_FAILED` | Failed to launch the server process (check javaPath, permissions, instance directory) |
 
 #### Stop Server
 
@@ -1268,7 +1270,10 @@ override is set.
   "publicEndpointEnabled": true,
   "defaultJvmArgs": ["-Xmx4G", "-Xms2G"],
   "downloadSource": "mojang",
-  "customMirrorUrl": null
+  "customMirrorUrl": null,
+  "autoRestartEnabled": false,
+  "autoRestartMaxTimes": 3,
+  "crashLoopTimeoutSeconds": 60
 }
 ```
 
@@ -1276,11 +1281,27 @@ override is set.
 |-------|------|---------|-------------|
 | `downloadSource` | string | `"mojang"` | Download source for Mojang assets: `"mojang"`, `"bmclapi"`, or `"custom"` |
 | `customMirrorUrl` | string\|null | `null` | Base URL for custom mirror (only used when `downloadSource` is `"custom"`) |
+| `autoRestartEnabled` | boolean | `false` | Whether daemon auto-restarts crashed instances. Default: `false` |
+| `autoRestartMaxTimes` | int | `3` | Max consecutive restarts within `crashLoopTimeoutSeconds` before giving up. Default: `3` |
+| `crashLoopTimeoutSeconds` | int | `60` | Window size for crash loop detection. Default: `60` |
 
 **`PUT /api/v1/config/daemon`** — Requires auth.
 
 Updates Daemon-level configuration. Changes to `port` require a Daemon restart.
 Changes to `downloadSource` and `customMirrorUrl` take effect on the next download.
+
+**Request body fields (all optional):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `port` | int | Daemon listen port (requires restart) |
+| `publicEndpointEnabled` | boolean | Global toggle for public endpoints |
+| `defaultJvmArgs` | string[] | Default JVM args for new instances |
+| `downloadSource` | string | `"mojang"`, `"bmclapi"`, or `"custom"` |
+| `customMirrorUrl` | string\|null | Base URL for custom mirror |
+| `autoRestartEnabled` | boolean | Enable auto-restart of crashed instances |
+| `autoRestartMaxTimes` | int | Max consecutive restart attempts within crash-loop window |
+| `crashLoopTimeoutSeconds` | int | Crash-loop detection window (seconds) |
 
 ### 4.11 Invite Link (per-instance)
 
@@ -1633,10 +1654,12 @@ All error responses follow this envelope:
 | Code | HTTP | Description |
 |------|------|-------------|
 | `SERVER_ALREADY_RUNNING` | 409 | Server is in a transitional state |
+| `POWER_LOCKED` | 409 | Another power action (start/stop/restart) is in progress for this instance; retry shortly |
 | `SERVER_NOT_RUNNING` | 409 | Server is already stopped |
 | `SERVER_MUST_BE_STOPPED` | 409 | Operation requires the server to be stopped |
 | `EULA_NOT_ACCEPTED` | 409 | EULA must be accepted before starting |
 | `INSTANCE_INITIALIZING` | 409 | Instance is still downloading server.jar |
+| `LAUNCH_FAILED` | 500 | Failed to launch the server process (check javaPath, permissions, instance directory) |
 
 #### Loader
 
@@ -1764,6 +1787,7 @@ stateDiagram-v2
     initializing --> [*] : download failed (instance removed)
     stopped --> starting : start
     starting --> running : process ready
+    starting --> stopping : startup timeout
     running --> stopping : stop
     stopping --> stopped : process exited
     running --> stopped : kill (SIGKILL)

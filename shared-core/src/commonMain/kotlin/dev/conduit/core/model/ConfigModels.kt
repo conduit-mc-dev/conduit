@@ -21,6 +21,9 @@ data class DaemonConfig(
     val defaultJvmArgs: List<String> = listOf("-Xmx4G", "-Xms2G"),
     val downloadSource: DownloadSource = DownloadSource.MOJANG,
     val customMirrorUrl: String? = null,
+    val autoRestartEnabled: Boolean = false,
+    val autoRestartMaxTimes: Int = 3,
+    val crashLoopTimeoutSeconds: Int = 60,
 )
 
 @Serializable
@@ -30,6 +33,9 @@ data class UpdateDaemonConfigRequest(
     val defaultJvmArgs: List<String>? = null,
     val downloadSource: DownloadSource? = null,
     val customMirrorUrl: String? = null,
+    val autoRestartEnabled: Boolean? = null,
+    val autoRestartMaxTimes: Int? = null,
+    val crashLoopTimeoutSeconds: Int? = null,
 )
 
 // --- 实例 JVM 配置 ---

@@ -23,6 +23,9 @@ class DaemonConfigStore(private val configPath: Path) {
             defaultJvmArgs = request.defaultJvmArgs ?: config.defaultJvmArgs,
             downloadSource = request.downloadSource ?: config.downloadSource,
             customMirrorUrl = request.customMirrorUrl ?: config.customMirrorUrl,
+            autoRestartEnabled = request.autoRestartEnabled ?: config.autoRestartEnabled,
+            autoRestartMaxTimes = request.autoRestartMaxTimes ?: config.autoRestartMaxTimes,
+            crashLoopTimeoutSeconds = request.crashLoopTimeoutSeconds ?: config.crashLoopTimeoutSeconds,
         )
         config = updated
         save(updated)
