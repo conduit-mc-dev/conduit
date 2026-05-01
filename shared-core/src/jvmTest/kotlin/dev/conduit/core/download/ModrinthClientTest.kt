@@ -56,6 +56,20 @@ class ModrinthClientTest {
     }
 
     @Test
+    fun `search builds facets with client and server side filters`() = runTest {
+        val urls = mutableListOf<String>()
+        val http = mockHttpClient(expectSuccess = false, requestedUrls = urls) { jsonResponse(searchResponseJson) }
+        val client = ModrinthClient(http)
+
+        client.search("test", clientSide = "required", serverSide = "unsupported")
+
+        val url = urls.first()
+        val facets = Url(url).parameters["facets"]!!
+        assertTrue(facets.contains("""["client_side:required"]"""))
+        assertTrue(facets.contains("""["server_side:unsupported"]"""))
+    }
+
+    @Test
     fun `search coerces limit to 1-100 range`() = runTest {
         val urls = mutableListOf<String>()
         val http = mockHttpClient(expectSuccess = false, requestedUrls = urls) { jsonResponse(searchResponseJson) }

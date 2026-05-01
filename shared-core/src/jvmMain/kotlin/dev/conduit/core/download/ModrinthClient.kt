@@ -42,10 +42,12 @@ class ModrinthClient(httpClient: HttpClient? = null) : Closeable {
         query: String,
         mcVersion: String? = null,
         loader: String? = null,
+        clientSide: String? = null,
+        serverSide: String? = null,
         offset: Int = 0,
         limit: Int = 20,
     ): ModrinthSearchResponse {
-        val facets = buildFacets(mcVersion, loader)
+        val facets = buildFacets(mcVersion, loader, clientSide, serverSide)
         val response = client.get("$BASE_URL/search") {
             parameter("query", query)
             parameter("offset", offset)
@@ -118,11 +120,13 @@ class ModrinthClient(httpClient: HttpClient? = null) : Closeable {
         return bytesWritten
     }
 
-    private fun buildFacets(mcVersion: String?, loader: String?): String {
+    private fun buildFacets(mcVersion: String?, loader: String?, clientSide: String?, serverSide: String?): String {
         val parts = mutableListOf<String>()
         parts.add("""["project_type:mod"]""")
         mcVersion?.let { parts.add("""["versions:$it"]""") }
         loader?.let { parts.add("""["categories:$it"]""") }
+        clientSide?.let { parts.add("""["client_side:$it"]""") }
+        serverSide?.let { parts.add("""["server_side:$it"]""") }
         return "[${parts.joinToString(",")}]"
     }
 

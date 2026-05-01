@@ -13,10 +13,12 @@ fun Route.modrinthRoutes(modrinthClient: ModrinthClient) {
                 ?: throw ApiException(HttpStatusCode.BadRequest, "VALIDATION_ERROR", "Missing query parameter 'q'")
             val mcVersion = call.queryParameters["mcVersion"]
             val loader = call.queryParameters["loader"]
+            val clientSide = call.queryParameters["clientSide"]
+            val serverSide = call.queryParameters["serverSide"]
             val offset = call.queryParameters["offset"]?.toIntOrNull() ?: 0
             val limit = call.queryParameters["limit"]?.toIntOrNull() ?: 20
 
-            val result = modrinthClient.search(query, mcVersion, loader, offset, limit)
+            val result = modrinthClient.search(query, mcVersion, loader, clientSide, serverSide, offset, limit)
             call.respond(result)
         }
 
