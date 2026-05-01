@@ -154,4 +154,24 @@ class InstanceStoreTest {
         assertEquals(0, reloaded.get(id).playerCount, "Player count is in-memory only, must reset on daemon restart")
         assertEquals(emptyList(), reloaded.getPlayerSample(id))
     }
+
+    @Test
+    fun `maxPlayers reads from server properties on recovery`() = withTempDir { dir ->
+        val store = createStore(dir)
+        val id = createInstance(store)
+
+        val instanceDir = dir.resolve("instances").resolve(id)
+        instanceDir.resolve("server.properties").writeText("max-players=50\n")
+
+        val reloaded = createStore(dir)
+        assertEquals(50, reloaded.get(id).maxPlayers)
+    }
+
+    @Test
+    fun `maxPlayers defaults to 20 when server properties missing`() = withTempDir { dir ->
+        val id = createInstance(createStore(dir))
+
+        val reloaded = createStore(dir)
+        assertEquals(20, reloaded.get(id).maxPlayers)
+    }
 }

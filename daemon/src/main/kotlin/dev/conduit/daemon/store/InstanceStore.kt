@@ -38,6 +38,7 @@ class InstanceStore(
         val jvmArgs: List<String>? = null,
         val javaPath: String? = null,
         val publicEndpointEnabled: Boolean = true,
+        val maxPlayers: Int = 20,
         val createdAt: Instant,
     )
 
@@ -78,7 +79,7 @@ class InstanceStore(
             id = id, name = name, description = description,
             state = state, mcVersion = mcVersion, loader = loader,
             mcPort = mcPort, jvmArgs = jvmArgs, javaPath = javaPath,
-            publicEndpointEnabled = publicEndpointEnabled, createdAt = createdAt,
+            publicEndpointEnabled = publicEndpointEnabled, maxPlayers = maxPlayers, createdAt = createdAt,
         )
     }
 
@@ -328,11 +329,13 @@ class InstanceStore(
 
             try {
                 val persisted = AppJson.decodeFromString<PersistedInstance>(metadataPath.readText())
+                val maxPlayers = readMaxPlayersFromServerProperties(instanceDir) ?: persisted.maxPlayers
                 val instance = Instance(
                     id = persisted.id, name = persisted.name, description = persisted.description,
                     state = InstanceState.STOPPED, mcVersion = persisted.mcVersion, loader = persisted.loader,
                     mcPort = persisted.mcPort, jvmArgs = persisted.jvmArgs, javaPath = persisted.javaPath,
-                    publicEndpointEnabled = persisted.publicEndpointEnabled, createdAt = persisted.createdAt,
+                    publicEndpointEnabled = persisted.publicEndpointEnabled, maxPlayers = maxPlayers,
+                    createdAt = persisted.createdAt,
                     taskId = null, statusMessage = statusMessageForRecovery(persisted.state),
                 )
                 instances[instance.id] = instance
@@ -343,6 +346,18 @@ class InstanceStore(
             } catch (e: Exception) {
                 log.warn("Failed to load instance from {}, skipping", metadataPath, e)
             }
+        }
+    }
+
+    private fun readMaxPlayersFromServerProperties(instanceDir: java.nio.file.Path): Int? {
+        val propsPath = instanceDir.resolve("server.properties")
+        if (!propsPath.exists()) return null
+        return try {
+            val props = java.util.Properties()
+            propsPath.inputStream().use { props.load(it) }
+            props.getProperty("max-players")?.toIntOrNull()
+        } catch (_: Exception) {
+            null
         }
     }
 
