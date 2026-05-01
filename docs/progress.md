@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-01（Quilt loader 安装生产 bug 修复：`installQuilt()` 改用 Quilt Server Installer 子进程；真网 smoke 49 秒翻绿；daemon 208 测试全绿）
+> 最新更新：2026-05-01（Windows VM 全套验证：默认套件 208/208 + 真网 smoke 4/4 含新 Quilt，跨平台无回归）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -63,6 +63,18 @@
 ---
 
 ## Done
+
+- [x] Quilt 修复 + Fabric/Quilt 测试 Windows VM 全套验证（2026-05-01）
+  - **环境**：Windows 11 Pro 24H2 ARM64（VMware Fusion + Apple Silicon 宿主，Microsoft OpenJDK 21.0.10 ARM64），通过 git bundle + SSH 同步 HEAD `5cb59e0`
+  - **默认套件**：`./gradlew :daemon:test` 在 Windows VM 上 **208/208 GREEN**（4 skipped = E2E 真网用例），耗时 2:32；macOS 上 1:36，ARM VM 约 1.6x overhead 属正常
+  - **真网 smoke**：`CONDUIT_RUN_SLOW_TESTS=true ./gradlew :daemon:test --tests *ModLoaderInstallE2ETest*` **4/4 GREEN**，耗时 5:52：
+    - Forge `1.20.4-49.0.14` → `win_args.txt` 生成 ✓
+    - NeoForge `20.4.237` → `win_args.txt` 生成 ✓（本次未触发 2026-05-01 上午那次的 fancymodloader jar 下载 transient）
+    - Fabric `0.15.11` → 覆盖 `server.jar`（179KB launcher）✓
+    - Quilt `0.20.0-beta.9` → `quilt-server-launch.jar` + `libraries/` + vanilla server.jar 保留 ✓（**本次修复的主角**）
+  - **跨平台覆盖确认**：LaunchTarget 三个变体（`ArgFile` / `VanillaJar` / `LoaderJar`）在 Windows 上行为与 macOS 等价；`IS_WINDOWS` 自动检测切换 `win_args.txt`；`runModLoaderInstaller` 的 `installerArgs: List<String>` 参数化在 Windows `ProcessBuilder` 下工作
+  - **Flake 反观察**：`ProcessLifecycleTest.crashed process auto-restarts when enabled and within maxTimes` 在 Windows VM 上 PASS——macOS 3 跑 2 失败的 flake 在 Windows ARM 不触发，强化"事件捕获时序敏感"诊断，根因在测试设计而非生产代码
+  - **同步路径**：`git bundle create main` → scp 450KB 到 VM → `git init` + `git remote add bundle` + `git fetch bundle main` + `git reset --hard FETCH_HEAD`——保留 VM 的 `build/` `.gradle/` 缓存，增量编译 < 15s
 
 - [x] Quilt loader 安装生产 bug 修复（2026-05-01）
   - **起因**：上一条 Done（Fabric/Quilt E2E 真网 smoke）把 Quilt `@Test` 保留为 RED 信号灯，因为 `LoaderService.installQuilt()` 调用的 `meta.quiltmc.org/.../server/jar` 在 Quilt Meta OpenAPI 规范里从未定义过。用户要求"接着修"生产代码
