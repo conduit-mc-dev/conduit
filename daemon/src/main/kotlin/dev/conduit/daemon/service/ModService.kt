@@ -60,7 +60,7 @@ class ModService(
             name = version.name,
             version = version.versionNumber,
             fileName = safeFileName,
-            env = ModEnvSupport(),
+            env = ModEnvSupport(client = version.clientSide, server = version.serverSide),
             hashes = ModHashes(sha1 = file.hashes?.sha1, sha512 = file.hashes?.sha512),
             downloadUrl = downloadUrl,
             fileSize = file.fileSize,

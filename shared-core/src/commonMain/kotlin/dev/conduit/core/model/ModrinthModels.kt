@@ -42,6 +42,8 @@ data class ModrinthVersionInfo(
     val datePublished: String,
     val files: List<ModrinthVersionFile> = emptyList(),
     val dependencies: List<ModrinthDependency> = emptyList(),
+    val clientSide: String? = null,
+    val serverSide: String? = null,
 )
 
 @Serializable

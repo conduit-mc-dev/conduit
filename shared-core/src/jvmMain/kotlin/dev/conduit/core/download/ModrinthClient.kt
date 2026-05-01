@@ -175,6 +175,8 @@ private data class ModrinthRawVersion(
     val game_versions: List<String> = emptyList(),
     val loaders: List<String> = emptyList(),
     val date_published: String = "",
+    val client_side: String? = null,
+    val server_side: String? = null,
     val files: List<ModrinthRawFile> = emptyList(),
     val dependencies: List<ModrinthRawDependency> = emptyList(),
 ) {
@@ -189,6 +191,8 @@ private data class ModrinthRawVersion(
         datePublished = date_published,
         files = files.map { it.toVersionFile() },
         dependencies = dependencies.map { it.toDependency() },
+        clientSide = client_side,
+        serverSide = server_side,
     )
 }
 

@@ -253,6 +253,25 @@ class ModRoutesTest {
     }
 
     @Test
+    fun `install from modrinth carries env client and server fields`() = testApplication {
+        val (tempDir) = setupTestModule(modrinthClient = createMockModrinthClient())
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.post("/api/v1/instances/${instance.id}/mods") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Application.Json)
+            setBody(InstallModRequest(modrinthVersionId = "ver-001"))
+        }
+        assertEquals(HttpStatusCode.Created, response.status)
+
+        val mod = response.body<InstalledMod>()
+        assertEquals("required", mod.env.client, "env.client should be 'required' from Modrinth client_side")
+        assertEquals("optional", mod.env.server, "env.server should be 'optional' from Modrinth server_side")
+    }
+
+    @Test
     fun `update modrinth mod to new version`() = testApplication {
         val (tempDir) = setupTestModule(modrinthClient = createMockModrinthClient())
         val client = jsonClient()
