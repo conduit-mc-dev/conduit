@@ -13,7 +13,8 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
-import java.nio.file.Files
+import dev.conduit.core.testutil.loadFixture as coreLoadFixture
+import dev.conduit.core.testutil.withTempDir as coreWithTempDir
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 
@@ -52,23 +53,11 @@ suspend fun createTestInstance(
     return instance
 }
 
-inline fun <T> withTempDir(prefix: String = "conduit-test", block: (Path) -> T): T {
-    val dir = Files.createTempDirectory(prefix)
-    try {
-        return block(dir)
-    } finally {
-        dir.toFile().deleteRecursively()
-    }
-}
+inline fun <T> withTempDir(prefix: String = "conduit-test", block: (Path) -> T): T =
+    coreWithTempDir(prefix, block)
 
-fun loadFixture(path: String, replacements: Map<String, String> = emptyMap()): String {
-    val content = object {}.javaClass.getResource("/fixtures/$path")?.readText()
-        ?: error("Test fixture not found: /fixtures/$path")
-    val replaced = replacements.entries.fold(content) { acc, (key, value) -> acc.replace("{{$key}}", value) }
-    val leftover = Regex("""\{\{[^}]+}}""").find(replaced)
-    check(leftover == null) { "Unreplaced placeholder ${leftover?.value} in fixture /fixtures/$path" }
-    return replaced
-}
+fun loadFixture(path: String, replacements: Map<String, String> = emptyMap()): String =
+    coreLoadFixture(path, replacements)
 
 private val mockJarContent = "fake-server-jar-content".toByteArray()
 private val mockJarSha1 = "0a08e2d523081e88ffef01e923c6f2de074108e7"

@@ -30,4 +30,5 @@ dependencies {
     testImplementation(libs.ktor.client.content.negotiation)
     testImplementation(libs.ktor.client.mock)
     testImplementation(libs.kotlin.test)
+    testImplementation(testFixtures(project(":shared-core")))
 }
