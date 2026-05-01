@@ -88,6 +88,30 @@ class MojangClientTest {
     }
 
     @Test
+    fun `downloadServerJar retries on 503`() = runTest {
+        var jarCallCount = 0
+        val client = mockHttpClient { request ->
+            val path = request.url.encodedPath
+            when {
+                path.contains("version_manifest") -> jsonResponse(manifestJson)
+                path.contains("1.20.4.json") -> jsonResponse(versionDetailJson)
+                path.contains("server.jar") -> {
+                    jarCallCount++
+                    if (jarCallCount < 3) respondError(HttpStatusCode.ServiceUnavailable)
+                    else respond(jarContent, headers = headersOf(HttpHeaders.ContentType, "application/octet-stream"))
+                }
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+
+        withTempDir { tempDir ->
+            val bytes = MojangClient(httpClient = client).downloadServerJar("1.20.4", tempDir.resolve("server.jar"))
+            assertEquals(jarContent.size.toLong(), bytes)
+            assertEquals(3, jarCallCount)
+        }
+    }
+
+    @Test
     fun `downloadServerJar does not retry on 404`() = runTest {
         var jarCallCount = 0
         val client = mockHttpClient { request ->
