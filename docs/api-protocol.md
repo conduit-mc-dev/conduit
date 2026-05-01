@@ -1544,7 +1544,7 @@ download the modpack, install the loader, and join the game.
 | `online` | boolean | yes | Whether the MC server is currently running |
 | `playerCount` | integer | yes | Current online player count (0 if offline) |
 | `maxPlayers` | integer | yes | Maximum player slots |
-| `pack` | object | yes | Pack download info |
+| `pack` | object | conditional | Pack download info. `null` if pack has not been built yet. |
 | `pack.versionId` | string | yes | Pack version identifier |
 | `pack.downloadUrl` | string | yes | Relative or absolute URL to the mrpack file |
 | `pack.sha256` | string | yes | Hex-encoded SHA-256 of the mrpack file |
@@ -1638,6 +1638,7 @@ All error responses follow this envelope:
 | `AUTH_INVALID` | 401 | Token is invalid or has been revoked |
 | `INVALID_PAIR_CODE` | 401 | Pairing code does not match |
 | `PAIR_CODE_EXPIRED` | 401 | Pairing code has expired |
+| `DEVICE_NOT_FOUND` | 404 | Target device (token) does not exist |
 | `RATE_LIMITED` | 429 | Too many requests (rate limit exceeded) |
 
 #### Instance
@@ -1702,6 +1703,7 @@ All error responses follow this envelope:
 | `MODRINTH_API_ERROR` | 502 | Failed to reach the Modrinth API |
 | `VALIDATION_ERROR` | 422 | Request body failed validation (see `details`) |
 | `INTERNAL_ERROR` | 500 | Unexpected server error |
+| `COMMAND_FAILED` | 500 | Failed to send command to server process stdin |
 
 ### 9.3 Validation Error Details
 
