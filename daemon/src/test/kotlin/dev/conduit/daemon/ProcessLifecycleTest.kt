@@ -352,7 +352,9 @@ class ProcessLifecycleTest {
                     header(HttpHeaders.Authorization, "Bearer $token")
                 }
 
-                // Observe state transitions: expect at least 2 STARTING events (initial + auto-restart)
+                // Observe state transitions: expect RUNNING at least twice, proving auto-restart occurred.
+                // STARTING is transient and often shorter than the 100ms polling interval under load —
+                // RUNNING is the durable signal that the restarted process is actually executing.
                 val transitions = mutableListOf<InstanceState>()
                 val deadline = System.currentTimeMillis() + 20_000
                 var lastState: InstanceState? = null
@@ -362,13 +364,13 @@ class ProcessLifecycleTest {
                         transitions.add(s)
                         lastState = s
                     }
-                    if (transitions.count { it == InstanceState.STARTING } >= 2) break
+                    if (transitions.count { it == InstanceState.RUNNING } >= 2) break
                     delay(100)
                 }
 
                 assertTrue(
-                    transitions.count { it == InstanceState.STARTING } >= 2,
-                    "Expected at least 2 STARTING transitions (initial + auto-restart), got: $transitions"
+                    transitions.count { it == InstanceState.RUNNING } >= 2,
+                    "Expected at least 2 RUNNING occurrences (initial + auto-restart), got: $transitions"
                 )
 
                 // Cleanup — kill so auto-restart doesn't keep firing past test end
