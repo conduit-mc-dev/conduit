@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
+    `java-test-fixtures`
 }
 
 @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
@@ -32,4 +33,9 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
     }
+}
+
+dependencies {
+    testFixturesImplementation(libs.ktor.client.mock)
+    testFixturesImplementation(libs.kotlinx.serialization.json)
 }
