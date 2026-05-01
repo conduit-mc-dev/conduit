@@ -60,6 +60,78 @@ class FileRoutesTest {
         assertEquals("Hello", reloaded["motd"]?.jsonPrimitive?.content)
     }
 
+    // --- server.properties edge cases (raw file I/O) ---
+
+    @Test
+    fun `server properties preserves comments`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val propsWithComment = "# This is a comment\nserver-port=25565\n# Another comment\nmotd=A Minecraft Server\n"
+        client.put("/api/v1/instances/${instance.id}/files/content?path=server.properties") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Text.Plain)
+            setBody(propsWithComment)
+        }
+
+        val response = client.get("/api/v1/instances/${instance.id}/files/content?path=server.properties") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val content = response.bodyAsText()
+
+        assertTrue(content.contains("# This is a comment"), "Comments should be preserved")
+        assertTrue(content.contains("# Another comment"), "All comments should be preserved")
+        assertTrue(content.contains("server-port=25565"), "Key-value pairs should be intact")
+    }
+
+    @Test
+    fun `server properties preserves equals signs in values`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        client.put("/api/v1/instances/${instance.id}/files/content?path=server.properties") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Text.Plain)
+            setBody("motd=MC=Server=Rules\n")
+        }
+
+        val response = client.get("/api/v1/instances/${instance.id}/files/content?path=server.properties") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val content = response.bodyAsText()
+
+        assertTrue(content.contains("motd=MC=Server=Rules"), "Value with equals signs should be preserved")
+    }
+
+    @Test
+    fun `server properties preserves unicode characters`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val motd = "欢迎来到我的服务器" // Chinese: welcome to my server
+        client.put("/api/v1/instances/${instance.id}/files/content?path=server.properties") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            contentType(ContentType.Text.Plain)
+            setBody("motd=$motd\n")
+        }
+
+        val response = client.get("/api/v1/instances/${instance.id}/files/content?path=server.properties") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val content = response.bodyAsText()
+
+        assertTrue(content.contains(motd), "Unicode characters should be preserved")
+    }
+
     // --- File listing ---
 
     @Test
