@@ -36,6 +36,11 @@ class LoaderService(
     private val log = LoggerFactory.getLogger(LoaderService::class.java)
     private val json = Json { ignoreUnknownKeys = true }
 
+    companion object {
+        // Pinned Quilt installer version. Bump when QuiltMC publishes a breaking CLI change.
+        internal const val QUILT_INSTALLER_VERSION = "0.12.1"
+    }
+
     private val client = httpClient ?: HttpClient(CIO) {
         install(ContentNegotiation) { json(this@LoaderService.json) }
         install(HttpTimeout) {
@@ -139,15 +144,19 @@ class LoaderService(
 
     private suspend fun installForge(instanceId: String, forgeVersion: String) {
         val url = "https://maven.minecraftforge.net/net/minecraftforge/forge/$forgeVersion/forge-$forgeVersion-installer.jar"
-        runModLoaderInstaller(instanceId, url)
+        runModLoaderInstaller(instanceId, url, listOf("--installServer"))
     }
 
     private suspend fun installNeoForge(instanceId: String, neoForgeVersion: String) {
         val url = "https://maven.neoforged.net/releases/net/neoforged/neoforge/$neoForgeVersion/neoforge-$neoForgeVersion-installer.jar"
-        runModLoaderInstaller(instanceId, url)
+        runModLoaderInstaller(instanceId, url, listOf("--installServer"))
     }
 
-    private suspend fun runModLoaderInstaller(instanceId: String, installerUrl: String) {
+    private suspend fun runModLoaderInstaller(
+        instanceId: String,
+        installerUrl: String,
+        installerArgs: List<String>,
+    ) {
         val instanceDir = dataDirectory.instanceDir(instanceId)
         val installerJar = instanceDir.resolve("installer.jar")
         val installerLog = instanceDir.resolve("installer.log")
@@ -161,7 +170,9 @@ class LoaderService(
         val javaPath = instanceStore.getProcessConfig(instanceId).javaPath
 
         val exitCode = withContext(Dispatchers.IO) {
-            val process = ProcessBuilder(javaPath, "-jar", installerJar.fileName.toString(), "--installServer")
+            val process = ProcessBuilder(
+                listOf(javaPath, "-jar", installerJar.fileName.toString()) + installerArgs
+            )
                 .directory(instanceDir.toFile())
                 .redirectErrorStream(true)
                 .redirectOutput(installerLog.toFile())
@@ -197,14 +208,17 @@ class LoaderService(
     }
 
     private suspend fun installQuilt(instanceId: String, mcVersion: String, loaderVersion: String) {
-        val serverJarUrl = "https://meta.quiltmc.org/v3/versions/loader/$mcVersion/$loaderVersion/server/jar"
-        val response = client.get(serverJarUrl)
-        if (response.status != HttpStatusCode.OK) {
-            throw RuntimeException("Failed to download Quilt server jar: ${response.status}")
-        }
-        val bytes = response.bodyAsBytes()
-        val destination = dataDirectory.serverJarPath(instanceId)
-        destination.writeBytes(bytes)
+        // Quilt meta API does not expose a server fat jar (unlike Fabric). Instead, use the
+        // Quilt Server Installer CLI, which downloads libraries/ and emits quilt-server-launch.jar
+        // (a manifest-only jar with Class-Path pointing at libraries/). Pinned installer version:
+        // bumping it is a one-line change if Quilt publishes a breaking CLI release.
+        val installerUrl =
+            "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-installer/$QUILT_INSTALLER_VERSION/quilt-installer-$QUILT_INSTALLER_VERSION.jar"
+        runModLoaderInstaller(
+            instanceId,
+            installerUrl,
+            listOf("install", "server", mcVersion, loaderVersion, "--install-dir=."),
+        )
     }
 
     private suspend fun fetchFabricVersions(mcVersion: String): List<String> {

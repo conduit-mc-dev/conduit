@@ -154,3 +154,35 @@ fun createMockLoaderHttpClient(): HttpClient {
         expectSuccess = false
     }
 }
+
+sealed class MockLoaderResponse {
+    data class Bytes(val bytes: ByteArray) : MockLoaderResponse()
+    data class Status(val status: HttpStatusCode) : MockLoaderResponse()
+}
+
+fun createMockLoaderInstallHttpClient(
+    installerVersionsJson: String = """[{"version":"1.0.1","stable":true},{"version":"1.0.0","stable":false}]""",
+    fabricServerJarResponse: MockLoaderResponse = MockLoaderResponse.Bytes("fake-fabric-jar".toByteArray()),
+    quiltInstallerResponse: MockLoaderResponse = MockLoaderResponse.Status(HttpStatusCode.NotFound),
+): HttpClient = HttpClient(MockEngine { request ->
+    val url = request.url.toString()
+    when {
+        url.contains("meta.fabricmc.net") && url.contains("/versions/installer") ->
+            respond(installerVersionsJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+        url.contains("meta.fabricmc.net") && url.contains("/server/jar") ->
+            respondLoaderMock(fabricServerJarResponse)
+        url.contains("maven.quiltmc.org") && url.contains("/quilt-installer/") ->
+            respondLoaderMock(quiltInstallerResponse)
+        else -> respondError(HttpStatusCode.NotFound)
+    }
+}) {
+    install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true }) }
+    expectSuccess = false
+}
+
+private fun MockRequestHandleScope.respondLoaderMock(resp: MockLoaderResponse) = when (resp) {
+    is MockLoaderResponse.Bytes ->
+        respond(resp.bytes, headers = headersOf(HttpHeaders.ContentType, "application/octet-stream"))
+    is MockLoaderResponse.Status ->
+        respond("", status = resp.status)
+}

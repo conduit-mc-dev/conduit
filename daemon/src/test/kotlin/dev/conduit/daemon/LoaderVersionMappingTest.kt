@@ -93,15 +93,25 @@ class LoaderVersionMappingTest {
     }
 
     @Test
-    fun `launch target is VanillaJar for Fabric and Quilt`() {
+    fun `launch target is VanillaJar for Fabric`() {
+        // Fabric installer overwrites server.jar with a ~180KB launcher, so -jar server.jar still applies.
         assertEquals(
             LaunchTarget.VanillaJar,
             resolveLaunchTarget(LoaderInfo(LoaderType.FABRIC, "0.16.14"), isWindows = false),
         )
         assertEquals(
             LaunchTarget.VanillaJar,
-            resolveLaunchTarget(LoaderInfo(LoaderType.QUILT, "0.26.1"), isWindows = true),
+            resolveLaunchTarget(LoaderInfo(LoaderType.FABRIC, "0.16.14"), isWindows = true),
         )
+    }
+
+    @Test
+    fun `launch target is LoaderJar quilt-server-launch_jar for Quilt`() {
+        // Quilt installer emits a separate quilt-server-launch.jar and keeps vanilla server.jar intact;
+        // its runtime main class reads server.jar as the game jar.
+        val expected = LaunchTarget.LoaderJar("quilt-server-launch.jar")
+        assertEquals(expected, resolveLaunchTarget(LoaderInfo(LoaderType.QUILT, "0.20.0-beta.9"), isWindows = false))
+        assertEquals(expected, resolveLaunchTarget(LoaderInfo(LoaderType.QUILT, "0.20.0-beta.9"), isWindows = true))
     }
 
     @Test

@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-01（`server.stats` 订阅一致性：spec §5.5 订阅列表补 ⚠️ 与 §5.3 对齐，`WsBroadcaster.kt:24` 代码注释标明 broadcast 尚未实现）
+> 最新更新：2026-05-01（Quilt loader 安装生产 bug 修复：`installQuilt()` 改用 Quilt Server Installer 子进程；真网 smoke 49 秒翻绿；daemon 208 测试全绿）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -30,6 +30,7 @@
 ### 技术债（非阻塞）
 
 - [ ] shared-core/daemon 测试工具跨模块共享 — 目前 `loadFixture` 和 `withTempDir` 在 shared-core `TestUtils.kt` 和 daemon `TestHelpers.kt` 各有一份完全相同的实现。根因是无 `java-test-fixtures` 插件或独立 `test-utils` 模块。方案：给 shared-core 加 `java-test-fixtures` → daemon `testImplementation(testFixtures(project(":shared-core")))`
+- [ ] `ProcessLifecycleTest.crashed process auto-restarts when enabled and within maxTimes` 断言 flake — 2026-05-01 观察：同一 HEAD 全量套件 3 次跑里 2 次断言 `Expected at least 2 STARTING transitions, got: [STARTING, RUNNING, STOPPED, RUNNING, STOPPED, RUNNING, STOPPED]`。自动重启确实发生（`RUNNING↔STOPPED` 交替 3 次），但中间的 `STARTING` 瞬态在高 JVM 负载下被事件捕获漏过。失败率 ~67%——需尽快加 jitter tolerance 或改用 barrier-style 等待，而不是靠 `StateFlow.value` 窗口观察
 
 ### 延迟项（MVP 后）
 
@@ -43,9 +44,6 @@
 
 **高优先级（MVP 前应补）**
 - [ ] 协程取消清理 — 取消安装/下载后无残留文件、状态回 STOPPED（参考 HMCL `TaskTest`）
-- [ ] `pack.mrpack` 响应头断言 — `api-protocol.md` 第 1448 行要求 `Content-Length: {bytes}`，`PublicRoutes.kt:95-98` 未显式设置（Ktor `respondFile` 可能自动填）。需测试断言验证；缺失则手工添加
-- [ ] Fabric/Quilt 安装流程测试 — `installFabric()`/`installQuilt()` 执行路径无测试（参考 MCSManager `quick_install.ts`）
-- [ ] 启动超时检测 — `Done` 永不出现时实例停留在 STARTING 无限期
 
 **中优先级（v0.2 前应补）**
 - [ ] MC 版本排序正确性 — shuffle + sort = 已知顺序（参考 HMCL `GameVersionNumberTest`）
@@ -65,6 +63,42 @@
 ---
 
 ## Done
+
+- [x] Quilt loader 安装生产 bug 修复（2026-05-01）
+  - **起因**：上一条 Done（Fabric/Quilt E2E 真网 smoke）把 Quilt `@Test` 保留为 RED 信号灯，因为 `LoaderService.installQuilt()` 调用的 `meta.quiltmc.org/.../server/jar` 在 Quilt Meta OpenAPI 规范里从未定义过。用户要求"接着修"生产代码
+  - **方案选择**：比较两种修复路径：(A) 拉 `/server/json` + 手动解析 14 个 libraries 逐个下载 + 手动构造 classpath 启动命令；(B) 调 Quilt Server Installer 子进程（仿 Forge/NeoForge）。选 B：代码复用率高（共享 `runModLoaderInstaller`）、installer 官方维护、产物（`quilt-server-launch.jar` + `libraries/`）即插即用
+  - **Fabric vs Quilt 的 LaunchTarget 对称性修正**：本次揭示旧代码把 Fabric 和 Quilt 都设为 `LaunchTarget.VanillaJar` 是结构性错误。Fabric launcher（179KB）**覆盖** `server.jar`——vanilla MC 被替换；Quilt installer **保留** vanilla `server.jar` + 新增 `quilt-server-launch.jar`——loader 启动时 reads vanilla server.jar 作为 game jar。经本地验证：`java -jar quilt-server-launch.jar` 在无 vanilla server.jar 时抛 `Missing game jar`。修复：`LaunchTarget` 新增 `LoaderJar(fileName)` 变体，Quilt 分支切换到 `LoaderJar("quilt-server-launch.jar")`；`ServerProcessManager` 消费端新增分支
+  - **`runModLoaderInstaller` 参数化**：原硬编码 `"--installServer"`（Forge/NeoForge CLI）改为接收 `installerArgs: List<String>`。Forge/NeoForge 传 `listOf("--installServer")`，Quilt 传 `listOf("install", "server", mcVersion, loaderVersion, "--install-dir=.")`
+  - **installer 版本锁定**：`LoaderService.QUILT_INSTALLER_VERSION = "0.12.1"`（当前最新，Quilt Maven 2025-03-10 发布）。CLI 形态验证自 `java -jar quilt-installer-0.12.1.jar help` 实测
+  - **测试改动**：
+    - `LoaderInstallMockTest`：Quilt happy path 测试**删除**（installer 子进程无法 mock，与 Forge/NeoForge 无 mock 测试保持一致）；保留一个 "installer download 404" 前置用例（6 → 5 用例）
+    - `LoaderVersionMappingTest`：`launch target is VanillaJar for Fabric and Quilt` 拆成两个独立测试——Fabric 继续 `VanillaJar`，Quilt 改为 `LoaderJar("quilt-server-launch.jar")`（14 → 15 用例）
+    - `ModLoaderInstallE2ETest`：Quilt `@Test` 从 RED 信号灯改为正常 smoke；`ExpectedProduct` sealed class 新增 `LoaderJar(fileName, minBytes)` 变体，校验 `quilt-server-launch.jar` 存在 + vanilla server.jar 仍在；loader 版本改为 `0.20.0-beta.9`（Quilt 当前最新）
+  - **验证**：
+    - 默认套件 `./gradlew :daemon:test` 208 tests 全绿
+    - 真网 smoke `CONDUIT_RUN_SLOW_TESTS=true ./gradlew :daemon:test --tests "...Quilt install produces launch jar"` **49 秒 GREEN**（从历次 RED 翻转）
+    - 日志确认：Quilt installer 下载 14 libraries、生成 569 bytes `quilt-server-launch.jar`、task.completed 成功
+  - **未覆盖**：未跑 Forge/NeoForge/Fabric 真网 smoke（它们行为已知）。用户如需完整 smoke 验证可跑 `CONDUIT_RUN_SLOW_TESTS=true ./gradlew :daemon:test --tests "*ModLoaderInstallE2ETest*"`
+  - **改动文件**：`LaunchTarget.kt`（+1 变体 +注释）、`ServerProcessManager.kt`（+1 分支）、`LoaderService.kt`（installQuilt 重写 + runModLoaderInstaller 参数化 + QUILT_INSTALLER_VERSION 常量）、`LoaderVersionMappingTest.kt`（拆测试）、`LoaderInstallMockTest.kt`（删 Quilt happy path）、`TestHelpers.kt`（helper 参数 rename）、`ModLoaderInstallE2ETest.kt`（去 RED javadoc + ExpectedProduct.LoaderJar）、`progress.md`
+
+- [x] Fabric/Quilt E2E 真网 smoke + Quilt 生产 bug 发现（2026-05-01）
+  - **起因**：上一条 Done（Fabric/Quilt 双轨测试）完成后跑 `CONDUIT_RUN_SLOW_TESTS=true ./gradlew :daemon:test --tests "*ModLoaderInstallE2ETest*"`，4 个用例 1 pass + 3 fail
+  - **Fabric minBytes 假设错误校正**：`0.15.11` 真实下载得到 179,054 bytes 的 ZIP launcher（不是 plan 假设的 10–50MB fat jar）。Fabric 走的是 "thin bootstrap jar" 模式——launcher 启动时再动态拉 loader。改 `ExpectedProduct.ServerJar(minBytes = 100_000)` 让断言合理
+  - **Quilt E2E 保留作为 RED 信号灯**：curl + Quilt OpenAPI 规范（`meta.quiltmc.org/openapi.yaml`）证实 `/v3/versions/loader/{mc}/{loader}/server/jar` 从未定义过，唯一的服务端路由是 `/server/json`（launcher profile 而非 jar）。**换版本不能解决——生产代码 URL 形态自身错误**。经用户 review 后决定保留 `Quilt install produces server jar` @Test 作为"生产 bug 未修"的可见信号——每次跑 slow 套件都会 fail 并显示 RuntimeException，促使有人去修 `installQuilt()`。@Test 上方加长 javadoc 解释为何是预期 RED。默认 CI（不设 `CONDUIT_RUN_SLOW_TESTS`）照常 skip
+  - **NeoForge 瞬时失败未修**：`20.4.237` installer 子进程报 `fancymodloader:earlydisplay/loader/spi` 和 `coremods:6.0.4` 4 个 jar 下载失败。与本次改动无关，Windows VM 同版本于 2026-05-01 早些时候通过，判定为 transient
+  - **衍生发现（见技术债）**：`LoaderService.installQuilt()` URL 形态（`/server/jar`）在 Quilt meta API 上根本不存在。修复方向：(A) 改用 `/server/json` + 手动构造 classpath，或 (B) 调 Quilt Server Installer 子进程（仿 Forge/NeoForge）
+  - **改动**：`ModLoaderInstallE2ETest.kt` Fabric `minBytes` 1_000_000 → 100_000 + 为 Quilt @Test 加 javadoc；`progress.md` 技术债加 Quilt 生产 bug 条目
+
+- [x] Fabric/Quilt 安装测试（双轨：mock 必跑 + 真网可选，2026-05-01）
+  - **起因**：`progress.md` Next 高优先级测试缺口之一。`LoaderService.installFabric()` / `installQuilt()`（`LoaderService.kt:182-208`）下载/写盘路径此前零自动化测试，只有 `LoaderRoutesTest` 测到 "available loaders" 和 409 前置路径
+  - **策略选择**：Fabric/Quilt 与 Forge/NeoForge 关键差异 — 无 installer 子进程、无 argfile、无 libraries，纯 HTTP 下载 fat `server.jar` 一个文件。意味着 **mock HTTP 就能覆盖全部逻辑分支**，无须像 Forge/NeoForge 那样必须真网（后者的 installer 子进程用 mock 还原等于重写 installer）。采用双轨：
+    - **Part A（默认跑）** `LoaderInstallMockTest.kt` 6 个用例：Fabric happy path（stable installer）、Fabric fallback（`LoaderService.kt:185-186` 全 `stable=false` 回落第一个）、Fabric installer 列表空（→ ERROR + `"No Fabric installer version found"`）、Fabric `/server/jar` 404、Quilt happy path、Quilt `/server/jar` 404（代表 "该 MC 版本无 loader" 场景）。单跑 0.47s
+    - **Part C（可选 smoke）** 扩展 `ModLoaderInstallE2ETest.kt`：引入 `ExpectedProduct` sealed class（`ArgFile(path)` / `ServerJar(minBytes)`）复用 `verifyLoaderInstall`；新增 Fabric `0.15.11` + Quilt `0.26.0` 两个 `@Test`；`CONDUIT_RUN_SLOW_TESTS=true` 才跑，`assumeSlowTests()` 默认 skip
+  - **Part B（mock 工厂）** `TestHelpers.kt` 追加 `createMockLoaderInstallHttpClient(installerVersionsJson, fabricServerJarResponse, quiltServerJarResponse)` + `MockLoaderResponse` sealed class（`Bytes` / `Status`）。不动既有 `createMockLoaderHttpClient`（它被 `LoaderRoutesTest` 用于 available-loaders 测试）
+  - **TDD 纪律**：按 `superpowers:test-driven-development` 做 sanity demotion — 临时把用例 1 的 `assertContentEquals(bytes, ...)` 改为错误 expected、把用例 3 的 `contains("No Fabric installer version found")` 改为 `"SANITY_DEMOTION_SHOULD_FAIL"` 跑一次，确认两处确实失败（证明断言真的在比较），再恢复正确值 GREEN
+  - **未改生产代码**：本次严守 "surgical changes" 原则，只加测试 + 文档；`LoaderService.kt` 零改动
+  - **测试合计**：200 → 208（+6 Mock + 2 E2E skipped）；文件：2 新 + 2 编辑 + 1 docs
+  - **顺带清理**：Next 测试缺口列表删除 2026-05-01 已完成但未下架的 3 条（`Content-Length` 响应头断言、启动超时检测、Fabric/Quilt 安装流程测试）；新增技术债 `ProcessLifecycleTest` 自动重启测试的偶发 flake（STARTING 瞬态在高负载下漏捕获，非本次引入）
 
 - [x] 进程生命周期改进（MVP 前）（2026-05-01）
   - **Task 1 — STARTING 超时（60s watchdog）**：`ServerProcessManager.start()` 追加 startup timeout job，用 `transitionState(STARTING → STOPPING)` CAS 原子仲裁 SERVER_DONE 竞态。测试 +1（`ProcessLifecycleTest.startup timeout forces STOPPED`）。

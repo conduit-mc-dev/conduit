@@ -24,7 +24,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assume.assumeTrue
 import java.net.ServerSocket
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.io.path.exists
+import kotlin.io.path.fileSize
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -33,9 +35,10 @@ import kotlin.test.fail
 /**
  * Real-network mod-loader install smoke tests. Skipped unless CONDUIT_RUN_SLOW_TESTS=true.
  *
- * Hits the real Maven repos for NeoForge and Forge plus launcher.mojang.com. Each case
- * downloads ~45 MB of vanilla server.jar plus ~100-200 MB of loader libraries. Expect
- * ~100s per case.
+ * Hits real loader meta/maven hosts plus launcher.mojang.com. Forge/NeoForge each download
+ * ~45 MB of vanilla server.jar plus ~100-200 MB of loader libraries (expect ~100s per case);
+ * Fabric/Quilt download ~45 MB vanilla + a single ~30 MB fat server jar, no subprocess,
+ * typically under 40s per case.
  *
  * Bypasses ktor's testApplication (runTest has a 60s timeout that a real install
  * exceeds). Boots embeddedServer on a random port and talks to it via CIO, which also
@@ -43,7 +46,8 @@ import kotlin.test.fail
  *
  * Prerequisites:
  * - `java` on PATH is Java 17+ (Forge/NeoForge 1.20.4 requirement)
- * - Outbound HTTPS to maven.minecraftforge.net, maven.neoforged.net, launcher.mojang.com
+ * - Outbound HTTPS to maven.minecraftforge.net, maven.neoforged.net, meta.fabricmc.net,
+ *   meta.quiltmc.org, launcher.mojang.com
  *
  * To run:
  *   CONDUIT_RUN_SLOW_TESTS=true ./gradlew :daemon:test --tests "*ModLoaderInstallE2ETest*" --rerun-tasks
@@ -58,7 +62,7 @@ class ModLoaderInstallE2ETest {
         verifyLoaderInstall(
             loader = LoaderType.NEOFORGE,
             version = "20.4.237",
-            expectedArgfile = "libraries/net/neoforged/neoforge/20.4.237/${argFileName()}",
+            expectedProduct = ExpectedProduct.ArgFile("libraries/net/neoforged/neoforge/20.4.237/${argFileName()}"),
         )
     }
 
@@ -68,8 +72,41 @@ class ModLoaderInstallE2ETest {
         verifyLoaderInstall(
             loader = LoaderType.FORGE,
             version = "1.20.4-49.0.14",
-            expectedArgfile = "libraries/net/minecraftforge/forge/1.20.4-49.0.14/${argFileName()}",
+            expectedProduct = ExpectedProduct.ArgFile("libraries/net/minecraftforge/forge/1.20.4-49.0.14/${argFileName()}"),
         )
+    }
+
+    @Test
+    fun `Fabric install produces server jar`() = runBlocking {
+        assumeSlowTests()
+        verifyLoaderInstall(
+            loader = LoaderType.FABRIC,
+            // Hardcoded version of a known-good stable Fabric loader for MC 1.20.4.
+            // If meta.fabricmc.net retires it, bump the string.
+            version = "0.15.11",
+            // Fabric's /server/jar actually returns a ~180KB launcher (not a fat jar). 100KB is a
+            // conservative floor that still rejects an empty/error response but allows the real size.
+            expectedProduct = ExpectedProduct.ServerJar(minBytes = 100_000),
+        )
+    }
+
+    @Test
+    fun `Quilt install produces launch jar`() = runBlocking {
+        assumeSlowTests()
+        verifyLoaderInstall(
+            loader = LoaderType.QUILT,
+            // Latest Quilt loader version at time of writing (meta.quiltmc.org has stopped
+            // producing stable releases past the 0.20.0-beta.* series). Bump if Quilt resumes
+            // stable releases.
+            version = "0.20.0-beta.9",
+            expectedProduct = ExpectedProduct.LoaderJar(fileName = "quilt-server-launch.jar", minBytes = 100),
+        )
+    }
+
+    private sealed class ExpectedProduct {
+        data class ArgFile(val relativePath: String) : ExpectedProduct()
+        data class ServerJar(val minBytes: Long) : ExpectedProduct()
+        data class LoaderJar(val fileName: String, val minBytes: Long) : ExpectedProduct()
     }
 
     private fun argFileName(): String =
@@ -85,7 +122,7 @@ class ModLoaderInstallE2ETest {
     private suspend fun verifyLoaderInstall(
         loader: LoaderType,
         version: String,
-        expectedArgfile: String,
+        expectedProduct: ExpectedProduct,
     ) {
         val tempDir = Files.createTempDirectory("conduit-loader-e2e")
         val port = freePort()
@@ -134,10 +171,8 @@ class ModLoaderInstallE2ETest {
                 )
             }
 
-            val argFile = tempDir
-                .resolve("instances/${instance.id}")
-                .resolve(expectedArgfile)
-            assertTrue(argFile.exists(), "Expected argfile at $argFile after ${loader.name} install")
+            val instanceRoot = tempDir.resolve("instances/${instance.id}")
+            assertProductPresent(instanceRoot, expectedProduct, loader)
 
             val loaderInfo = client.get("/api/v1/instances/${instance.id}/loader") {
                 header(HttpHeaders.Authorization, "Bearer $token")
@@ -148,6 +183,36 @@ class ModLoaderInstallE2ETest {
             client.close()
             server.stop(1_000, 5_000)
             tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    private fun assertProductPresent(instanceRoot: Path, expected: ExpectedProduct, loader: LoaderType) {
+        when (expected) {
+            is ExpectedProduct.ArgFile -> {
+                val argFile = instanceRoot.resolve(expected.relativePath)
+                assertTrue(argFile.exists(), "Expected argfile at $argFile after ${loader.name} install")
+            }
+            is ExpectedProduct.ServerJar -> {
+                val jar = instanceRoot.resolve("server.jar")
+                assertTrue(jar.exists(), "Expected server.jar at $jar after ${loader.name} install")
+                val size = jar.fileSize()
+                assertTrue(
+                    size >= expected.minBytes,
+                    "${loader.name} server.jar is suspiciously small: $size bytes (expected >= ${expected.minBytes})",
+                )
+            }
+            is ExpectedProduct.LoaderJar -> {
+                val jar = instanceRoot.resolve(expected.fileName)
+                assertTrue(jar.exists(), "Expected ${expected.fileName} at $jar after ${loader.name} install")
+                val size = jar.fileSize()
+                assertTrue(
+                    size >= expected.minBytes,
+                    "${loader.name} ${expected.fileName} is suspiciously small: $size bytes (expected >= ${expected.minBytes})",
+                )
+                // LoaderJar mode also requires vanilla server.jar to remain intact (the loader reads it as game jar).
+                val vanilla = instanceRoot.resolve("server.jar")
+                assertTrue(vanilla.exists(), "vanilla server.jar must survive ${loader.name} install at $vanilla")
+            }
         }
     }
 

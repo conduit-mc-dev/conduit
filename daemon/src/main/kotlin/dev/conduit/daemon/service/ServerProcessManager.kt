@@ -104,6 +104,10 @@ class ServerProcessManager(
                         add("-jar")
                         add("server.jar")
                     }
+                    is LaunchTarget.LoaderJar -> {
+                        add("-jar")
+                        add(launchTarget.fileName)
+                    }
                     is LaunchTarget.ArgFile -> add("@${launchTarget.argFilePath}")
                 }
                 add("nogui")
