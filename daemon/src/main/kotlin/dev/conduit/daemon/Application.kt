@@ -58,7 +58,7 @@ fun Application.module(
     val serverPropertiesService = ServerPropertiesService(dataDirectory)
     val actualModrinthClient = modrinthClient ?: ModrinthClient()
     val javaDetector = JavaDetector()
-    val modStore = dev.conduit.daemon.store.ModStore()
+    val modStore = dev.conduit.daemon.store.ModStore(dataDirectory)
     val modService = ModService(modStore, actualModrinthClient, instanceStore, dataDirectory, broadcaster, AppJson)
     val packStore = dev.conduit.daemon.store.PackStore()
     val loaderService = LoaderService(instanceStore, dataDirectory, taskStore, appScope, loaderHttpClient)

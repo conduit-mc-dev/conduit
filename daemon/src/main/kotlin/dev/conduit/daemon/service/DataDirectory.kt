@@ -35,6 +35,9 @@ class DataDirectory(
     fun instanceMetadataPath(instanceId: String): Path =
         instanceDir(instanceId).resolve("instance.json")
 
+    fun modsMetadataPath(instanceId: String): Path =
+        instanceDir(instanceId).resolve("mods.json")
+
     fun ensureDirectories() {
         instancesDir.createDirectories()
     }
