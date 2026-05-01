@@ -91,7 +91,7 @@ class PublicRoutesTest {
         client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {
-                append("file", "PKfake-jar".toByteArray(), Headers.build {
+                append("file", byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "fake-jar".toByteArray(), Headers.build {
                     append(HttpHeaders.ContentDisposition, "filename=\"test.jar\"")
                     append(HttpHeaders.ContentType, "application/java-archive")
                 })
@@ -120,7 +120,7 @@ class PublicRoutesTest {
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJar = "PKcustom-mod-download-test".toByteArray()
+        val fakeJar = byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "custom-mod-download-test".toByteArray()
         client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {
@@ -171,7 +171,7 @@ class PublicRoutesTest {
         client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {
-                append("file", "PKetag-test-jar".toByteArray(), Headers.build {
+                append("file", byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "etag-test-jar".toByteArray(), Headers.build {
                     append(HttpHeaders.ContentDisposition, "filename=\"etag.jar\"")
                     append(HttpHeaders.ContentType, "application/java-archive")
                 })
@@ -206,7 +206,7 @@ class PublicRoutesTest {
         client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {
-                append("file", "PK304-test-mod".toByteArray(), Headers.build {
+                append("file", byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "304-test-mod".toByteArray(), Headers.build {
                     append(HttpHeaders.ContentDisposition, "filename=\"cached.jar\"")
                     append(HttpHeaders.ContentType, "application/java-archive")
                 })

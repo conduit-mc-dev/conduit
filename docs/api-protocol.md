@@ -1677,6 +1677,7 @@ All error responses follow this envelope:
 | `MOD_NOT_FOUND` | 404 | Mod ID not in installed mods list |
 | `MOD_ALREADY_INSTALLED` | 409 | This mod version is already installed |
 | `FILE_TOO_LARGE` | 413 | Uploaded file exceeds size limit |
+| `INVALID_FILE_FORMAT` | 400 | Uploaded file is not a valid JAR/ZIP file |
 | `FILE_NOT_FOUND` | 404 | File or directory does not exist |
 | `FILE_PROTECTED` | 422 | Cannot modify a protected file via file management API |
 

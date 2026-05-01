@@ -36,7 +36,7 @@ class PackRoutesTest {
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKbuild-test-mod".toByteArray()
+        val fakeJarBytes = byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "build-test-mod".toByteArray()
         client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {

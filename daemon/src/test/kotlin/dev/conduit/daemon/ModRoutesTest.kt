@@ -37,7 +37,7 @@ class ModRoutesTest {
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKfake-jar-content-for-testing".toByteArray()
+        val fakeJarBytes = byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "fake-jar-content-for-testing".toByteArray()
 
         val response = client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -76,7 +76,7 @@ class ModRoutesTest {
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKduplicate-test".toByteArray()
+        val fakeJarBytes = byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "duplicate-test".toByteArray()
 
         client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
@@ -107,7 +107,7 @@ class ModRoutesTest {
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKremove-test".toByteArray()
+        val fakeJarBytes = byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "remove-test".toByteArray()
         val uploadResp = client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {
@@ -138,7 +138,7 @@ class ModRoutesTest {
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKtoggle-test".toByteArray()
+        val fakeJarBytes = byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "toggle-test".toByteArray()
         val uploadResp = client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {
@@ -353,7 +353,7 @@ class ModRoutesTest {
         val token = pairAndGetToken(client)
         val instance = createTestInstance(client, token, tempDir = tempDir)
 
-        val fakeJarBytes = "PKtraversal-test-content".toByteArray()
+        val fakeJarBytes = byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "traversal-test-content".toByteArray()
         val response = client.post("/api/v1/instances/${instance.id}/mods/upload") {
             header(HttpHeaders.Authorization, "Bearer $token")
             setBody(MultiPartFormDataContent(formData {
@@ -366,5 +366,46 @@ class ModRoutesTest {
         assertEquals(HttpStatusCode.Created, response.status)
         val mod = response.body<InstalledMod>()
         assertEquals("evil.jar", mod.fileName)
+    }
+
+    @Test
+    fun `custom mod upload rejects non-ZIP file with jar extension`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val response = client.post("/api/v1/instances/${instance.id}/mods/upload") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody(MultiPartFormDataContent(formData {
+                append("file", "not a valid jar file\nexe content".toByteArray(), Headers.build {
+                    append(HttpHeaders.ContentDisposition, "filename=\"malicious.exe.jar\"")
+                    append(HttpHeaders.ContentType, "application/java-archive")
+                })
+            }))
+        }
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val error = response.body<ErrorResponse>()
+        assertEquals("INVALID_FILE_FORMAT", error.error.code)
+    }
+
+    @Test
+    fun `custom mod upload accepts valid JAR`() = testApplication {
+        val (tempDir) = setupTestModule()
+        val client = jsonClient()
+        val token = pairAndGetToken(client)
+        val instance = createTestInstance(client, token, tempDir = tempDir)
+
+        val validZipBytes = byteArrayOf(0x50, 0x4B, 0x03, 0x04) + "some jar content".toByteArray()
+        val response = client.post("/api/v1/instances/${instance.id}/mods/upload") {
+            header(HttpHeaders.Authorization, "Bearer $token")
+            setBody(MultiPartFormDataContent(formData {
+                append("file", validZipBytes, Headers.build {
+                    append(HttpHeaders.ContentDisposition, "filename=\"legit-mod.jar\"")
+                    append(HttpHeaders.ContentType, "application/java-archive")
+                })
+            }))
+        }
+        assertEquals(HttpStatusCode.Created, response.status)
     }
 }

@@ -86,6 +86,9 @@ class ModService(
         if (!safeFileName.endsWith(".jar")) {
             throw ApiException(HttpStatusCode.UnprocessableEntity, "VALIDATION_ERROR", "File must be a .jar")
         }
+        if (bytes.size < 4 || bytes[0] != 0x50.toByte() || bytes[1] != 0x4B.toByte() || bytes[2] != 0x03.toByte() || bytes[3] != 0x04.toByte()) {
+            throw ApiException(HttpStatusCode.BadRequest, "INVALID_FILE_FORMAT", "Uploaded file is not a valid JAR/ZIP file")
+        }
 
         val hashes = computeHashes(bytes)
         val existing = modStore.findByHash(instanceId, hashes.sha1!!)
