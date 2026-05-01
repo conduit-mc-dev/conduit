@@ -90,6 +90,7 @@ fun createMockModrinthClient(): ModrinthClient {
             path.contains("/version/ver-001") -> respond(mockVersionV1Json, headers = headersOf(HttpHeaders.ContentType, "application/json"))
             path.contains("/version/ver-002") -> respond(mockVersionV2Json, headers = headersOf(HttpHeaders.ContentType, "application/json"))
             path.contains("/project/proj-abc/version") -> respond(mockProjectVersionsJson, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+            path.contains("version_files/update") -> respond("""{"eeff0011":$mockVersionV2Json}""", headers = headersOf(HttpHeaders.ContentType, "application/json"))
             path.contains("sodium-") -> respond(mockModJarBytes, headers = headersOf(HttpHeaders.ContentType, "application/octet-stream"))
             else -> respondError(HttpStatusCode.NotFound)
         }

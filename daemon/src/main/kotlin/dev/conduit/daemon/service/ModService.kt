@@ -199,28 +199,41 @@ class ModService(
 
     suspend fun checkUpdates(instanceId: String): ModUpdatesResponse {
         val mods = modStore.list(instanceId)
-        val modrinthMods = mods.filter { it.source == "modrinth" && it.modrinthVersionId != null }
-        val updates = mutableListOf<ModUpdateEntry>()
+        val modrinthMods = mods.filter { it.source == "modrinth" && it.modrinthVersionId != null && it.hashes.sha512 != null }
+        if (modrinthMods.isEmpty()) return ModUpdatesResponse()
 
+        val hashes = modrinthMods.map { it.hashes.sha512!! }
+        val instance = instanceStore.get(instanceId)
+        val loaders = listOfNotNull(instance.loader?.type?.let { loaderType ->
+            when (loaderType) {
+                LoaderType.FORGE -> "forge"
+                LoaderType.NEOFORGE -> "neoforge"
+                LoaderType.FABRIC -> "fabric"
+                LoaderType.QUILT -> "quilt"
+            }
+        })
+        val gameVersions = listOf(instance.mcVersion)
+
+        val batchResult = try {
+            modrinthClient.batchCheckUpdates(hashes, "sha512", loaders, gameVersions)
+        } catch (_: Exception) {
+            return ModUpdatesResponse()
+        }
+
+        val updates = mutableListOf<ModUpdateEntry>()
         for (mod in modrinthMods) {
-            try {
-                val projectId = mod.modrinthProjectId ?: continue
-                val versions = modrinthClient.getProjectVersions(projectId)
-                val latest = versions.firstOrNull() ?: continue
-                if (latest.versionId != mod.modrinthVersionId) {
-                    updates.add(
-                        ModUpdateEntry(
-                            modId = mod.id,
-                            name = mod.name,
-                            currentVersion = mod.version,
-                            latestVersion = latest.versionNumber,
-                            latestVersionId = latest.versionId,
-                            changelog = latest.changelog,
-                        )
+            val latestVersion = batchResult[mod.hashes.sha512] ?: continue
+            if (latestVersion.versionId != mod.modrinthVersionId) {
+                updates.add(
+                    ModUpdateEntry(
+                        modId = mod.id,
+                        name = mod.name,
+                        currentVersion = mod.version,
+                        latestVersion = latestVersion.versionNumber,
+                        latestVersionId = latestVersion.versionId,
+                        changelog = latestVersion.changelog,
                     )
-                }
-            } catch (_: Exception) {
-                // skip mods that fail to check
+                )
             }
         }
 

@@ -8,6 +8,7 @@ import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.serialization.Serializable
@@ -79,6 +80,21 @@ class ModrinthClient(httpClient: HttpClient? = null) : Closeable {
         val response = client.get("$BASE_URL/version/$versionId")
         checkResponse(response)
         return response.body<ModrinthRawVersion>().toVersionInfo()
+    }
+
+    suspend fun batchCheckUpdates(
+        hashes: List<String>,
+        algorithm: String,
+        loaders: List<String>,
+        gameVersions: List<String>,
+    ): Map<String, ModrinthVersionInfo?> {
+        val response = client.post("$BASE_URL/version_files/update") {
+            contentType(io.ktor.http.ContentType.Application.Json)
+            setBody(BatchUpdateRequest(hashes, algorithm, loaders, gameVersions))
+        }
+        checkResponse(response)
+        val raw: Map<String, ModrinthRawVersion?> = response.body()
+        return raw.mapValues { (_, v) -> v?.toVersionInfo() }
     }
 
     suspend fun downloadFile(url: String, destination: Path): Long {
@@ -221,3 +237,11 @@ private data class ModrinthRawDependency(
         dependencyType = dependency_type,
     )
 }
+
+@Serializable
+private data class BatchUpdateRequest(
+    val hashes: List<String>,
+    val algorithm: String,
+    val loaders: List<String>,
+    val game_versions: List<String>,
+)

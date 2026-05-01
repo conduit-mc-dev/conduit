@@ -41,8 +41,8 @@ data class ToggleModRequest(
 
 @Serializable
 data class ModUpdatesResponse(
-    val updatesAvailable: Int,
-    val mods: List<ModUpdateEntry>,
+    val updatesAvailable: Int = 0,
+    val mods: List<ModUpdateEntry> = emptyList(),
 )
 
 @Serializable

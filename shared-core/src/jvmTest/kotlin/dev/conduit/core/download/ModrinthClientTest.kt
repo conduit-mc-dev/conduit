@@ -131,4 +131,38 @@ class ModrinthClientTest {
         assertEquals(404, ex.statusCode)
         assertEquals("Not found", ex.body)
     }
+
+    @Test
+    fun `batchCheckUpdates returns latest versions for given hashes`() = runTest {
+        val batchResponse = """{"sha512-hash-a":$versionJson,"sha512-hash-b":null}"""
+        val http = mockHttpClient(expectSuccess = false) { jsonResponse(batchResponse) }
+        val client = ModrinthClient(http)
+
+        val result = client.batchCheckUpdates(
+            hashes = listOf("sha512-hash-a", "sha512-hash-b"),
+            algorithm = "sha512",
+            loaders = listOf("fabric"),
+            gameVersions = listOf("1.20.4"),
+        )
+
+        assertEquals(2, result.size)
+        assertNotNull(result["sha512-hash-a"], "hash-a should have an update")
+        assertEquals("ver1", result["sha512-hash-a"]!!.versionId)
+        assertNull(result["sha512-hash-b"], "hash-b should have no update")
+    }
+
+    @Test
+    fun `batchCheckUpdates returns empty map for unknown hash`() = runTest {
+        val http = mockHttpClient(expectSuccess = false) { jsonResponse("""{}""") }
+        val client = ModrinthClient(http)
+
+        val result = client.batchCheckUpdates(
+            hashes = listOf("unknown-hash"),
+            algorithm = "sha512",
+            loaders = listOf("fabric"),
+            gameVersions = listOf("1.20.4"),
+        )
+
+        assertTrue(result.isEmpty())
+    }
 }
