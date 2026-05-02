@@ -18,6 +18,25 @@ fun ServerPropertiesScreen(
     viewModel: ServerPropertiesViewModel = koinViewModel { parametersOf(instanceId) },
 ) {
     val state by viewModel.state.collectAsState()
+    var showUnsavedDialog by remember { mutableStateOf(false) }
+
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("未保存的修改") },
+            text = { Text("有未保存的修改，确定要放弃吗？") },
+            confirmButton = {
+                Button(onClick = onBack) {
+                    Text("放弃修改")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnsavedDialog = false }) {
+                    Text("继续编辑")
+                }
+            },
+        )
+    }
 
     if (state.saveSuccess) {
         AlertDialog(
@@ -50,7 +69,13 @@ fun ServerPropertiesScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                TextButton(onClick = onBack) {
+                TextButton(onClick = {
+                    if (state.editedValues.isNotEmpty()) {
+                        showUnsavedDialog = true
+                    } else {
+                        onBack()
+                    }
+                }) {
                     Text("← 返回")
                 }
                 Text(
@@ -95,7 +120,7 @@ fun ServerPropertiesScreen(
                     CircularProgressIndicator()
                 }
             }
-            state.properties.isEmpty() -> {
+            state.properties.isEmpty() && state.error == null -> {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,

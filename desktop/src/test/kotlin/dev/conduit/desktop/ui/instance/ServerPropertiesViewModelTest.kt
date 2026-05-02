@@ -149,10 +149,37 @@ class ServerPropertiesViewModelTest {
     }
 
     @Test
-    fun `dismissSuccess clears saveSuccess flag`() = runBlocking {
-        val httpClient = mockHttpClient { respondError(HttpStatusCode.NotFound) }
-        val vm = ServerPropertiesViewModel("i1", mockApiClient(httpClient))
+    fun `dismissSuccess clears saveSuccess after successful save`() = runBlocking {
+        val properties = mapOf("motd" to "Original")
+        val httpClient = mockHttpClient { request ->
+            when {
+                request.url.encodedPath == "/api/v1/instances/i1/config/server-properties" -> {
+                    when (request.method) {
+                        HttpMethod.Get -> respond(
+                            mockJsonBody(properties),
+                            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                        )
+                        HttpMethod.Put -> respond(
+                            mockJsonBody(ServerPropertiesUpdateResponse(updated = listOf("motd"), restartRequired = false)),
+                            headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                        )
+                        else -> respondError(HttpStatusCode.MethodNotAllowed)
+                    }
+                }
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val vm = ServerPropertiesViewModel("i1", client)
+        vm.awaitLoad()
+
+        vm.updateValue("motd", "New")
+        vm.save()
+        vm.awaitSave()
+
+        assertTrue(vm.state.value.saveSuccess, "saveSuccess should be true after save")
+
         vm.dismissSuccess()
-        assertFalse(vm.state.value.saveSuccess)
+        assertFalse(vm.state.value.saveSuccess, "saveSuccess should be false after dismiss")
     }
 }
