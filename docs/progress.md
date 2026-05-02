@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-02（Daemon 功能收尾冲刺 B1-B9 全部完成，daemon 214+ tests / shared-core 38 tests 全绿，零 @Ignore；进入 Desktop MVP 迭代阶段）
+> 最新更新：2026-05-02（ConduitWsClient 重连 + server.properties 编辑器完成，shared-core 46 tests / desktop 13 tests 全绿；迭代 4 进行中）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,7 +11,7 @@
 
 ## Now（进行中）
 
-**Desktop MVP 迭代 4**：Daemon 已稳定，开始推进 Desktop 管理面板。下一迭代包含 server.properties 读写界面、实例删除、玩家列表显示、UI 打磨。方案见 `desktop-mvp-plan.md`。
+**Desktop MVP 迭代 4（部分完成）**：server.properties 编辑器已完成。剩余：实例删除、玩家列表显示、UI 打磨。方案见 `desktop-mvp-plan.md`。
 
 ---
 
@@ -19,8 +19,8 @@
 
 ### Desktop 依赖（当前阶段）
 
-- [ ] shared-core `ConduitWsClient` 重连逻辑 + 5 个测试用例
-- [ ] Desktop MVP 迭代 4-6（方案见 `desktop-mvp-plan.md`）
+- [x] shared-core `ConduitWsClient` 重连逻辑 + 5 个测试用例（→ 实际 8 个）
+- [ ] Desktop MVP 迭代 4 剩余：实例删除 + 玩家列表 + UI 打磨
 
 ### 延迟项（MVP 后 / v0.2+）
 
@@ -40,6 +40,24 @@
 ---
 
 ## Done
+
+- [x] Desktop `ServerPropertiesScreen` + ViewModel（2026-05-02）
+  - `ServerPropertiesViewModel`：分阶段编辑（`properties` vs `editedValues`），只保存变更的键值对
+  - `ServerPropertiesScreen`：Compose LazyColumn 键值对编辑器，修改高亮，未保存返回确认，保存成功弹窗（含 `restartRequired` 提示）
+  - `InstanceDetailScreen` HeaderBar 加 "⚙ 配置" 入口
+  - 导航：`ServerPropertiesRoute` 新路由
+  - 修复：`TestHelpers.mockJsonBody` 从 `Any` 改为 `inline reified`（修复序列化失败）
+  - 测试：`ServerPropertiesViewModelTest` 7 个用例（load 成功/失败、updateValue 隔离、save 成功/失败、edit revert、saveSuccess 完整生命周期）
+  - 结果：desktop 7 → 13 tests（+6），全绿
+
+- [x] shared-core `ConduitWsClient` 重连逻辑（2026-05-02）
+  - 指数退避重试循环（1s → 2s → 4s → 8s → 16s → 30s cap，无限重连）
+  - `WsConnectionState` 枚举 + `connectionState: StateFlow` 暴露状态（DISCONNECTED/CONNECTING/CONNECTED/RECONNECTING）
+  - `LinkedHashMap<String, Set<String>>` 追踪 pending subscriptions，重连后自动 `replaySubscriptions()`
+  - `subscribe()` 断开时暂存、重连后重放；`unsubscribe()` 精确匹配移除
+  - `connect()` 重复调用保护：先 cancel 旧 job 再启动新的
+  - 测试：`ConduitWsClientTest` 8 个用例（状态、订阅追踪、覆盖、清空、部分取消、CONNECTING 转换）
+  - 结果：shared-core 38 → 46 tests（+8），全绿，零 @Ignore
 
 - [x] Daemon 功能收尾冲刺 B1-B9（2026-05-02）
   - **B1** — 修 `PUT /api/v1/java/default` silent no-op：`DaemonConfigStore` 加 `defaultJavaPath` 字段 + `updateDefaultJava()`，重启后保留。commit: `366935c`
