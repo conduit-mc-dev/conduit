@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.conduit.core.api.ConduitApiClient
 import dev.conduit.core.api.ConduitApiException
+import dev.conduit.desktop.session.SessionManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -20,7 +21,10 @@ data class PairUiState(
 
 enum class PairStep { CONNECT, ENTER_CODE, DONE }
 
-class PairViewModel(private val apiClient: ConduitApiClient) : ViewModel() {
+class PairViewModel(
+    private val apiClient: ConduitApiClient,
+    private val session: SessionManager,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(PairUiState())
     val state: StateFlow<PairUiState> = _state
@@ -73,6 +77,7 @@ class PairViewModel(private val apiClient: ConduitApiClient) : ViewModel() {
             try {
                 val response = apiClient.confirmPairing(s.pairCode.trim(), s.deviceName.trim())
                 apiClient.setToken(response.token)
+                session.start(response.token)
                 _state.value = _state.value.copy(isLoading = false, step = PairStep.DONE)
                 onSuccess()
             } catch (e: ConduitApiException) {

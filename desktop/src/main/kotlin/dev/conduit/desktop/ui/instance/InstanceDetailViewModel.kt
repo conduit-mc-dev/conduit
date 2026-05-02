@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.conduit.core.api.ConduitApiClient
 import dev.conduit.core.api.ConduitApiException
-import dev.conduit.core.api.ConduitWsClient
 import dev.conduit.core.model.*
+import dev.conduit.desktop.session.SessionManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,22 +32,20 @@ data class InstanceDetailUiState(
 class InstanceDetailViewModel(
     private val instanceId: String,
     private val apiClient: ConduitApiClient,
-    private val wsClient: ConduitWsClient,
+    private val session: SessionManager,
 ) : ViewModel() {
 
     private val log = Logger.getLogger(InstanceDetailViewModel::class.java.name)
     private val json = Json { ignoreUnknownKeys = true }
-    private val consoleBuffer = ArrayDeque<String>(MAX_CONSOLE_LINES)
     private var playerPollJob: Job? = null
 
     private val _state = MutableStateFlow(InstanceDetailUiState())
     val state: StateFlow<InstanceDetailUiState> = _state
 
-    companion object {
-        private const val MAX_CONSOLE_LINES = 1000
-    }
-
     init {
+        _state.value = _state.value.copy(
+            consoleLines = session.getConsoleLines(instanceId).value,
+        )
         loadInstance()
         connectWebSocket()
     }
@@ -76,6 +74,7 @@ class InstanceDetailViewModel(
     }
 
     private fun connectWebSocket() {
+        val wsClient = session.wsClient
         wsClient.connect(viewModelScope)
         viewModelScope.launch {
             delay(500)
@@ -88,7 +87,10 @@ class InstanceDetailViewModel(
                     WsMessage.CONSOLE_OUTPUT -> {
                         try {
                             val payload = json.decodeFromJsonElement<ConsoleOutputPayload>(msg.payload)
-                            appendConsoleLine(payload.line)
+                            session.appendConsoleLine(instanceId, payload.line)
+                            _state.value = _state.value.copy(
+                                consoleLines = session.getConsoleLines(instanceId).value,
+                            )
                         } catch (e: Exception) {
                             log.warning("Failed to parse console output: ${e.message}")
                         }
@@ -135,14 +137,6 @@ class InstanceDetailViewModel(
                 }
             }
         }
-    }
-
-    private fun appendConsoleLine(line: String) {
-        if (consoleBuffer.size >= MAX_CONSOLE_LINES) {
-            consoleBuffer.removeFirst()
-        }
-        consoleBuffer.addLast(line)
-        _state.value = _state.value.copy(consoleLines = consoleBuffer.toList())
     }
 
     private suspend fun refreshPlayerNames() {
@@ -277,8 +271,11 @@ class InstanceDetailViewModel(
         viewModelScope.launch {
             try {
                 apiClient.sendCommand(instanceId, command)
-                appendConsoleLine("> $command")
-                _state.value = _state.value.copy(commandInput = "")
+                session.appendConsoleLine(instanceId, "> $command")
+                _state.value = _state.value.copy(
+                    consoleLines = session.getConsoleLines(instanceId).value,
+                    commandInput = "",
+                )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     error = "发送命令失败: ${e.message}",
@@ -290,6 +287,5 @@ class InstanceDetailViewModel(
     override fun onCleared() {
         super.onCleared()
         playerPollJob?.cancel()
-        wsClient.close()
     }
 }

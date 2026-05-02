@@ -1,11 +1,9 @@
 package dev.conduit.desktop.ui.instance
 
-import dev.conduit.core.api.ConduitWsClient
 import dev.conduit.core.model.*
 import dev.conduit.desktop.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
-import io.mockk.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
@@ -15,17 +13,6 @@ import kotlin.test.*
 import kotlin.time.Instant
 
 class InstanceDetailViewModelTest {
-
-    private fun mockWsClient(
-        messages: MutableSharedFlow<WsMessage> = MutableSharedFlow(extraBufferCapacity = 16)
-    ): ConduitWsClient {
-        val wsClient = mockk<ConduitWsClient>(relaxed = true)
-        every { wsClient.connect(any()) } answers {}
-        coEvery { wsClient.subscribe(any(), any()) } coAnswers { }
-        every { wsClient.messages } returns messages
-        every { wsClient.close() } answers {}
-        return wsClient
-    }
 
     private suspend fun InstanceDetailViewModel.awaitLoad(timeoutMs: Long = 2000) {
         withTimeout(timeoutMs) {
@@ -61,7 +48,7 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockWsClient())
+        val vm = InstanceDetailViewModel("test-inst", client, mockSession(client))
         vm.awaitLoad()
 
         vm.startServer()
@@ -97,7 +84,7 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockWsClient())
+        val vm = InstanceDetailViewModel("test-inst", client, mockSession(client))
         vm.awaitLoad()
 
         vm.deleteInstance()
@@ -137,7 +124,7 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockWsClient())
+        val vm = InstanceDetailViewModel("test-inst", client, mockSession(client))
         vm.awaitLoad()
 
         vm.deleteInstance()
@@ -184,7 +171,8 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockWsClient(wsMessages))
+        val session = mockSession(client, wsMessages)
+        val vm = InstanceDetailViewModel("test-inst", client, session)
         vm.awaitLoad()
 
         val payloadJson = TestJson.encodeToJsonElement(
@@ -239,7 +227,7 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockWsClient())
+        val vm = InstanceDetailViewModel("test-inst", client, mockSession(client))
         vm.awaitLoad()
 
         waitFor { vm.state.value.playerNames.isNotEmpty() }
@@ -282,7 +270,8 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockWsClient(wsMessages))
+        val session = mockSession(client, wsMessages)
+        val vm = InstanceDetailViewModel("test-inst", client, session)
         vm.awaitLoad()
 
         waitFor { vm.state.value.playerNames.isNotEmpty() }
@@ -304,4 +293,34 @@ class InstanceDetailViewModelTest {
         assertTrue(vm.state.value.playerNames.isEmpty())
     }
 
+    @Test
+    fun `console restored from session on init`() = runBlocking {
+        val httpClient = mockHttpClient { request ->
+            when (request.url.encodedPath) {
+                "/api/v1/instances/test-inst" -> respond(
+                    mockJsonBody(
+                        InstanceSummary(
+                            id = "test-inst", name = "My Server", state = InstanceState.STOPPED,
+                            mcVersion = "1.20.4", mcPort = 25565, playerCount = 0, maxPlayers = 20,
+                            createdAt = Instant.fromEpochMilliseconds(0),
+                        )
+                    ),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                "/api/v1/instances/test-inst/server/eula" -> respond(
+                    mockJsonBody(EulaResponse(accepted = false)),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val session = mockSession(client)
+        session.appendConsoleLine("test-inst", "old line")
+
+        val vm = InstanceDetailViewModel("test-inst", client, session)
+        vm.awaitLoad()
+
+        assertEquals(listOf("old line"), vm.state.value.consoleLines)
+    }
 }

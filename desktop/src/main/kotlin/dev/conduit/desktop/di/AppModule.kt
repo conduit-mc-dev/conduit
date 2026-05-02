@@ -1,7 +1,7 @@
 package dev.conduit.desktop.di
 
 import dev.conduit.core.api.ConduitApiClient
-import dev.conduit.core.api.ConduitWsClient
+import dev.conduit.desktop.session.SessionManager
 import dev.conduit.desktop.ui.instance.CreateInstanceViewModel
 import dev.conduit.desktop.ui.instance.InstanceDetailViewModel
 import dev.conduit.desktop.ui.instance.InstanceListViewModel
@@ -12,19 +12,15 @@ import org.koin.dsl.module
 
 val appModule = module {
     single { ConduitApiClient("http://localhost:9147") }
+    single { SessionManager(get()) }
 
-    viewModel { PairViewModel(get()) }
-    viewModel { InstanceListViewModel(get()) }
+    viewModel { PairViewModel(get(), get()) }
+    viewModel { InstanceListViewModel(get(), get()) }
     viewModel { CreateInstanceViewModel(get()) }
     viewModel { (instanceId: String) ->
         ServerPropertiesViewModel(instanceId, get())
     }
     viewModel { (instanceId: String) ->
-        val apiClient: ConduitApiClient = get()
-        val wsClient = ConduitWsClient(
-            baseUrl = apiClient.baseUrl,
-            token = apiClient.token ?: error("Not authenticated"),
-        )
-        InstanceDetailViewModel(instanceId, apiClient, wsClient)
+        InstanceDetailViewModel(instanceId, get(), get())
     }
 }

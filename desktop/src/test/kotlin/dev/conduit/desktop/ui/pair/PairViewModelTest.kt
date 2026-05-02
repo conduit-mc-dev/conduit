@@ -30,7 +30,7 @@ class PairViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = PairViewModel(client)
+        val vm = PairViewModel(client, mockSession(client))
         vm.updateDaemonUrl("http://mock.local")
         vm.connect()
         waitFor { !vm.state.value.isLoading }
@@ -44,7 +44,7 @@ class PairViewModelTest {
     fun `confirmPairing with blank code shows validation error`() = runBlocking {
         val httpClient = mockHttpClient { respondError(HttpStatusCode.NotFound) }
         val client = mockApiClient(httpClient)
-        val vm = PairViewModel(client)
+        val vm = PairViewModel(client, mockSession(client))
         vm.updatePairCode("")
         vm.updateDeviceName("")
 
