@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-02（迭代 4 基本完成，shared-core 46 / desktop 18 / daemon 215+ tests 全绿；bug 修复：端口不生效）
+> 最新更新：2026-05-03（迭代 4 完成：UI 打磨 — 侧边栏骨架 + Material You Dark 主题）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,7 +11,7 @@
 
 ## Now（进行中）
 
-**Desktop MVP 迭代 4（基本完成）**：server.properties 编辑器、实例删除、玩家列表已完成。剩余：UI 打磨。方案见 `desktop-mvp-plan.md`。
+**Desktop MVP 迭代 4（完成）**：server.properties 编辑器、实例删除、玩家列表 + UI 打磨（侧边栏骨架 + Material You Dark 主题）全部完成。
 
 ---
 
@@ -45,6 +45,18 @@
 ---
 
 ## Done
+
+- [x] **Desktop UI 打磨：侧边栏骨架 + Material You Dark 主题**（2026-05-03）
+  - **主题系统**：`ui/theme/` — Color.kt（12 色 token）、Shape.kt（8/12/16dp 圆角）、Type.kt（4 级字体）、Theme.kt（ConduitDarkColorScheme + ConduitTheme composable）
+  - **组件提取**：StatusChip（状态标签 + 颜色编码）、ConsoleArea（控制台输出 + 自动滚动）、CommandInput（命令输入 + Enter 键处理）从 InstanceDetailScreen 提取为 `ui/components/` 共享组件
+  - **Sidebar**（48dp 图标轨道）：应用 logo 渐变 + 模式切换图标（管理/启动器/设置），选中高亮。为 launcher 模式预留骨架
+  - **InstanceListPanel**（200dp 实例列表面板）：实例卡片 + 选中边框 + 状态标签 + 刷新/创建。从 InstanceListScreen 提取
+  - **Main.kt 重构**：三栏布局（Sidebar 48px + InstanceListPanel 200px + NavHost 弹性）。配对状态决定是否显示侧边栏面板。LauncherRoute/SettingsRoute 占位页
+  - **屏幕适配**：InstanceDetailScreen 去掉"← 返回"（改 onDeleted 回调）；ServerPropertiesScreen 去掉"← 返回"（改 onSaveComplete）；CreateInstanceScreen 去掉"取消"按钮
+  - **窗口尺寸**：默认 1280×800，最小 900×600（AWT minimumSize）
+  - 设计规范：`docs/superpowers/specs/2026-05-03-ui-polish-design.md`
+  - 实现计划：`docs/superpowers/plans/2026-05-03-ui-polish.md`
+  - 结果：desktop 11 tests 全绿，零回归
 
 - [x] **持久化审计 + TokenStore 磁盘持久化**（2026-05-02）
   - 全面审计 daemon + desktop 持久化覆盖：TokenStore (HIGH) 和 PackStore (MEDIUM) 未持久化，其余 OK
