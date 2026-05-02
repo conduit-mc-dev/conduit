@@ -173,7 +173,7 @@ fun main() {
                                     val route = backStackEntry.toRoute<ServerPropertiesRoute>()
                                     ServerPropertiesScreen(
                                         instanceId = route.instanceId,
-                                        onSaveComplete = {
+                                        onBack = {
                                             navController.popBackStack()
                                         },
                                     )
