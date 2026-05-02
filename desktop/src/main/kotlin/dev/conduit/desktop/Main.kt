@@ -15,9 +15,11 @@ import dev.conduit.desktop.navigation.CreateInstanceRoute
 import dev.conduit.desktop.navigation.InstanceDetailRoute
 import dev.conduit.desktop.navigation.InstanceListRoute
 import dev.conduit.desktop.navigation.PairRoute
+import dev.conduit.desktop.navigation.ServerPropertiesRoute
 import dev.conduit.desktop.ui.instance.CreateInstanceScreen
 import dev.conduit.desktop.ui.instance.InstanceDetailScreen
 import dev.conduit.desktop.ui.instance.InstanceListScreen
+import dev.conduit.desktop.ui.instance.ServerPropertiesScreen
 import dev.conduit.desktop.ui.pair.PairScreen
 import org.koin.compose.KoinApplication
 import org.koin.dsl.koinConfiguration
@@ -61,6 +63,16 @@ fun main() = application {
                         composable<InstanceDetailRoute> { backStackEntry ->
                             val route = backStackEntry.toRoute<InstanceDetailRoute>()
                             InstanceDetailScreen(
+                                instanceId = route.instanceId,
+                                onBack = { navController.popBackStack() },
+                                onEditProperties = {
+                                    navController.navigate(ServerPropertiesRoute(route.instanceId))
+                                },
+                            )
+                        }
+                        composable<ServerPropertiesRoute> { backStackEntry ->
+                            val route = backStackEntry.toRoute<ServerPropertiesRoute>()
+                            ServerPropertiesScreen(
                                 instanceId = route.instanceId,
                                 onBack = { navController.popBackStack() },
                             )

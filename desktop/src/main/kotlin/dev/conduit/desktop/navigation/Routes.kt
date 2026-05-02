@@ -13,3 +13,6 @@ data object CreateInstanceRoute
 
 @Serializable
 data class InstanceDetailRoute(val instanceId: String)
+
+@Serializable
+data class ServerPropertiesRoute(val instanceId: String)

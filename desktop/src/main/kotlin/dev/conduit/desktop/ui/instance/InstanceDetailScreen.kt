@@ -19,6 +19,7 @@ import org.koin.core.parameter.parametersOf
 fun InstanceDetailScreen(
     instanceId: String,
     onBack: () -> Unit,
+    onEditProperties: () -> Unit,
     viewModel: InstanceDetailViewModel = koinViewModel { parametersOf(instanceId) },
 ) {
     val state by viewModel.state.collectAsState()
@@ -34,6 +35,7 @@ fun InstanceDetailScreen(
         HeaderBar(
             state = state,
             onBack = onBack,
+            onEditProperties = onEditProperties,
             onStart = viewModel::startServer,
             onStop = viewModel::stopServer,
             onKill = viewModel::killServer,
@@ -97,6 +99,7 @@ fun InstanceDetailScreen(
 private fun HeaderBar(
     state: InstanceDetailUiState,
     onBack: () -> Unit,
+    onEditProperties: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onKill: () -> Unit,
@@ -124,6 +127,9 @@ private fun HeaderBar(
         }
 
         state.instance?.let { instance ->
+            TextButton(onClick = onEditProperties) {
+                Text("⚙ 配置")
+            }
             ActionButtons(
                 instanceState = instance.state,
                 statusMessage = instance.statusMessage,
