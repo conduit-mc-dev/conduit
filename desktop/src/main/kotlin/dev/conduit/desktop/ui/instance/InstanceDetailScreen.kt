@@ -24,10 +24,29 @@ fun InstanceDetailScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.isDeleted) {
+        if (state.isDeleted) {
+            onBack()
+        }
+    }
+
     if (state.showEulaDialog) {
         EulaDialog(
             onAccept = viewModel::acceptEula,
             onDismiss = viewModel::dismissEulaDialog,
+        )
+    }
+
+    if (showDeleteConfirm && state.instance != null) {
+        DeleteConfirmDialog(
+            instanceName = state.instance!!.name,
+            onConfirm = {
+                showDeleteConfirm = false
+                viewModel.deleteInstance()
+            },
+            onDismiss = { showDeleteConfirm = false },
         )
     }
 
@@ -40,6 +59,7 @@ fun InstanceDetailScreen(
             onStop = viewModel::stopServer,
             onKill = viewModel::killServer,
             onRetryDownload = viewModel::retryDownload,
+            onDelete = { showDeleteConfirm = true },
         )
 
         Spacer(Modifier.height(16.dp))
@@ -104,6 +124,7 @@ private fun HeaderBar(
     onStop: () -> Unit,
     onKill: () -> Unit,
     onRetryDownload: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -139,6 +160,17 @@ private fun HeaderBar(
                 onKill = onKill,
                 onRetryDownload = onRetryDownload,
             )
+            if (instance.state == InstanceState.STOPPED) {
+                TextButton(
+                    onClick = onDelete,
+                    enabled = !state.isActionInProgress,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Text("删除")
+                }
+            }
         }
     }
 }
@@ -347,6 +379,36 @@ private fun EulaDialog(
         confirmButton = {
             Button(onClick = onAccept) {
                 Text("接受")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        },
+    )
+}
+
+@Composable
+private fun DeleteConfirmDialog(
+    instanceName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("确认删除") },
+        text = {
+            Text("确定要删除实例「$instanceName」吗？\n\n此操作不可撤销，实例的所有文件（包括 world、mod、配置）将被永久删除。")
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                Text("确认删除")
             }
         },
         dismissButton = {
