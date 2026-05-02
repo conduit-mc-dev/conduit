@@ -1,135 +1,39 @@
 package dev.conduit.desktop.ui.instance
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.conduit.core.model.InstanceSummary
-import dev.conduit.desktop.ui.components.StatusChip
-import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun InstanceListScreen(
     onCreateInstance: () -> Unit = {},
-    onInstanceClick: (String) -> Unit = {},
-    viewModel: InstanceListViewModel = koinViewModel(),
+    hasInstances: Boolean = false,
 ) {
-    val state by viewModel.state.collectAsState()
-
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("服务器实例", style = MaterialTheme.typography.headlineSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(
-                    onClick = viewModel::refresh,
-                    enabled = !state.isLoading,
-                ) {
-                    Text("刷新")
-                }
-                Button(onClick = onCreateInstance) {
-                    Text("创建实例")
-                }
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        state.error?.let {
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-        }
-
-        when {
-            state.isLoading && state.instances.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            state.instances.isEmpty() -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "暂无服务器实例",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Button(onClick = onCreateInstance) {
-                            Text("创建第一个实例")
-                        }
-                    }
-                }
-            }
-            else -> {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(state.instances, key = { it.id }) { instance ->
-                        InstanceCard(instance, onClick = { onInstanceClick(instance.id) })
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InstanceCard(instance: InstanceSummary, onClick: () -> Unit = {}) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        if (hasInstances) {
+            Text(
+                text = "← 从左侧选择一个实例",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = instance.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    text = "暂无服务器实例",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                instance.description?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Text(
-                    text = "MC ${instance.mcVersion} · 端口 ${instance.mcPort}",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                instance.statusMessage?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
+                Spacer(Modifier.height(12.dp))
+                Button(onClick = onCreateInstance) {
+                    Text("创建第一个实例")
                 }
             }
-
-            StatusChip(instanceState = instance.state)
         }
     }
 }
