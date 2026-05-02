@@ -5,6 +5,7 @@ import dev.conduit.core.api.ConduitWsClient
 import dev.conduit.desktop.ui.instance.CreateInstanceViewModel
 import dev.conduit.desktop.ui.instance.InstanceDetailViewModel
 import dev.conduit.desktop.ui.instance.InstanceListViewModel
+import dev.conduit.desktop.ui.instance.ServerPropertiesViewModel
 import dev.conduit.desktop.ui.pair.PairViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -15,6 +16,9 @@ val appModule = module {
     viewModel { PairViewModel(get()) }
     viewModel { InstanceListViewModel(get()) }
     viewModel { CreateInstanceViewModel(get()) }
+    viewModel { (instanceId: String) ->
+        ServerPropertiesViewModel(instanceId, get())
+    }
     viewModel { (instanceId: String) ->
         val apiClient: ConduitApiClient = get()
         val wsClient = ConduitWsClient(
