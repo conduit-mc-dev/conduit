@@ -39,9 +39,10 @@ fun InstanceDetailScreen(
         )
     }
 
-    if (showDeleteConfirm && state.instance != null) {
+    val instance = state.instance
+    if (showDeleteConfirm && instance != null) {
         DeleteConfirmDialog(
-            instanceName = state.instance!!.name,
+            instanceName = instance.name,
             onConfirm = {
                 showDeleteConfirm = false
                 viewModel.deleteInstance()
