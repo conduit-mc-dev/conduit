@@ -1,18 +1,16 @@
 package dev.conduit.desktop.ui.instance
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.*
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.conduit.core.model.InstanceState
+import dev.conduit.desktop.ui.components.CommandInput
+import dev.conduit.desktop.ui.components.ConsoleArea
+import dev.conduit.desktop.ui.components.StatusChip
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -188,22 +186,6 @@ private fun HeaderBar(
 }
 
 @Composable
-private fun StatusChip(instanceState: InstanceState) {
-    val (color, label) = when (instanceState) {
-        InstanceState.RUNNING -> MaterialTheme.colorScheme.primary to "运行中"
-        InstanceState.STARTING -> MaterialTheme.colorScheme.tertiary to "启动中"
-        InstanceState.STOPPING -> MaterialTheme.colorScheme.tertiary to "停止中"
-        InstanceState.INITIALIZING -> MaterialTheme.colorScheme.tertiary to "初始化"
-        InstanceState.STOPPED -> MaterialTheme.colorScheme.onSurfaceVariant to "已停止"
-    }
-    SuggestionChip(
-        onClick = {},
-        label = { Text(label) },
-        colors = SuggestionChipDefaults.suggestionChipColors(labelColor = color),
-    )
-}
-
-@Composable
 private fun ActionButtons(
     instanceState: InstanceState,
     statusMessage: String?,
@@ -288,91 +270,6 @@ private fun ActionButtons(
             InstanceState.INITIALIZING -> {
                 // 初始化中不显示操作按钮
             }
-        }
-    }
-}
-
-@Composable
-private fun ConsoleArea(
-    lines: List<String>,
-    modifier: Modifier = Modifier,
-) {
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(lines.size) {
-        if (lines.isNotEmpty()) {
-            listState.animateScrollToItem(lines.size - 1)
-        }
-    }
-
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-    ) {
-        if (lines.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "控制台输出将显示在此处",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize().padding(12.dp),
-            ) {
-                itemsIndexed(lines, key = { index, _ -> index }) { _, line ->
-                    Text(
-                        text = line,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CommandInput(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onSend: () -> Unit,
-    enabled: Boolean,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .weight(1f)
-                .onPreviewKeyEvent { event ->
-                    if (event.key == Key.Enter && event.type == KeyEventType.KeyDown && enabled) {
-                        onSend()
-                        true
-                    } else {
-                        false
-                    }
-                },
-            placeholder = { Text("输入命令...") },
-            enabled = enabled,
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-        )
-        Button(
-            onClick = onSend,
-            enabled = enabled && value.isNotBlank(),
-        ) {
-            Text("发送")
         }
     }
 }

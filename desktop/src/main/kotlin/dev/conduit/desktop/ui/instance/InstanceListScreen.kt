@@ -10,8 +10,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import dev.conduit.core.model.InstanceState
 import dev.conduit.core.model.InstanceSummary
+import dev.conduit.desktop.ui.components.StatusChip
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -129,20 +129,7 @@ private fun InstanceCard(instance: InstanceSummary, onClick: () -> Unit = {}) {
                 }
             }
 
-            val (color, label) = when (instance.state) {
-                InstanceState.RUNNING -> MaterialTheme.colorScheme.primary to "运行中"
-                InstanceState.STARTING -> MaterialTheme.colorScheme.tertiary to "启动中"
-                InstanceState.STOPPING -> MaterialTheme.colorScheme.tertiary to "停止中"
-                InstanceState.INITIALIZING -> MaterialTheme.colorScheme.tertiary to "初始化"
-                InstanceState.STOPPED -> MaterialTheme.colorScheme.onSurfaceVariant to "已停止"
-            }
-            SuggestionChip(
-                onClick = {},
-                label = { Text(label) },
-                colors = SuggestionChipDefaults.suggestionChipColors(
-                    labelColor = color,
-                ),
-            )
+            StatusChip(instanceState = instance.state)
         }
     }
 }
