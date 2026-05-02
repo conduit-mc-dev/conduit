@@ -2,7 +2,6 @@ package dev.conduit.desktop
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -30,6 +29,7 @@ import org.koin.mp.KoinPlatformTools
 
 fun main() {
     val savedSession = SessionManager.loadFromDisk()
+    val startDestination = if (savedSession != null) InstanceListRoute else PairRoute
     application {
         Window(
             onCloseRequest = ::exitApplication,
@@ -37,19 +37,18 @@ fun main() {
             state = rememberWindowState(width = 900.dp, height = 640.dp),
         ) {
             KoinApplication(koinConfiguration { modules(appModule) }) {
-                LaunchedEffect(Unit) {
-                    if (savedSession != null) {
-                        val apiClient: ConduitApiClient = KoinPlatformTools.defaultContext().get().get()
-                        val session: SessionManager = KoinPlatformTools.defaultContext().get().get()
-                        apiClient.setBaseUrl(savedSession.daemonUrl)
-                        apiClient.setToken(savedSession.token)
-                        session.start(savedSession.token)
-                    }
+                // Initialize session synchronously before any composable that needs it
+                if (savedSession != null) {
+                    val koin = KoinPlatformTools.defaultContext().get()
+                    val apiClient: ConduitApiClient = koin.get()
+                    val session: SessionManager = koin.get()
+                    apiClient.setBaseUrl(savedSession.daemonUrl)
+                    apiClient.setToken(savedSession.token)
+                    session.start(savedSession.token)
                 }
                 MaterialTheme {
                     Surface {
                         val navController = rememberNavController()
-                        val startDestination = if (savedSession != null) InstanceListRoute else PairRoute
                         NavHost(navController = navController, startDestination = startDestination) {
                             composable<PairRoute> {
                                 PairScreen(
