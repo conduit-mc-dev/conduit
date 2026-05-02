@@ -6,9 +6,11 @@ import dev.conduit.core.api.ConduitApiClient
 import dev.conduit.core.api.ConduitApiException
 import dev.conduit.core.api.ConduitWsClient
 import dev.conduit.core.model.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -24,6 +26,7 @@ data class InstanceDetailUiState(
     val showEulaDialog: Boolean = false,
     val error: String? = null,
     val isDeleted: Boolean = false,
+    val playerNames: List<String> = emptyList(),
 )
 
 class InstanceDetailViewModel(
@@ -35,6 +38,7 @@ class InstanceDetailViewModel(
     private val log = Logger.getLogger(InstanceDetailViewModel::class.java.name)
     private val json = Json { ignoreUnknownKeys = true }
     private val consoleBuffer = ArrayDeque<String>(MAX_CONSOLE_LINES)
+    private var playerPollJob: Job? = null
 
     private val _state = MutableStateFlow(InstanceDetailUiState())
     val state: StateFlow<InstanceDetailUiState> = _state
@@ -59,6 +63,9 @@ class InstanceDetailViewModel(
                     eulaAccepted = eula.accepted,
                     isLoading = false,
                 )
+                if (instance.state == InstanceState.RUNNING) {
+                    refreshPlayerNames()
+                }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
@@ -94,8 +101,35 @@ class InstanceDetailViewModel(
                                     state = payload.newState,
                                 ),
                             )
+                            if (payload.newState == InstanceState.RUNNING) {
+                                playerPollJob?.cancel()
+                                playerPollJob = viewModelScope.launch {
+                                    refreshPlayerNames()
+                                    while (isActive) {
+                                        delay(30_000)
+                                        refreshPlayerNames()
+                                    }
+                                }
+                            } else {
+                                playerPollJob?.cancel()
+                                playerPollJob = null
+                                _state.value = _state.value.copy(playerNames = emptyList())
+                            }
                         } catch (e: Exception) {
                             log.warning("Failed to parse state change: ${e.message}")
+                        }
+                    }
+                    WsMessage.PLAYERS_CHANGED -> {
+                        try {
+                            val payload = json.decodeFromJsonElement<PlayersChangedPayload>(msg.payload)
+                            _state.value = _state.value.copy(
+                                instance = _state.value.instance?.copy(
+                                    playerCount = payload.playerCount,
+                                    maxPlayers = payload.maxPlayers,
+                                ),
+                            )
+                        } catch (e: Exception) {
+                            log.warning("Failed to parse players changed: ${e.message}")
                         }
                     }
                 }
@@ -109,6 +143,15 @@ class InstanceDetailViewModel(
         }
         consoleBuffer.addLast(line)
         _state.value = _state.value.copy(consoleLines = consoleBuffer.toList())
+    }
+
+    private suspend fun refreshPlayerNames() {
+        try {
+            val status = apiClient.getServerStatus(instanceId)
+            _state.value = _state.value.copy(playerNames = status.players)
+        } catch (e: Exception) {
+            log.fine("Failed to refresh player names: ${e.message}")
+        }
     }
 
     fun retryDownload() {
@@ -246,6 +289,7 @@ class InstanceDetailViewModel(
 
     override fun onCleared() {
         super.onCleared()
+        playerPollJob?.cancel()
         wsClient.close()
     }
 }
