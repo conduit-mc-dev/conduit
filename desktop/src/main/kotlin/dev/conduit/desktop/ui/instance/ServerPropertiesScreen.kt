@@ -14,7 +14,7 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun ServerPropertiesScreen(
     instanceId: String,
-    onBack: () -> Unit,
+    onSaveComplete: () -> Unit,
     viewModel: ServerPropertiesViewModel = koinViewModel { parametersOf(instanceId) },
 ) {
     val state by viewModel.state.collectAsState()
@@ -26,7 +26,7 @@ fun ServerPropertiesScreen(
             title = { Text("未保存的修改") },
             text = { Text("有未保存的修改，确定要放弃吗？") },
             confirmButton = {
-                Button(onClick = onBack) {
+                Button(onClick = onSaveComplete) {
                     Text("放弃修改")
                 }
             },
@@ -65,24 +65,10 @@ fun ServerPropertiesScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                TextButton(onClick = {
-                    if (state.editedValues.isNotEmpty()) {
-                        showUnsavedDialog = true
-                    } else {
-                        onBack()
-                    }
-                }) {
-                    Text("← 返回")
-                }
-                Text(
-                    text = "server.properties",
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-            }
+            Text(
+                text = "server.properties",
+                style = MaterialTheme.typography.headlineSmall,
+            )
             Button(
                 onClick = viewModel::save,
                 enabled = state.editedValues.isNotEmpty() && !state.isSaving,

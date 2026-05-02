@@ -17,8 +17,8 @@ import org.koin.core.parameter.parametersOf
 @Composable
 fun InstanceDetailScreen(
     instanceId: String,
-    onBack: () -> Unit,
     onEditProperties: () -> Unit,
+    onDeleted: () -> Unit,
     viewModel: InstanceDetailViewModel = koinViewModel { parametersOf(instanceId) },
 ) {
     val state by viewModel.state.collectAsState()
@@ -27,7 +27,7 @@ fun InstanceDetailScreen(
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) {
-            onBack()
+            onDeleted()
         }
     }
 
@@ -53,7 +53,6 @@ fun InstanceDetailScreen(
     Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
         HeaderBar(
             state = state,
-            onBack = onBack,
             onEditProperties = onEditProperties,
             onStart = viewModel::startServer,
             onStop = viewModel::stopServer,
@@ -128,7 +127,6 @@ fun InstanceDetailScreen(
 @Composable
 private fun HeaderBar(
     state: InstanceDetailUiState,
-    onBack: () -> Unit,
     onEditProperties: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -145,9 +143,6 @@ private fun HeaderBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            TextButton(onClick = onBack) {
-                Text("← 返回")
-            }
             state.instance?.let { instance ->
                 Text(
                     text = instance.name,
