@@ -1,6 +1,9 @@
 package dev.conduit.daemon.service
 
 import dev.conduit.core.download.MojangClient
+import dev.conduit.core.model.InstanceState
+import dev.conduit.core.model.StateChangedPayload
+import dev.conduit.core.model.WsMessage
 import dev.conduit.daemon.store.InstanceStore
 import dev.conduit.daemon.store.TaskStore
 import dev.conduit.daemon.store.TaskStatus
@@ -8,6 +11,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.*
@@ -17,6 +22,8 @@ class ServerJarService(
     private val instanceStore: InstanceStore,
     private val dataDirectory: DataDirectory,
     private val taskStore: TaskStore,
+    private val broadcaster: WsBroadcaster,
+    private val json: Json,
     private val scope: CoroutineScope,
 ) {
 
@@ -48,6 +55,10 @@ class ServerJarService(
 
                 log.info("Downloaded server.jar for instance {} ({} bytes)", instanceId, bytes)
                 instanceStore.markInitialized(instanceId)
+                broadcaster.broadcast(instanceId, WsMessage.STATE_CHANGED,
+                    json.encodeToJsonElement(StateChangedPayload(
+                        InstanceState.INITIALIZING, InstanceState.STOPPED
+                    )))
                 taskStore.complete(taskId, success = true, "Server JAR downloaded successfully")
             } catch (e: CancellationException) {
                 dataDirectory.serverJarPath(instanceId).deleteIfExists()

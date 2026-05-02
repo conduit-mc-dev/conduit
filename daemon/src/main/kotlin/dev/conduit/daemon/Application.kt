@@ -53,6 +53,8 @@ fun Application.module(
         instanceStore = instanceStore,
         dataDirectory = dataDirectory,
         taskStore = taskStore,
+        broadcaster = broadcaster,
+        json = AppJson,
         scope = appScope,
     )
     val rateLimiter = RateLimiter()
