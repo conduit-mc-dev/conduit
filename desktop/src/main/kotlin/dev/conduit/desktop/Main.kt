@@ -92,11 +92,12 @@ fun main() {
                             },
                         )
 
+                        // Instance list ViewModel (shared between sidebar panel and NavHost)
+                        val instanceListVm: InstanceListViewModel = koinViewModel()
+                        val instanceListState by instanceListVm.state.collectAsState()
+
                         // Column 2: Instance list panel (only in MANAGE mode when paired)
                         if (currentMode == AppMode.MANAGE && isPaired) {
-                            val instanceListVm: InstanceListViewModel = koinViewModel()
-                            val instanceListState by instanceListVm.state.collectAsState()
-
                             InstanceListPanel(
                                 instances = instanceListState.instances,
                                 selectedInstanceId = selectedInstanceId,
@@ -104,7 +105,8 @@ fun main() {
                                 onInstanceClick = { id ->
                                     selectedInstanceId = id
                                     navController.navigate(InstanceDetailRoute(id)) {
-                                        launchSingleTop = true
+                                        // Pop previous detail if any, so clicking another instance replaces it
+                                        popUpTo<InstanceListRoute> { inclusive = false }
                                     }
                                 },
                                 onCreateInstance = {
@@ -139,12 +141,15 @@ fun main() {
                                         onCreateInstance = {
                                             navController.navigate(CreateInstanceRoute)
                                         },
-                                        hasInstances = selectedInstanceId != null,
+                                        hasInstances = instanceListState.instances.isNotEmpty(),
                                     )
                                 }
                                 composable<CreateInstanceRoute> {
                                     CreateInstanceScreen(
                                         onCreated = {
+                                            navController.popBackStack()
+                                        },
+                                        onCancel = {
                                             navController.popBackStack()
                                         },
                                     )
