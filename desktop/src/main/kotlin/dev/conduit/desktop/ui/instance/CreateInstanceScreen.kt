@@ -12,7 +12,6 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun CreateInstanceScreen(
     onCreated: () -> Unit,
-    onCancel: () -> Unit,
     viewModel: CreateInstanceViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -75,10 +74,6 @@ fun CreateInstanceScreen(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = onCancel, enabled = !state.isCreating) {
-                        Text("取消")
-                    }
-                    Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { viewModel.createInstance(onCreated) },
                         enabled = !state.isCreating && state.name.isNotBlank() && state.selectedVersion != null,

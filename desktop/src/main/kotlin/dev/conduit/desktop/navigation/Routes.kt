@@ -16,3 +16,9 @@ data class InstanceDetailRoute(val instanceId: String)
 
 @Serializable
 data class ServerPropertiesRoute(val instanceId: String)
+
+@Serializable
+data object LauncherRoute
+
+@Serializable
+data object SettingsRoute
