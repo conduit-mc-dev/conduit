@@ -607,4 +607,59 @@ class ProcessLifecycleTest {
             tempDir.toFile().deleteRecursively()
         }
     }
+
+    @Test
+    fun `start writes configured port to server properties`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-port")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val javaPath = ProcessHandle.current().info().command().orElse("java")
+            val classpath = System.getProperty("java.class.path")
+            val jvmArgs = listOf("-cp", classpath, StuckMcServer::class.qualifiedName!!)
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "Port Test", mcVersion = "1.20.4", mcPort = 25566))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+                client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                val propsFile = dataDir.instanceDir(inst.id).resolve("server.properties").toFile()
+                assertTrue(propsFile.exists(), "server.properties should be created before process starts")
+                val props = java.util.Properties()
+                propsFile.inputStream().use { props.load(it) }
+                assertEquals(
+                    "25566", props.getProperty("server-port"),
+                    "server-port should match configured mcPort"
+                )
+
+                // Cleanup
+                client.post("/api/v1/instances/${inst.id}/server/kill") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
 }

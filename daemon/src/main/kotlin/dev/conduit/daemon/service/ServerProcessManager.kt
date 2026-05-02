@@ -26,6 +26,7 @@ class ServerProcessManager(
     private val broadcaster: WsBroadcaster,
     private val scope: CoroutineScope,
     private val daemonConfigStore: dev.conduit.daemon.store.DaemonConfigStore? = null,
+    private val serverPropertiesService: ServerPropertiesService = ServerPropertiesService(dataDirectory),
     private val pingClient: MinecraftPingClient = MinecraftPingClient(),
     private val json: Json = Json { encodeDefaults = true },
 ) {
@@ -97,6 +98,8 @@ class ServerProcessManager(
             val launchTarget = resolveLaunchTarget(instanceStore.getLoader(instanceId))
             instanceStore.transitionState(instanceId, InstanceState.STOPPED, InstanceState.STARTING)
             broadcastStateChanged(instanceId, InstanceState.STOPPED, InstanceState.STARTING)
+
+            serverPropertiesService.update(instanceId, mapOf("server-port" to config.mcPort.toString()))
 
             val instanceDir = dataDirectory.instanceDir(instanceId).toFile()
             val command = buildList {

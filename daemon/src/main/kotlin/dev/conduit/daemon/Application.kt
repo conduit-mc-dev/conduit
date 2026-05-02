@@ -39,9 +39,11 @@ fun Application.module(
     val actualMojangClient = mojangClient ?: MojangClient(
         downloadSourceProvider = { daemonConfigStore.get().let { it.downloadSource to it.customMirrorUrl } },
     )
+    val serverPropertiesService = ServerPropertiesService(dataDirectory)
     val processManager = ServerProcessManager(
         instanceStore, dataDirectory, broadcaster, appScope,
         daemonConfigStore = daemonConfigStore,
+        serverPropertiesService = serverPropertiesService,
         json = AppJson,
     )
 
@@ -55,7 +57,6 @@ fun Application.module(
     )
     val rateLimiter = RateLimiter()
     val fileService = FileService(dataDirectory)
-    val serverPropertiesService = ServerPropertiesService(dataDirectory)
     val actualModrinthClient = modrinthClient ?: ModrinthClient()
     val javaDetector = JavaDetector()
     val modStore = dev.conduit.daemon.store.ModStore(dataDirectory)
