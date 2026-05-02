@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>S22 — Forget Daemon 确认</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #010409; font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; color: #e6edf3; overflow: hidden; }
+  .app { display: flex; height: 100vh; width: 100vw; }
+  .navrail { width: 72px; flex-shrink: 0; background: linear-gradient(180deg, #1a1a2e, #16213e); border-right: 1px solid rgba(88,166,255,0.12); display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 6px; }
+  .nav-logo { width: 44px; height: 44px; border-radius: 13px; background: linear-gradient(135deg, #58a6ff, #a371f7); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 20px; }
+  .nav-item { width: 56px; padding: 10px 0 8px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .nav-item svg { width: 22px; height: 22px; } .nav-item span { font-size: 9px; }
+  .nav-item.active { background: rgba(88,166,255,0.12); } .nav-item.active span { color: #58a6ff; font-weight: 700; }
+  .nav-item:not(.active) span { color: #6e7681; } .nav-spacer { flex: 1; }
+
+  .list-panel { width: 220px; flex-shrink: 0; background: #0d1117; border-right: 1px solid #21262d; display: flex; flex-direction: column; opacity: 0.3; }
+  .list-search { padding: 12px 10px 8px; border-bottom: 1px solid #21262d; }
+  .search-box { display: flex; align-items: center; gap: 6px; background: #161b22; border: 1px solid #21262d; border-radius: 8px; padding: 8px 10px; }
+  .search-box span { color: #484f58; font-size: 12px; }
+  .list-scroll { flex: 1; padding: 6px 10px; }
+  .daemon-label { display: flex; align-items: center; gap: 6px; padding: 8px 8px 6px; }
+  .daemon-dot { width: 7px; height: 7px; border-radius: 50%; background: #3fb950; }
+  .daemon-name { font-size: 10px; font-weight: 700; color: #8b949e; }
+  .server-card { height: 58px; background: #161b22; border-radius: 10px; padding: 10px 14px; margin-bottom: 5px; border: 1px solid #21262d; opacity: 0.4; }
+  .card-top { display: flex; justify-content: space-between; align-items: center; }
+  .card-name { font-size: 12px; font-weight: 600; color: #484f58; }
+  .card-dot { width: 6px; height: 6px; border-radius: 50%; background: #484f58; }
+  .card-info { font-size: 10px; color: #30363d; margin-top: 3px; }
+
+  .content { flex: 1; background: #0d1117; opacity: 0.3; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(1,4,9,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; }
+  .dialog { background: #161b22; border: 1px solid #21262d; border-radius: 14px; width: 380px; padding: 28px; }
+  .dialog-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .dialog-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.2);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dialog-icon svg { width: 20px; height: 20px; stroke: #f85149; }
+  .dialog-title { font-size: 16px; font-weight: 700; }
+  .dialog-body { margin-bottom: 20px; }
+  .dialog-body p { font-size: 13px; color: #8b949e; line-height: 1.6; margin-bottom: 10px; }
+  .daemon-ref {
+    background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+    padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  }
+  .daemon-ref .dot { width: 8px; height: 8px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 4px rgba(63,185,80,0.4); }
+  .daemon-ref .name { font-size: 14px; font-weight: 600; }
+  .daemon-ref .info { font-size: 11px; color: #8b949e; }
+  .dialog-warning {
+    background: rgba(248,81,73,0.06); border: 1px solid rgba(248,81,73,0.15);
+    border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #f85149; line-height: 1.5;
+  }
+  .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .dialog-btn { padding: 9px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
+  .dialog-btn-cancel { background: #21262d; color: #e6edf3; }
+  .dialog-btn-forget { background: #f85149; color: #fff; }
+
+  .page-label { position: fixed; bottom: 12px; right: 16px; background: rgba(22,27,34,0.9); border: 1px solid #21262d; border-radius: 8px; padding: 6px 12px; font-size: 11px; color: #484f58; font-family: 'JetBrains Mono', monospace; z-index: 200; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="navrail">
+    <div class="nav-logo">C</div>
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>Servers</span>
+    </div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="#6e7681" stroke-width="2"><polygon points="5 3 19 12 5 21"/></svg><span>Launch</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="#6e7681" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/></svg><span>Settings</span></div>
+    <div class="nav-spacer"></div>
+  </nav>
+
+  <aside class="list-panel">
+    <div class="list-search"><div class="search-box"><span>Search...</span></div></div>
+    <div class="list-scroll">
+      <div class="daemon-label"><div class="daemon-dot"></div><span class="daemon-name">HOME VPS</span></div>
+      <div class="server-card"><div class="card-top"><span class="card-name">Survival SMP</span><div class="card-dot"></div></div><div class="card-info">NeoForge 1.20.4</div></div>
+    </div>
+  </aside>
+  <main class="content"></main>
+
+  <div class="overlay">
+    <div class="dialog">
+      <div class="dialog-header">
+        <div class="dialog-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+        </div>
+        <div class="dialog-title">Forget Daemon</div>
+      </div>
+      <div class="dialog-body">
+        <p>Remove this daemon and all its server entries from Conduit? You'll need a new pairing code to reconnect.</p>
+        <div class="daemon-ref">
+          <div class="dot"></div>
+          <div>
+            <div class="name">Home VPS</div>
+            <div class="info">192.168.1.100:8080 · 3 servers</div>
+          </div>
+        </div>
+        <div class="dialog-warning">
+          Server data on the daemon is NOT affected. Only the local connection record and cached data will be removed.
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button class="dialog-btn dialog-btn-cancel">Cancel</button>
+        <button class="dialog-btn dialog-btn-forget">Forget Daemon</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-label">S22 — Forget Daemon</div>
+</div>
+</body>
+</html>

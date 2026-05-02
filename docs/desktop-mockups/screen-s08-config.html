@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>S08 — Config Tab</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #010409; font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; color: #e6edf3; overflow: hidden; }
+  .app { display: flex; height: 100vh; width: 100vw; }
+  .navrail { width: 72px; flex-shrink: 0; background: linear-gradient(180deg, #1a1a2e, #16213e); border-right: 1px solid rgba(88,166,255,0.12); display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 6px; }
+  .nav-logo { width: 44px; height: 44px; border-radius: 13px; background: linear-gradient(135deg, #58a6ff, #a371f7); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 20px; }
+  .nav-item { width: 56px; padding: 10px 0 8px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .nav-item svg { width: 22px; height: 22px; } .nav-item span { font-size: 9px; }
+  .nav-item.active { background: rgba(88,166,255,0.12); } .nav-item.active span { color: #58a6ff; font-weight: 700; }
+  .nav-item:not(.active) span { color: #6e7681; } .nav-spacer { flex: 1; }
+
+  .list-panel { width: 220px; flex-shrink: 0; background: #0d1117; border-right: 1px solid #21262d; display: flex; flex-direction: column; }
+  .list-search { padding: 12px 10px 8px; border-bottom: 1px solid #21262d; }
+  .search-box { display: flex; align-items: center; gap: 6px; background: #161b22; border: 1px solid #21262d; border-radius: 8px; padding: 8px 10px; }
+  .search-box svg { width: 14px; height: 14px; stroke: #484f58; }
+  .search-box span { color: #484f58; font-size: 12px; }
+  .list-scroll { flex: 1; padding: 6px 10px; overflow-y: auto; }
+  .daemon-label { display: flex; align-items: center; gap: 6px; padding: 8px 8px 6px; position: sticky; top: 0; background: #0d1117; z-index: 1; }
+  .daemon-dot { width: 7px; height: 7px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 5px rgba(63,185,80,0.4); }
+  .daemon-name { font-size: 10px; font-weight: 700; color: #8b949e; letter-spacing: 0.5px; }
+  .daemon-status { font-size: 9px; color: #3fb950; margin-left: auto; }
+  .daemon-gear { margin-left: 4px; cursor: pointer; opacity: 0.5; } .daemon-gear:hover { opacity: 1; }
+  .daemon-gear svg { width: 12px; height: 12px; stroke: #8b949e; }
+  .server-card { height: 58px; background: #161b22; border-radius: 10px; padding: 10px 14px; margin-bottom: 5px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; cursor: pointer; }
+  .server-card.selected { border: 1px solid rgba(88,166,255,0.4); }
+  .card-top { display: flex; justify-content: space-between; align-items: center; }
+  .card-name { font-size: 12px; font-weight: 700; color: #e6edf3; }
+  .card-dot { width: 6px; height: 6px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+  .card-info { font-size: 10px; color: #8b949e; margin-top: 3px; }
+  .tail-card { height: 40px; border: 1.5px dashed #21262d; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer; margin-top: 6px; }
+  .tail-card svg { width: 12px; height: 12px; stroke: #484f58; } .tail-card span { color: #484f58; font-size: 12px; }
+  .list-bottom { border-top: 1px solid #21262d; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+  .list-bottom svg { width: 14px; height: 14px; stroke: #58a6ff; } .list-bottom span { color: #58a6ff; font-size: 12px; font-weight: 500; }
+
+  .content { flex: 1; background: #0d1117; display: flex; flex-direction: column; }
+  .content-header { background: #161b22; padding: 12px 16px; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; align-items: center; }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-name { font-size: 18px; font-weight: 800; }
+  .header-status { display: flex; align-items: center; gap: 5px; }
+  .header-dot { width: 8px; height: 8px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 6px #3fb950; }
+  .header-label { font-size: 12px; font-weight: 600; color: #3fb950; }
+  .header-actions { display: flex; gap: 6px; }
+  .btn { padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-stop { background: #238636; color: #fff; }
+  .btn-kill { background: #30363d; color: #e6edf3; }
+
+  .tabs { background: #161b22; padding: 0 16px; display: flex; border-bottom: 1px solid #21262d; }
+  .tab { padding: 8px 16px; font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: #58a6ff; font-weight: 600; border-bottom-color: #58a6ff; }
+  .tab:not(.active) { color: #8b949e; }
+
+  .config-area { flex: 1; display: flex; flex-direction: column; }
+  .config-toolbar {
+    padding: 8px 16px; display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid #21262d; background: #0d1117;
+  }
+  .changes-info { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #d29922; }
+  .changes-info svg { width: 14px; height: 14px; stroke: #d29922; }
+  .toolbar-actions { display: flex; gap: 6px; }
+  .btn-revert { background: #21262d; color: #8b949e; padding: 5px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; border: none; }
+  .btn-save { background: #58a6ff; color: #0d1117; padding: 5px 14px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; }
+  .config-list { flex: 1; padding: 10px 16px; overflow-y: auto; }
+  .config-search { margin-bottom: 10px; }
+  .config-search input {
+    width: 100%; background: #161b22; border: 1px solid #21262d;
+    border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #e6edf3; outline: none;
+  }
+  .config-search input:focus { border-color: #58a6ff; }
+  .config-row {
+    background: #161b22; border-radius: 10px; padding: 12px 16px; margin-bottom: 5px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .config-row.edited { border: 1px solid rgba(88,166,255,0.3); }
+  .config-row:not(.edited) { border: 1px solid #21262d; }
+  .config-key { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #e6edf3; min-width: 160px; }
+  .config-value-area { flex: 1; display: flex; align-items: center; gap: 8px; }
+  .config-old { font-size: 12px; color: #484f58; text-decoration: line-through; }
+  .config-arrow { color: #58a6ff; font-size: 11px; }
+  .config-new { font-size: 13px; font-weight: 600; color: #58a6ff; }
+  .config-value { font-size: 12px; color: #8b949e; font-family: 'JetBrains Mono', monospace; }
+  .config-edit-btn {
+    width: 28px; height: 28px; border-radius: 6px; background: #21262d;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: background 0.15s;
+  }
+  .config-edit-btn:hover { background: #30363d; }
+  .config-edit-btn svg { width: 12px; height: 12px; stroke: #8b949e; }
+
+  .page-label { position: fixed; bottom: 12px; right: 16px; background: rgba(22,27,34,0.9); border: 1px solid #21262d; border-radius: 8px; padding: 6px 12px; font-size: 11px; color: #484f58; font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="navrail">
+    <div class="nav-logo">C</div>
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>Servers</span>
+    </div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="#6e7681" stroke-width="2"><polygon points="5 3 19 12 5 21"/></svg><span>Launch</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="#6e7681" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/></svg><span>Settings</span></div>
+    <div class="nav-spacer"></div>
+  </nav>
+
+  <aside class="list-panel">
+    <div class="list-search"><div class="search-box"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><span>Search servers...</span></div></div>
+    <div class="list-scroll">
+      <div class="daemon-label">
+        <div class="daemon-dot"></div>
+        <span class="daemon-name">HOME VPS</span>
+        <span class="daemon-status">online</span>
+        <div class="daemon-gear"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/></svg></div>
+      </div>
+      <div class="server-card selected">
+        <div class="card-top"><span class="card-name">Survival SMP</span><div class="card-dot"></div></div>
+        <div class="card-info">NeoForge 1.20.4 · 2/20</div>
+      </div>
+      <div class="tail-card"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New Server</span></div>
+    </div>
+    <div class="list-bottom"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Pair Daemon</span></div>
+  </aside>
+
+  <main class="content">
+    <div class="content-header">
+      <div class="header-left">
+        <span class="header-name">Survival SMP</span>
+        <div class="header-status"><div class="header-dot"></div><span class="header-label">Running</span></div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-stop">Stop</button>
+        <button class="btn btn-kill">Kill</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab">Console</div>
+      <div class="tab">Mods (42)</div>
+      <div class="tab">Players</div>
+      <div class="tab active">Config</div>
+      <div class="tab">Files</div>
+    </div>
+    <div class="config-area">
+      <div class="config-toolbar">
+        <div class="changes-info">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          3 unsaved changes
+        </div>
+        <div class="toolbar-actions">
+          <button class="btn-revert">Revert All</button>
+          <button class="btn-save">Save</button>
+        </div>
+      </div>
+      <div class="config-list">
+        <div class="config-search"><input placeholder="Filter properties..."></div>
+
+        <!-- Edited -->
+        <div class="config-row edited">
+          <span class="config-key">max-players</span>
+          <div class="config-value-area">
+            <span class="config-old">20</span>
+            <span class="config-arrow">→</span>
+            <span class="config-new">30</span>
+          </div>
+          <div class="config-edit-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+        </div>
+
+        <!-- Normal -->
+        <div class="config-row">
+          <span class="config-key">server-port</span>
+          <div class="config-value-area"><span class="config-value">25565</span></div>
+          <div class="config-edit-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+        </div>
+
+        <!-- Edited -->
+        <div class="config-row edited">
+          <span class="config-key">difficulty</span>
+          <div class="config-value-area">
+            <span class="config-old">easy</span>
+            <span class="config-arrow">→</span>
+            <span class="config-new">hard</span>
+          </div>
+          <div class="config-edit-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+        </div>
+
+        <!-- Normal -->
+        <div class="config-row">
+          <span class="config-key">gamemode</span>
+          <div class="config-value-area"><span class="config-value">survival</span></div>
+          <div class="config-edit-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+        </div>
+
+        <!-- Normal -->
+        <div class="config-row">
+          <span class="config-key">level-name</span>
+          <div class="config-value-area"><span class="config-value">world</span></div>
+          <div class="config-edit-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+        </div>
+
+        <!-- Edited -->
+        <div class="config-row edited">
+          <span class="config-key">motd</span>
+          <div class="config-value-area">
+            <span class="config-old">A Minecraft Server</span>
+            <span class="config-arrow">→</span>
+            <span class="config-new">Welcome to SMP!</span>
+          </div>
+          <div class="config-edit-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+        </div>
+
+        <!-- Normal -->
+        <div class="config-row">
+          <span class="config-key">pvp</span>
+          <div class="config-value-area"><span class="config-value">true</span></div>
+          <div class="config-edit-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+        </div>
+
+        <div class="config-row">
+          <span class="config-key">view-distance</span>
+          <div class="config-value-area"><span class="config-value">10</span></div>
+          <div class="config-edit-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="page-label">S08 — Config Tab</div>
+</div>
+</body>
+</html>

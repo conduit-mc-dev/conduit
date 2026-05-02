@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>按钮状态矩阵</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0d1117; font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; color: #e6edf3; padding: 32px; }
+  h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #8b949e; margin-bottom: 24px; }
+  h3 { font-size: 14px; font-weight: 600; margin: 24px 0 12px; color: #58a6ff; }
+
+  .matrix { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  .matrix th, .matrix td { padding: 10px 14px; text-align: center; border-bottom: 1px solid #21262d; font-size: 13px; }
+  .matrix th { color: #58a6ff; font-weight: 600; font-size: 12px; background: #161b22; }
+  .matrix td:first-child { text-align: left; font-weight: 600; }
+  .matrix tr:hover { background: rgba(255,255,255,0.02); }
+
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .dot-green { background: #3fb950; box-shadow: 0 0 4px #3fb950; }
+  .dot-gray { background: #484f58; }
+  .dot-purple { background: #a371f7; }
+  .dot-orange { background: #f0883e; }
+  .dot-red { background: #f85149; }
+  .dot-yellow { background: #d29922; }
+  .dot-blue { background: #58a6ff; }
+
+  .btn-demo { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 600; margin: 2px; }
+  .btn-green { background: #238636; color: #fff; }
+  .btn-red { background: #b62324; color: #fff; }
+  .btn-red-outline { background: transparent; border: 1px solid #f85149; color: #f85149; }
+  .btn-gray { background: #21262d; color: #e6edf3; }
+  .btn-disabled { background: #161b22; color: #30363d; cursor: not-allowed; }
+  .btn-yellow { background: #9e6a03; color: #fff; }
+
+  .btn-visual { display: inline-block; margin: 2px; }
+  .btn-visual .inner { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+
+  .section { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .section-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+  .section-desc { font-size: 12px; color: #8b949e; line-height: 1.6; }
+
+  .header-preview {
+    background: #0d1117; border: 1px solid #21262d; border-radius: 10px;
+    padding: 14px 20px; margin-bottom: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .hp-left { display: flex; align-items: center; gap: 10px; }
+  .hp-name { font-size: 16px; font-weight: 800; }
+  .hp-status { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; }
+  .hp-status .dot { width: 8px; height: 8px; }
+  .hp-actions { display: flex; gap: 6px; }
+</style>
+</head>
+<body>
+
+<h2>Header 按钮状态矩阵</h2>
+<p class="subtitle">每种服务器状态下，Header 右侧的按钮组合</p>
+
+<h3>完整矩阵</h3>
+<table class="matrix">
+  <thead>
+    <tr>
+      <th style="text-align:left;">状态</th>
+      <th>Start</th>
+      <th>Stop</th>
+      <th>Kill</th>
+      <th>Delete</th>
+      <th>Cancel</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="dot dot-gray"></span>Stopped</td>
+      <td><span class="btn-demo btn-green">✓ Start</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-red-outline">✓ Delete</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+    </tr>
+    <tr>
+      <td><span class="dot dot-purple"></span>Starting</td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-gray">✓ Cancel</span></td>
+    </tr>
+    <tr>
+      <td><span class="dot dot-green"></span>Running</td>
+      <td><span class="btn-demo btn-green">✓ Stop</span></td>
+      <td><span class="btn-demo btn-gray">✓ Kill</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+    </tr>
+    <tr>
+      <td><span class="dot dot-orange"></span>Stopping</td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-gray">✓ Kill</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+    </tr>
+    <tr>
+      <td><span class="dot dot-red"></span>Crashed</td>
+      <td><span class="btn-demo btn-green">✓ Start</span></td>
+      <td><span class="btn-demo btn-gray">✓ Kill</span></td>
+      <td><span class="btn-demo btn-red-outline">✓ Delete</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+    </tr>
+    <tr>
+      <td><span class="dot dot-yellow"></span>Installing</td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-yellow">✓ Cancel</span></td>
+    </tr>
+    <tr>
+      <td><span class="dot dot-blue"></span>Downloading</td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-yellow">✓ Cancel</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>按钮样式规范</h3>
+<div class="section">
+  <div class="section-desc">
+    <strong>主操作按钮（Primary）</strong> — 绿色填充 <code style="color:#3fb950;">#238636</code>，白色文字。每个状态只有一个主操作：Stopped→Start, Running→Stop, Crashed→Start<br><br>
+    <strong>次操作按钮（Secondary）</strong> — 深灰填充 <code style="color:#e6edf3;">#30363d</code>，白色文字。Kill<br><br>
+    <strong>危险按钮（Danger）</strong> — 红色描边 <code style="color:#f85149;">#f85149</code>，红色文字，透明背景。Delete<br><br>
+    <strong>警告按钮（Warning）</strong> — 黄色填充 <code style="color:#d29922;">#9e6a03</code>，白色文字。Cancel 安装/下载<br><br>
+    <strong>禁用按钮（Disabled）</strong> — 深黑背景 <code style="color:#30363d;">#161b22</code>，极暗文字。不可点击<br><br>
+    <strong>布局规则</strong> — 主操作在最左，Kill 居中（仅 Running/Stopping/Crashed），Delete 始终最右（仅 Stopped/Crashed），Cancel 最右（仅 Starting/Installing/Downloading）
+  </div>
+</div>
+
+<h3>实际 Header 效果预览</h3>
+
+<div style="margin-bottom:8px;font-size:11px;color:#484f58;">Stopped</div>
+<div class="header-preview">
+  <div class="hp-left">
+    <span class="hp-name">Creative</span>
+    <span class="hp-status"><span class="dot dot-gray"></span><span style="color:#484f58;">Stopped</span></span>
+  </div>
+  <div class="hp-actions">
+    <div class="btn-visual"><span class="inner" style="background:#238636;color:#fff;">Start</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid #f85149;color:#f85149;">Delete</span></div>
+  </div>
+</div>
+
+<div style="margin-bottom:8px;font-size:11px;color:#484f58;">Running</div>
+<div class="header-preview">
+  <div class="hp-left">
+    <span class="hp-name">Survival SMP</span>
+    <span class="hp-status"><span class="dot dot-green" style="box-shadow:0 0 4px #3fb950;"></span><span style="color:#3fb950;">Running</span></span>
+  </div>
+  <div class="hp-actions">
+    <div class="btn-visual"><span class="inner" style="background:#238636;color:#fff;">Stop</span></div>
+    <div class="btn-visual"><span class="inner" style="background:#30363d;color:#e6edf3;">Kill</span></div>
+  </div>
+</div>
+
+<div style="margin-bottom:8px;font-size:11px;color:#484f58;">Crashed</div>
+<div class="header-preview">
+  <div class="hp-left">
+    <span class="hp-name">Survival SMP</span>
+    <span class="hp-status"><span class="dot dot-red"></span><span style="color:#f85149;">Crashed</span><span style="color:#8b949e;font-weight:400;margin-left:4px;">— OOM</span></span>
+  </div>
+  <div class="hp-actions">
+    <div class="btn-visual"><span class="inner" style="background:#238636;color:#fff;">Start</span></div>
+    <div class="btn-visual"><span class="inner" style="background:#30363d;color:#e6edf3;">Kill</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid #f85149;color:#f85149;">Delete</span></div>
+  </div>
+</div>
+
+<div style="margin-bottom:8px;font-size:11px;color:#484f58;">Installing</div>
+<div class="header-preview">
+  <div class="hp-left">
+    <span class="hp-name">Modpack Dev</span>
+    <span class="hp-status"><span class="dot dot-yellow" style="animation:blink 1.5s infinite;"></span><span style="color:#d29922;">Installing 65%</span></span>
+  </div>
+  <div class="hp-actions">
+    <div class="btn-visual"><span class="inner" style="background:#161b22;color:#30363d;cursor:not-allowed;">Start</span></div>
+    <div class="btn-visual"><span class="inner" style="background:#9e6a03;color:#fff;">Cancel</span></div>
+  </div>
+</div>
+
+<style>@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}</style>
+</body>
+</html>

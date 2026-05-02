@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>S21 — Daemon Offline</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #010409; font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; color: #e6edf3; overflow: hidden; }
+  .app { display: flex; height: 100vh; width: 100vw; }
+  .navrail { width: 72px; flex-shrink: 0; background: linear-gradient(180deg, #1a1a2e, #16213e); border-right: 1px solid rgba(88,166,255,0.12); display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 6px; }
+  .nav-logo { width: 44px; height: 44px; border-radius: 13px; background: linear-gradient(135deg, #58a6ff, #a371f7); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 20px; }
+  .nav-item { width: 56px; padding: 10px 0 8px; border-radius: 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .nav-item svg { width: 22px; height: 22px; } .nav-item span { font-size: 9px; }
+  .nav-item.active { background: rgba(88,166,255,0.12); } .nav-item.active span { color: #58a6ff; font-weight: 700; }
+  .nav-item:not(.active) span { color: #6e7681; } .nav-spacer { flex: 1; }
+
+  .list-panel { width: 220px; flex-shrink: 0; background: #0d1117; border-right: 1px solid #21262d; display: flex; flex-direction: column; }
+  .list-search { padding: 12px 10px 8px; border-bottom: 1px solid #21262d; }
+  .search-box { display: flex; align-items: center; gap: 6px; background: #161b22; border: 1px solid #21262d; border-radius: 8px; padding: 8px 10px; }
+  .search-box svg { width: 14px; height: 14px; stroke: #484f58; }
+  .search-box span { color: #484f58; font-size: 12px; }
+  .list-scroll { flex: 1; padding: 6px 10px; overflow-y: auto; }
+  .daemon-label { display: flex; align-items: center; gap: 6px; padding: 8px 8px 6px; position: sticky; top: 0; background: #0d1117; z-index: 1; }
+  .daemon-dot { width: 7px; height: 7px; border-radius: 50%; background: #484f58; }
+  .daemon-name { font-size: 10px; font-weight: 700; color: #6e7681; letter-spacing: 0.5px; }
+  .daemon-status { font-size: 9px; color: #484f58; margin-left: auto; }
+  .daemon-gear { margin-left: 4px; cursor: pointer; opacity: 0.5; } .daemon-gear:hover { opacity: 1; }
+  .daemon-gear svg { width: 12px; height: 12px; stroke: #8b949e; }
+
+  .server-card { height: 58px; background: #161b22; border-radius: 10px; padding: 10px 14px; margin-bottom: 5px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; cursor: not-allowed; border: 1px solid #21262d; opacity: 0.4; }
+  .card-top { display: flex; justify-content: space-between; align-items: center; }
+  .card-name { font-size: 12px; font-weight: 600; color: #484f58; }
+  .card-dot { width: 6px; height: 6px; border-radius: 50%; background: #484f58; }
+  .card-info { font-size: 10px; color: #30363d; margin-top: 3px; }
+
+  .tail-card { height: 40px; border: 1.5px dashed #21262d; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 5px; cursor: not-allowed; margin-top: 6px; opacity: 0.3; }
+  .tail-card svg { width: 12px; height: 12px; stroke: #484f58; } .tail-card span { color: #484f58; font-size: 12px; }
+  .list-bottom { border-top: 1px solid #21262d; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+  .list-bottom svg { width: 14px; height: 14px; stroke: #58a6ff; } .list-bottom span { color: #58a6ff; font-size: 12px; font-weight: 500; }
+
+  .content { flex: 1; background: #0d1117; display: flex; align-items: center; justify-content: center; }
+  .offline-state { text-align: center; max-width: 340px; }
+  .offline-icon {
+    width: 64px; height: 64px; border-radius: 16px;
+    background: #161b22; border: 1px solid #21262d;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+  }
+  .offline-icon svg { width: 32px; height: 32px; stroke: #484f58; }
+  .offline-title { font-size: 18px; font-weight: 700; color: #8b949e; margin-bottom: 6px; }
+  .offline-sub { font-size: 12px; color: #484f58; line-height: 1.6; margin-bottom: 16px; }
+  .offline-actions { display: flex; gap: 8px; justify-content: center; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-retry { background: #21262d; color: #e6edf3; }
+  .btn-edit { background: #21262d; color: #8b949e; }
+
+  .page-label { position: fixed; bottom: 12px; right: 16px; background: rgba(22,27,34,0.9); border: 1px solid #21262d; border-radius: 8px; padding: 6px 12px; font-size: 11px; color: #484f58; font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="navrail">
+    <div class="nav-logo">C</div>
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#58a6ff" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <span>Servers</span>
+    </div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="#6e7681" stroke-width="2"><polygon points="5 3 19 12 5 21"/></svg><span>Launch</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="#6e7681" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/></svg><span>Settings</span></div>
+    <div class="nav-spacer"></div>
+  </nav>
+
+  <aside class="list-panel">
+    <div class="list-search"><div class="search-box"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><span>Search servers...</span></div></div>
+    <div class="list-scroll">
+      <!-- Offline daemon -->
+      <div class="daemon-label">
+        <div class="daemon-dot"></div>
+        <span class="daemon-name">BACKUP VPS</span>
+        <span class="daemon-status">offline</span>
+        <div class="daemon-gear"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4"/></svg></div>
+      </div>
+      <!-- All instances grayed out -->
+      <div class="server-card">
+        <div class="card-top"><span class="card-name">Old World</span><div class="card-dot"></div></div>
+        <div class="card-info">NeoForge 1.19.4</div>
+      </div>
+      <div class="server-card">
+        <div class="card-top"><span class="card-name">Creative Dev</span><div class="card-dot"></div></div>
+        <div class="card-info">Fabric 1.20.1</div>
+      </div>
+      <div class="tail-card"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>New Server</span></div>
+    </div>
+    <div class="list-bottom"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Pair Daemon</span></div>
+  </aside>
+
+  <main class="content">
+    <div class="offline-state">
+      <div class="offline-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+          <line x1="1" y1="1" x2="23" y2="23"/>
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+          <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+          <path d="M10.71 5.05A16 16 0 0 1 22.56 9"/>
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+          <line x1="12" y1="20" x2="12.01" y2="20"/>
+        </svg>
+      </div>
+      <div class="offline-title">Daemon Unreachable</div>
+      <div class="offline-sub">
+        Cannot connect to Backup VPS.<br>
+        Check that the server is running and the address is correct.
+      </div>
+      <div class="offline-actions">
+        <button class="btn btn-retry">Retry Connection</button>
+        <button class="btn btn-edit">Edit Address</button>
+      </div>
+    </div>
+  </main>
+
+  <div class="page-label">S21 — Daemon Offline</div>
+</div>
+</body>
+</html>
