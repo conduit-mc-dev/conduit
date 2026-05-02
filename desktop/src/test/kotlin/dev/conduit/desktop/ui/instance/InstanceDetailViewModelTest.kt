@@ -68,4 +68,82 @@ class InstanceDetailViewModelTest {
         assertTrue(vm.state.value.showEulaDialog)
     }
 
+    @Test
+    fun `deleteInstance success sets isDeleted`() = runBlocking {
+        val httpClient = mockHttpClient { request ->
+            val path = request.url.encodedPath
+            if (request.method == HttpMethod.Delete && path == "/api/v1/instances/test-inst") {
+                respond(content = "", status = HttpStatusCode.NoContent)
+            } else {
+                when (path) {
+                    "/api/v1/instances/test-inst" -> respond(
+                        mockJsonBody(
+                            InstanceSummary(
+                                id = "test-inst", name = "My Server", state = InstanceState.STOPPED,
+                                mcVersion = "1.20.4", mcPort = 25565, playerCount = 0, maxPlayers = 20,
+                                createdAt = Instant.fromEpochMilliseconds(0),
+                            )
+                        ),
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                    "/api/v1/instances/test-inst/server/eula" -> respond(
+                        mockJsonBody(EulaResponse(accepted = false)),
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                    else -> respondError(HttpStatusCode.NotFound)
+                }
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val vm = InstanceDetailViewModel("test-inst", client, mockWsClient())
+        vm.awaitLoad()
+
+        vm.deleteInstance()
+        waitFor { vm.state.value.isDeleted || vm.state.value.error != null }
+
+        assertTrue(vm.state.value.isDeleted)
+    }
+
+    @Test
+    fun `deleteInstance failure sets error`() = runBlocking {
+        val httpClient = mockHttpClient { request ->
+            val path = request.url.encodedPath
+            if (request.method == HttpMethod.Delete && path == "/api/v1/instances/test-inst") {
+                respond(
+                    content = mockErrorBody("INSTANCE_RUNNING", "Instance must be stopped before deletion"),
+                    status = HttpStatusCode.Conflict,
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            } else {
+                when (path) {
+                    "/api/v1/instances/test-inst" -> respond(
+                        mockJsonBody(
+                            InstanceSummary(
+                                id = "test-inst", name = "My Server", state = InstanceState.RUNNING,
+                                mcVersion = "1.20.4", mcPort = 25565, playerCount = 0, maxPlayers = 20,
+                                createdAt = Instant.fromEpochMilliseconds(0),
+                            )
+                        ),
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                    "/api/v1/instances/test-inst/server/eula" -> respond(
+                        mockJsonBody(EulaResponse(accepted = true)),
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                    else -> respondError(HttpStatusCode.NotFound)
+                }
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val vm = InstanceDetailViewModel("test-inst", client, mockWsClient())
+        vm.awaitLoad()
+
+        vm.deleteInstance()
+        waitFor { vm.state.value.error != null || vm.state.value.isDeleted }
+
+        assertNotNull(vm.state.value.error)
+        assertTrue(vm.state.value.error!!.contains("Instance must be stopped before deletion"))
+        assertFalse(vm.state.value.isDeleted)
+    }
+
 }
