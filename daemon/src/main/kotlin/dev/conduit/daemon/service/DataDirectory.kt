@@ -10,6 +10,7 @@ class DataDirectory(
     val root: Path = basePath.toAbsolutePath()
     val instancesDir: Path = root.resolve("instances")
     val configPath: Path = root.resolve("config.json")
+    val tokensPath: Path = root.resolve("tokens.json")
 
     fun instanceDir(instanceId: String): Path =
         instancesDir.resolve(instanceId)

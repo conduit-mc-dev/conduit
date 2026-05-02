@@ -22,6 +22,10 @@
 - [x] shared-core `ConduitWsClient` 重连逻辑 + 5 个测试用例（→ 实际 8 个）
 - [x] Desktop MVP 迭代 4 剩余：实例删除 + 玩家列表 + UI 打磨
 - [ ] Desktop MVP 迭代 4 收尾：UI 打磨
+- [x] 持久化审计 + TokenStore 磁盘持久化（2026-05-02）
+- [x] 修复：实例列表自动刷新（WebSocket 事件）
+- [x] 修复：控制台输出跨界面持久化（SessionManager）
+- [x] 修复：配对 token 持久化到磁盘（跳过重复配对）
 
 ### 延迟项（MVP 后 / v0.2+）
 
@@ -41,6 +45,37 @@
 ---
 
 ## Done
+
+- [x] **持久化审计 + TokenStore 磁盘持久化**（2026-05-02）
+  - 全面审计 daemon + desktop 持久化覆盖：TokenStore (HIGH) 和 PackStore (MEDIUM) 未持久化，其余 OK
+  - TokenStore 新增 `tokens.json` 持久化：`persistenceFile` 构造参数，init 自动加载，每次 confirmPairing/revokeDevice/revokeAll 自动保存
+  - `daemonId` 首次生成后立即持久化，保证重启后稳定
+  - `DataDirectory` 新增 `tokensPath`；`Application.module()` 传入路径
+  - 测试：`TokenStorePersistenceTest` 11 个用例（配对/多设备/撤销/清空/daemonId稳定/空文件/损坏文件/缺失文件）
+  - 修复：`E2ELifecycleTest.cold start recovery` 适配 token 持久化（test 之间清理 tokens 文件）
+  - 结果：daemon 229 → 240 tests（+11），全绿
+
+- [x] **配对 token 持久化（Desktop）**（2026-05-02）
+  - `SessionManager` 新增 `saveSession()`/`loadSavedSession()`/`clearSession()` + companion `loadFromDisk()`
+  - 文件位置：`~/.conduit/session.json`（`{ daemonUrl, token }`）
+  - `PairViewModel.confirmPairing()` 配对成功自动保存
+  - `Main.kt` 启动时检查已保存 session，跳过 PairRoute 直接进 InstanceListRoute
+  - 损坏/缺失字段/空白 token 安全回退到 null
+  - 测试：`SessionManagerTest` 新增 5 个持久化用例（roundtrip/清空/损坏/缺失字段/缺失文件）
+  - 结果：desktop 28 → 33 tests（+5），全绿
+
+- [x] **修复：控制台输出跨界面持久化**（2026-05-02）
+  - 创建 `SessionManager` Koin 单例，持有共享 WS 连接 + per-instance 控制台缓冲区（1000 行上限）
+  - `InstanceDetailViewModel` 不再在 `onCleared()` 中断开 WS，控制台缓冲区从 session 恢复
+  - `InstanceListViewModel` 改用共享 session 的 WS 连接
+  - `PairViewModel` 配对成功后调用 `session.start(token)`
+  - 测试：`SessionManagerTest` 8 个用例 + `InstanceDetailViewModelTest` 新增 1 个控制台恢复用例
+  - 结果：desktop 18 → 28 tests（+10），全绿
+
+- [x] **修复：实例列表自动刷新**（2026-05-02）
+  - `InstanceListViewModel` 接入 WebSocket，监听 `instance.created`/`instance.deleted`（自动刷新列表）+ `server.state_changed`（原地更新状态）
+  - 测试：`InstanceListViewModelTest` 新增 3 个 WS 事件用例
+  - 结果：desktop 15 → 18 tests（+3），全绿
 
 - [x] **Bug 修复：MC 服务器端口不生效**（2026-05-02）
   - 根因：`ServerProcessManager.startInternal()` 没有把配置的 `mcPort` 传给 Minecraft 进程

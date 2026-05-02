@@ -145,6 +145,10 @@ class E2ELifecycleTest {
             assertTrue(instanceId.isNotEmpty())
             assertTrue(dataDir.instanceMetadataPath(instanceId).exists())
 
+            // Simulate cold start: delete in-memory tokens. Token persistence is tested
+            // separately in TokenStorePersistenceTest.
+            dataDir.tokensPath.toFile().delete()
+
             testApplication {
                 val store = InstanceStore(dataDir)
                 application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }

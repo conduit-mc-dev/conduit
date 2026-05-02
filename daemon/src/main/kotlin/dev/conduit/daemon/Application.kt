@@ -23,8 +23,8 @@ fun main() {
 }
 
 fun Application.module(
-    tokenStore: TokenStore = TokenStore(),
     dataDirectory: DataDirectory = DataDirectory(),
+    tokenStore: TokenStore = TokenStore(persistenceFile = dataDirectory.tokensPath),
     instanceStore: InstanceStore = InstanceStore(dataDirectory),
     mojangClient: MojangClient? = null,
     modrinthClient: ModrinthClient? = null,

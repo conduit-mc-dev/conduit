@@ -6,17 +6,23 @@ import dev.conduit.core.model.PairedDevice
 import dev.conduit.daemon.ApiException
 import dev.conduit.daemon.util.IdGenerator
 import io.ktor.http.*
-import kotlin.time.Clock
-import kotlin.time.Instant
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.time.Duration.Companion.minutes
 
-class TokenStore {
+class TokenStore(
+    persistenceFile: Path? = null,
+) {
 
-    val daemonId: String = UUID.randomUUID().toString()
+    val daemonId: String
 
     private data class HashedToken(
         val tokenId: String,
@@ -31,8 +37,45 @@ class TokenStore {
         val expiresAt: Instant,
     )
 
+    @Serializable
+    private data class PersistedToken(
+        val tokenId: String,
+        val deviceName: String,
+        val tokenHashBase64: String,
+        val pairedAt: Instant,
+        val lastSeenAt: Instant,
+    )
+
+    @Serializable
+    private data class PersistedData(
+        val daemonId: String,
+        val tokens: List<PersistedToken>,
+    )
+
+    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val tokensFile = persistenceFile?.toFile()
+
     private val tokens = ConcurrentHashMap<String, HashedToken>()
     private val pendingCode = AtomicReference<PendingCode?>(null)
+
+    init {
+        val loaded = loadFromFile()
+        if (loaded != null) {
+            daemonId = loaded.daemonId
+            for (pt in loaded.tokens) {
+                tokens[pt.tokenId] = HashedToken(
+                    tokenId = pt.tokenId,
+                    deviceName = pt.deviceName,
+                    tokenHash = Base64.getDecoder().decode(pt.tokenHashBase64),
+                    pairedAt = pt.pairedAt,
+                    lastSeenAt = pt.lastSeenAt,
+                )
+            }
+        } else {
+            daemonId = UUID.randomUUID().toString()
+            persist()
+        }
+    }
 
     fun hasDevices(): Boolean = tokens.isNotEmpty()
 
@@ -71,6 +114,8 @@ class TokenStore {
             lastSeenAt = now,
         )
 
+        persist()
+
         return PairConfirmResponse(
             token = rawToken,
             tokenId = tokenId,
@@ -101,12 +146,42 @@ class TokenStore {
     fun revokeDevice(tokenId: String) {
         tokens.remove(tokenId)
             ?: throw ApiException(HttpStatusCode.NotFound, "DEVICE_NOT_FOUND", "Device not found")
+        persist()
     }
 
     fun revokeAll() {
         tokens.clear()
+        persist()
     }
 
     private fun sha256(input: String): ByteArray =
         MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
+
+    private fun loadFromFile(): PersistedData? {
+        val f = tokensFile ?: return null
+        if (!f.exists()) return null
+        return try {
+            json.decodeFromString(PersistedData.serializer(), f.readText())
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun persist() {
+        val f = tokensFile ?: return
+        f.parentFile.mkdirs()
+        val data = PersistedData(
+            daemonId = daemonId,
+            tokens = tokens.values.map {
+                PersistedToken(
+                    tokenId = it.tokenId,
+                    deviceName = it.deviceName,
+                    tokenHashBase64 = Base64.getEncoder().encodeToString(it.tokenHash),
+                    pairedAt = it.pairedAt,
+                    lastSeenAt = it.lastSeenAt,
+                )
+            },
+        )
+        f.writeText(json.encodeToString(data))
+    }
 }
