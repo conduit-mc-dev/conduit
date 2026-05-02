@@ -30,7 +30,7 @@ fun mockApiClient(httpClient: HttpClient): ConduitApiClient =
         httpClient = httpClient,
     )
 
-fun mockJsonBody(body: Any): String = TestJson.encodeToString(body)
+inline fun <reified T> mockJsonBody(body: T): String = TestJson.encodeToString(body)
 
 fun mockErrorBody(code: String, message: String): String =
     TestJson.encodeToString(ErrorResponse(ErrorBody(code = code, message = message)))

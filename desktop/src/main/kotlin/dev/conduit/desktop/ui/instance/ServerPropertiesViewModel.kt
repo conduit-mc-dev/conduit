@@ -3,6 +3,7 @@ package dev.conduit.desktop.ui.instance
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.conduit.core.api.ConduitApiClient
+import dev.conduit.core.model.ServerPropertiesUpdateResponse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -30,15 +31,59 @@ class ServerPropertiesViewModel(
     }
 
     fun loadProperties() {
-        TODO("Task 3")
+        _state.value = _state.value.copy(isLoading = true, error = null)
+        viewModelScope.launch {
+            try {
+                val properties = apiClient.getServerProperties(instanceId)
+                _state.value = _state.value.copy(
+                    properties = properties,
+                    editedValues = emptyMap(),
+                    isLoading = false,
+                    error = null,
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    error = "加载服务器配置失败: ${e.message}",
+                )
+            }
+        }
     }
 
     fun updateValue(key: String, value: String) {
-        TODO("Task 3")
+        val current = _state.value.editedValues.toMutableMap()
+        val original = _state.value.properties[key]
+        if (value == original) {
+            current.remove(key)
+        } else {
+            current[key] = value
+        }
+        _state.value = _state.value.copy(editedValues = current)
     }
 
     fun save() {
-        TODO("Task 3")
+        val changes = _state.value.editedValues
+        if (changes.isEmpty()) return
+
+        _state.value = _state.value.copy(isSaving = true, error = null, saveSuccess = false)
+        viewModelScope.launch {
+            try {
+                val response = apiClient.updateServerProperties(instanceId, changes)
+                _state.value = _state.value.copy(
+                    properties = _state.value.properties + changes,
+                    editedValues = emptyMap(),
+                    isSaving = false,
+                    saveSuccess = true,
+                    restartRequired = response.restartRequired,
+                    error = null,
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isSaving = false,
+                    error = "保存配置失败: ${e.message}",
+                )
+            }
+        }
     }
 
     fun dismissSuccess() {
