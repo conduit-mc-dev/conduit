@@ -51,6 +51,7 @@ class ConduitWsClient(
         get() = _pendingSubscriptions.size
 
     fun connect(scope: CoroutineScope) {
+        connectionJob?.cancel()
         connectionJob = scope.launch {
             val wsUrl = baseUrl.replace("http://", "ws://").replace("https://", "wss://")
             var attempt = 0
@@ -126,7 +127,7 @@ class ConduitWsClient(
         val channelsSet = channels.toSortedSet()
         _pendingSubscriptions[instanceId] = channelsSet
 
-        val msg = json.encodeToString(SubscribeRequest(instanceId = instanceId, channels = channels))
+        val msg = json.encodeToString(SubscribeRequest(instanceId = instanceId, channels = channelsSet.toList()))
         try {
             session?.send(Frame.Text(msg))
         } catch (_: Exception) {
@@ -142,7 +143,7 @@ class ConduitWsClient(
             _pendingSubscriptions.remove(instanceId)
         }
 
-        val msg = json.encodeToString(UnsubscribeRequest(instanceId = instanceId, channels = channels))
+        val msg = json.encodeToString(UnsubscribeRequest(instanceId = instanceId, channels = channelsSet.toList()))
         try {
             session?.send(Frame.Text(msg))
         } catch (_: Exception) {
