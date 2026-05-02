@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.conduit.core.model.InstanceState
 import org.koin.compose.viewmodel.koinViewModel
@@ -96,6 +97,16 @@ fun InstanceDetailScreen(
                 }
             }
             else -> {
+                val inst = state.instance
+                if (inst != null && inst.state == InstanceState.RUNNING) {
+                    PlayerBar(
+                        playerCount = inst.playerCount,
+                        maxPlayers = inst.maxPlayers,
+                        playerNames = state.playerNames,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+
                 // 控制台区域
                 ConsoleArea(
                     lines = state.consoleLines,
@@ -418,4 +429,37 @@ private fun DeleteConfirmDialog(
             }
         },
     )
+}
+
+@Composable
+private fun PlayerBar(
+    playerCount: Int,
+    maxPlayers: Int,
+    playerNames: List<String>,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "$playerCount/$maxPlayers 在线",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (playerNames.isNotEmpty()) {
+            Text(
+                text = "—",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = playerNames.take(5).joinToString(", "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
