@@ -4,16 +4,22 @@ import dev.conduit.desktop.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import kotlin.test.*
+import java.nio.file.Path
+import kotlin.io.path.createTempDirectory
 
 class SessionManagerTest {
 
     private fun mockApiClient(): dev.conduit.core.api.ConduitApiClient {
         val httpClient = mockHttpClient { respondError(HttpStatusCode.NotFound) }
         return mockApiClient(httpClient)
+    }
+
+    private fun sessionWithTempDir(): Pair<SessionManager, Path> {
+        val dir = createTempDirectory("conduit-test")
+        return SessionManager(mockApiClient(), configDir = dir) to dir
     }
 
     @Test
@@ -87,5 +93,54 @@ class SessionManagerTest {
 
         assertFalse(session.isActive)
         assertTrue(session.getConsoleLines("inst-1").first().isEmpty())
+    }
+
+    // --- Persistence ---
+
+    @Test
+    fun `loadSavedSession returns null when no session file exists`() {
+        val (session, _) = sessionWithTempDir()
+        assertNull(session.loadSavedSession())
+    }
+
+    @Test
+    fun `save and load savedSession roundtrip`() {
+        val (session, _) = sessionWithTempDir()
+        session.saveSession("http://localhost:9147", "conduit_token_abc123")
+
+        val saved = session.loadSavedSession()
+        assertNotNull(saved)
+        assertEquals("http://localhost:9147", saved.daemonUrl)
+        assertEquals("conduit_token_abc123", saved.token)
+    }
+
+    @Test
+    fun `clearSession removes saved session`() {
+        val (session, _) = sessionWithTempDir()
+        session.saveSession("http://localhost:9147", "token")
+        assertNotNull(session.loadSavedSession())
+
+        session.clearSession()
+        assertNull(session.loadSavedSession())
+    }
+
+    @Test
+    fun `loadSavedSession returns null for corrupt file`() {
+        val (session, dir) = sessionWithTempDir()
+        val sessionFile = dir.resolve("session.json").toFile()
+        sessionFile.parentFile.mkdirs()
+        sessionFile.writeText("{ not valid json }")
+
+        assertNull(session.loadSavedSession())
+    }
+
+    @Test
+    fun `loadSavedSession returns null for file with missing fields`() {
+        val (session, dir) = sessionWithTempDir()
+        val sessionFile = dir.resolve("session.json").toFile()
+        sessionFile.parentFile.mkdirs()
+        sessionFile.writeText("""{"daemonUrl":"http://x"}""")
+
+        assertNull(session.loadSavedSession())
     }
 }

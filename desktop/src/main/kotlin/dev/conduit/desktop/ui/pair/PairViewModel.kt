@@ -78,6 +78,7 @@ class PairViewModel(
                 val response = apiClient.confirmPairing(s.pairCode.trim(), s.deviceName.trim())
                 apiClient.setToken(response.token)
                 session.start(response.token)
+                session.saveSession(_state.value.daemonUrl.trimEnd('/'), response.token)
                 _state.value = _state.value.copy(isLoading = false, step = PairStep.DONE)
                 onSuccess()
             } catch (e: ConduitApiException) {

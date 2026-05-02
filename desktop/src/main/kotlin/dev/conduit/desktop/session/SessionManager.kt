@@ -2,17 +2,20 @@ package dev.conduit.desktop.session
 
 import dev.conduit.core.api.ConduitApiClient
 import dev.conduit.core.api.ConduitWsClient
-import dev.conduit.core.model.ConsoleOutputPayload
-import dev.conduit.core.model.WsMessage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
+import java.nio.file.Path
+import kotlin.io.path.createDirectories
 
-class SessionManager(private val apiClient: ConduitApiClient) {
+class SessionManager(
+    private val apiClient: ConduitApiClient,
+    private val configDir: Path = Path.of(System.getProperty("user.home"), ".conduit"),
+) {
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private val sessionFile: java.io.File get() = configDir.resolve("session.json").toFile()
 
     private var _wsClient: ConduitWsClient? = null
     val wsClient: ConduitWsClient
@@ -50,7 +53,42 @@ class SessionManager(private val apiClient: ConduitApiClient) {
         consoleBuffers.clear()
     }
 
+    // --- Persistence ---
+
+    fun saveSession(daemonUrl: String, token: String) {
+        sessionFile.parentFile.mkdirs()
+        val data = SavedSession(daemonUrl, token)
+        sessionFile.writeText(json.encodeToString(SavedSession.serializer(), data))
+    }
+
+    fun loadSavedSession(): SavedSession? = loadFromDisk(configDir)
+
+    fun clearSession() {
+        sessionFile.delete()
+    }
+
+    @Serializable
+    data class SavedSession(
+        val daemonUrl: String,
+        val token: String,
+    )
+
     companion object {
         const val MAX_CONSOLE_LINES = 1000
+
+        private val defaultConfigDir = Path.of(System.getProperty("user.home"), ".conduit")
+
+        fun loadFromDisk(configDir: Path = defaultConfigDir): SavedSession? {
+            val file = configDir.resolve("session.json").toFile()
+            if (!file.exists()) return null
+            return try {
+                val json = Json { ignoreUnknownKeys = true }
+                val data = json.decodeFromString(SavedSession.serializer(), file.readText())
+                if (data.token.isBlank() || data.daemonUrl.isBlank()) null
+                else data
+            } catch (_: Exception) {
+                null
+            }
+        }
     }
 }
