@@ -48,10 +48,8 @@ class InstanceListViewModel(
     }
 
     private fun connectWebSocket() {
-        val wsClient = session.wsClient
-        wsClient.connect(viewModelScope)
         viewModelScope.launch {
-            wsClient.messages.collect { msg ->
+            session.wsClient.messages.collect { msg ->
                 when (msg.type) {
                     WsMessage.INSTANCE_CREATED, WsMessage.INSTANCE_DELETED -> {
                         refresh()

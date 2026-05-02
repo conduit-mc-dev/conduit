@@ -75,7 +75,6 @@ class InstanceDetailViewModel(
 
     private fun connectWebSocket() {
         val wsClient = session.wsClient
-        wsClient.connect(viewModelScope)
         viewModelScope.launch {
             delay(500)
             wsClient.subscribe(instanceId)

@@ -2,18 +2,23 @@ package dev.conduit.desktop.session
 
 import dev.conduit.core.api.ConduitApiClient
 import dev.conduit.core.api.ConduitWsClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.nio.file.Path
-import kotlin.io.path.createDirectories
 
 class SessionManager(
     private val apiClient: ConduitApiClient,
     private val configDir: Path = Path.of(System.getProperty("user.home"), ".conduit"),
 ) {
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val sessionFile: java.io.File get() = configDir.resolve("session.json").toFile()
 
@@ -22,6 +27,9 @@ class SessionManager(
         get() = _wsClient ?: error("Session not started")
 
     val isActive: Boolean get() = _wsClient != null
+
+    private val _connectionState = MutableStateFlow(dev.conduit.core.model.WsConnectionState.DISCONNECTED)
+    val connectionState: StateFlow<dev.conduit.core.model.WsConnectionState> = _connectionState.asStateFlow()
 
     private val consoleBuffers = mutableMapOf<String, MutableStateFlow<List<String>>>()
 
@@ -32,6 +40,10 @@ class SessionManager(
             json = json,
         )
         _wsClient = client
+        client.connect(scope)
+        scope.launch {
+            client.connectionState.collect { _connectionState.value = it }
+        }
         return client
     }
 
@@ -50,6 +62,7 @@ class SessionManager(
     fun stop() {
         _wsClient?.close()
         _wsClient = null
+        _connectionState.value = dev.conduit.core.model.WsConnectionState.DISCONNECTED
         consoleBuffers.clear()
     }
 
