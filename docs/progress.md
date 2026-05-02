@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-02（ConduitWsClient 重连 + server.properties 编辑器完成，shared-core 46 tests / desktop 13 tests 全绿；迭代 4 进行中）
+> 最新更新：2026-05-02（迭代 4 基本完成，shared-core 46 / desktop 18 / daemon 215+ tests 全绿；bug 修复：端口不生效）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,7 +11,7 @@
 
 ## Now（进行中）
 
-**Desktop MVP 迭代 4（部分完成）**：server.properties 编辑器已完成。剩余：实例删除、玩家列表显示、UI 打磨。方案见 `desktop-mvp-plan.md`。
+**Desktop MVP 迭代 4（基本完成）**：server.properties 编辑器、实例删除、玩家列表已完成。剩余：UI 打磨。方案见 `desktop-mvp-plan.md`。
 
 ---
 
@@ -20,7 +20,8 @@
 ### Desktop 依赖（当前阶段）
 
 - [x] shared-core `ConduitWsClient` 重连逻辑 + 5 个测试用例（→ 实际 8 个）
-- [ ] Desktop MVP 迭代 4 剩余：实例删除 + 玩家列表 + UI 打磨
+- [x] Desktop MVP 迭代 4 剩余：实例删除 + 玩家列表 + UI 打磨
+- [ ] Desktop MVP 迭代 4 收尾：UI 打磨
 
 ### 延迟项（MVP 后 / v0.2+）
 
@@ -40,6 +41,33 @@
 ---
 
 ## Done
+
+- [x] **Bug 修复：MC 服务器端口不生效**（2026-05-02）
+  - 根因：`ServerProcessManager.startInternal()` 没有把配置的 `mcPort` 传给 Minecraft 进程
+  - 修复：启动前用 `ServerPropertiesService.update()` 写入 `server-port` 到 `server.properties`
+  - 测试：`ProcessLifecycleTest` 新增端口写入测试（+1）
+  - 结果：daemon 215+ tests 全绿
+
+- [x] Desktop 玩家列表显示（2026-05-02）
+  - `InstanceDetailUiState` 新增 `playerNames` 字段
+  - WS `PLAYERS_CHANGED` 事件处理：实时更新 `playerCount`/`maxPlayers`
+  - `refreshPlayerNames()` 调用 `GET /server/status` 获取名字列表
+  - RUNNING 状态下每 30s 轮询刷新名字；非 RUNNING 时取消轮询并清空
+  - `PlayerBar` UI 组件：`"2/20 在线 — Steve, Alex"`，仅 RUNNING 时显示，名字超过 5 个截断
+  - 测试：`InstanceDetailViewModelTest` 新增 3 个用例（WS 事件更新计数、名字加载、停止清空）
+  - 结果：desktop 15 → 18 tests（+3），全绿
+
+- [x] Desktop 实例删除（2026-05-02）
+  - `ConduitApiClient` 新增 `deleteInstance(id): Unit` → `DELETE /api/v1/instances/{id}`
+  - `InstanceDetailUiState` 新增 `isDeleted` 字段；`InstanceDetailViewModel` 新增 `deleteInstance()` 方法
+  - `InstanceDetailScreen` HeaderBar 新增红色"删除"按钮（仅 STOPPED 状态可见）
+  - `AlertDialog` 确认弹窗（显示实例名称、警告不可逆）
+  - `LaunchedEffect(isDeleted)` 监听删除成功后导航回实例列表
+  - 测试：`InstanceDetailViewModelTest` 新增 2 个用例（删除成功 + 409 失败）
+  - 结果：desktop 13 → 15 tests（+2），全绿
+
+- [x] `docs/superpowers/specs/` 加入 `.gitignore`（2026-05-02）
+  - 与 `docs/superpowers/plans/` 一致，设计文档也作为临时文件不纳入版本控制
 
 - [x] Desktop `ServerPropertiesScreen` + ViewModel（2026-05-02）
   - `ServerPropertiesViewModel`：分阶段编辑（`properties` vs `editedValues`），只保存变更的键值对
