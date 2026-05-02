@@ -23,6 +23,7 @@ data class InstanceDetailUiState(
     val isActionInProgress: Boolean = false,
     val showEulaDialog: Boolean = false,
     val error: String? = null,
+    val isDeleted: Boolean = false,
 )
 
 class InstanceDetailViewModel(
@@ -185,6 +186,21 @@ class InstanceDetailViewModel(
                 _state.value = _state.value.copy(
                     isActionInProgress = false,
                     error = "强制停止失败: ${e.message}",
+                )
+            }
+        }
+    }
+
+    fun deleteInstance() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isActionInProgress = true, error = null)
+            try {
+                apiClient.deleteInstance(instanceId)
+                _state.value = _state.value.copy(isActionInProgress = false, isDeleted = true)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isActionInProgress = false,
+                    error = "删除失败: ${e.message}",
                 )
             }
         }
