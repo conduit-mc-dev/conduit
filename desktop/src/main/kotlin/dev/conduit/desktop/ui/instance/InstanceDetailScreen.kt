@@ -1,6 +1,9 @@
 package dev.conduit.desktop.ui.instance
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -153,27 +156,38 @@ private fun HeaderBar(
         }
 
         state.instance?.let { instance ->
-            TextButton(onClick = onEditProperties) {
-                Text("⚙ 配置")
-            }
-            ActionButtons(
-                instanceState = instance.state,
-                statusMessage = instance.statusMessage,
-                isActionInProgress = state.isActionInProgress,
-                onStart = onStart,
-                onStop = onStop,
-                onKill = onKill,
-                onRetryDownload = onRetryDownload,
-            )
-            if (instance.state == InstanceState.STOPPED) {
-                TextButton(
-                    onClick = onDelete,
-                    enabled = !state.isActionInProgress,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) {
-                    Text("删除")
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                TextButton(onClick = onEditProperties) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("配置")
+                }
+                ActionButtons(
+                    instanceState = instance.state,
+                    statusMessage = instance.statusMessage,
+                    isActionInProgress = state.isActionInProgress,
+                    onStart = onStart,
+                    onStop = onStop,
+                    onKill = onKill,
+                    onRetryDownload = onRetryDownload,
+                )
+                if (instance.state == InstanceState.STOPPED) {
+                    TextButton(
+                        onClick = onDelete,
+                        enabled = !state.isActionInProgress,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Text("删除")
+                    }
                 }
             }
         }

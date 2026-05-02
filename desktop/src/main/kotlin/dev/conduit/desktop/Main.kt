@@ -7,6 +7,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.res.loadImageBitmap
+import androidx.compose.ui.res.useResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -36,10 +39,15 @@ import org.koin.mp.KoinPlatformTools
 fun main() {
     val savedSession = SessionManager.loadFromDisk()
     val isPaired = savedSession != null
+    @Suppress("DEPRECATION")
+    val appIcon = BitmapPainter(useResource("logo-icon.png") { loadImageBitmap(it) })
+    @Suppress("DEPRECATION")
+    val sidebarIcon = BitmapPainter(useResource("logo-icon-transparent.png") { loadImageBitmap(it) })
     application {
         Window(
             onCloseRequest = ::exitApplication,
             title = "Conduit MC",
+            icon = appIcon,
             state = rememberWindowState(width = 1280.dp, height = 800.dp),
         ) {
             // Enforce minimum window size via AWT
@@ -67,6 +75,7 @@ fun main() {
                         // Column 1: Icon rail
                         Sidebar(
                             currentMode = currentMode,
+                            appIcon = sidebarIcon,
                             onModeChange = { newMode ->
                                 currentMode = newMode
                                 when (newMode) {

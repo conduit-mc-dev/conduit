@@ -1,5 +1,6 @@
 package dev.conduit.desktop.ui.components
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -11,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 
@@ -28,9 +30,14 @@ fun ConsoleArea(
     }
 
     Surface(
-        modifier = modifier,
+        modifier = modifier
+            .border(
+                width = 1.dp,
+                color = Color(0xFF49454F),
+                shape = MaterialTheme.shapes.medium,
+            ),
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = Color(0xFF141218),
     ) {
         if (lines.isEmpty()) {
             Box(

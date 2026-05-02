@@ -1,18 +1,27 @@
 package dev.conduit.desktop.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -21,6 +30,7 @@ import dev.conduit.desktop.navigation.AppMode
 @Composable
 fun Sidebar(
     currentMode: AppMode,
+    appIcon: Painter,
     onModeChange: (AppMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -33,24 +43,14 @@ fun Sidebar(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Logo
-        Box(
+        Image(
+            painter = appIcon,
+            contentDescription = "Conduit MC",
             modifier = Modifier
                 .size(36.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(Color(0xFF6366F1), Color(0xFFA855F7))
-                    )
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "C",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-            )
-        }
+                .clip(RoundedCornerShape(10.dp)),
+            contentScale = ContentScale.Fit,
+        )
 
         Spacer(Modifier.height(8.dp))
 
@@ -67,7 +67,8 @@ fun Sidebar(
 
         // Manage mode
         ModeIcon(
-            emoji = "🖥️",
+            icon = Icons.Default.Dns,
+            label = "管理",
             isActive = currentMode == AppMode.MANAGE,
             onClick = { onModeChange(AppMode.MANAGE) },
         )
@@ -76,7 +77,8 @@ fun Sidebar(
 
         // Launcher mode
         ModeIcon(
-            emoji = "🎮",
+            icon = Icons.Default.SportsEsports,
+            label = "启动器",
             isActive = currentMode == AppMode.LAUNCHER,
             onClick = { onModeChange(AppMode.LAUNCHER) },
         )
@@ -85,7 +87,8 @@ fun Sidebar(
 
         // Settings
         ModeIcon(
-            emoji = "⚙",
+            icon = Icons.Default.Settings,
+            label = "设置",
             isActive = currentMode == AppMode.SETTINGS,
             onClick = { onModeChange(AppMode.SETTINGS) },
         )
@@ -94,7 +97,8 @@ fun Sidebar(
 
 @Composable
 private fun ModeIcon(
-    emoji: String,
+    icon: ImageVector,
+    label: String,
     isActive: Boolean,
     onClick: () -> Unit,
 ) {
@@ -107,15 +111,16 @@ private fun ModeIcon(
     Box(
         modifier = Modifier
             .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(bgColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = emoji,
-            fontSize = 18.sp,
-            color = if (isActive) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            modifier = Modifier.size(22.dp),
+            tint = if (isActive) {
                 MaterialTheme.colorScheme.onSurface
             } else {
                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)

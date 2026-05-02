@@ -10,6 +10,7 @@ dependencies {
     implementation(compose.desktop.currentOs)
     @Suppress("DEPRECATION")
     implementation(compose.material3)
+    implementation(compose.materialIconsExtended)
 
     implementation(project.dependencies.platform(libs.koin.bom))
     implementation(libs.koin.core)
@@ -45,6 +46,16 @@ compose.desktop {
             )
             packageName = "Conduit MC"
             packageVersion = "1.0.0"
+
+            macOS {
+                iconFile.set(project.file("src/main/resources/Conduit.icns"))
+            }
+            windows {
+                iconFile.set(project.file("src/main/resources/Conduit.ico"))
+            }
+            linux {
+                iconFile.set(project.file("src/main/resources/logo-icon.png"))
+            }
         }
     }
 }
