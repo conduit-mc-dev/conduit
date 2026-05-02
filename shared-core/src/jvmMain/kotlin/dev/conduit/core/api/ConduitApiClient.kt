@@ -77,6 +77,9 @@ class ConduitApiClient(
     suspend fun retryDownload(id: String): InstanceSummary =
         post("/api/v1/instances/$id/retry-download")
 
+    suspend fun deleteInstance(id: String): Unit =
+        request(HttpMethod.Delete, "/api/v1/instances/$id")
+
     // --- Minecraft 版本 ---
 
     suspend fun listMinecraftVersions(): MinecraftVersionsResponse =
