@@ -14,7 +14,8 @@
   - [进程生命周期改进](#进程生命周期改进跨项目总结)
   - [Mod 管理改进方向](#mod-管理改进方向跨项目总结)
   - [其他值得注意的模式](#其他值得注意的模式)
-  - [明确不参考的部分](#明确不参考的部分)
+  - [Daemon/Desktop 代码复用审计](#daemondesktop-代码复用审计2026-05-02)
+- [明确不参考的部分](#明确不参考的部分)
 
 ---
 
@@ -357,3 +358,49 @@ Conduit 当前做法与 MCSManager 类似。Wings 的主动恢复模式更好，
 - **Pelican Wings 的 SFTP 内嵌服务器**——Conduit 用 HTTP 文件管理 API
 - **MCSManager 的 `ignoreEventTaskOnce` 单次抑制机制**——Conduit 可以通过检查 STOPPING 状态来区分主动停止和崩溃，更简洁
 - **PrismLauncher 的 MS OAuth 认证流程**——Conduit 有自己的 MS OAuth 实现
+
+---
+
+## Daemon/Desktop 代码复用审计（2026-05-02）
+
+审计目标：识别 daemon 和 desktop 之间可提取到 shared-core 的重复/共享代码。结论：shared-core 已经正确承担了数据模型 + API 客户端 + 下载客户端 + SLP Ping 的角色，但有 6 个候选需要提取，Desktop 独立启动器模式（不连 Daemon 时）会直接依赖它们。
+
+### 高优先级（Desktop 独立启动的硬依赖）
+
+| 文件 | 当前位置 | 目标位置 | 依赖 |
+|---|---|---|---|
+| `JavaDetector.kt` | daemon/service | shared-core/jvmMain | 纯 JVM 标准库 |
+| `PathValidator.kt` | daemon/service | shared-core/jvmMain | 需改异常类型 |
+| `LaunchTarget.kt` | daemon/service | shared-core/jvmMain | 零外部依赖 |
+| `LogPatternDetector.kt` | daemon/service | shared-core/commonMain | 仅 `Regex` |
+
+1. **`JavaDetector`** —  扫描系统 Java 安装、解析版本、验证路径。Desktop 当前通过 `GET /api/v1/java/installations` 远程获取，独立模式下必须本地检测。`JavaInstallation` 数据类已在 shared-core。
+2. **`PathValidator`** — `validateRelativePath()`（路径穿越防护）+ `sanitizeFileName()`（安全文件名提取）。唯一阻碍：当前抛 daemon 的 `ApiException`，需改用 shared-core 异常或 `Result` 类型。
+3. **`LaunchTarget`** — `resolveLaunchTarget(LoaderInfo?)` 决定启动方式（`VanillaJar` / `LoaderJar` / `ArgFile`）。Desktop 本地启动必须知道 Forge/NeoForge 走 `@unix_args.txt`、Quilt 走 `quilt-server-launch.jar`、其他走 `server.jar`。
+4. **`LogPatternDetector`** — 纯 Regex 匹配 `SERVER_DONE`、OOM、端口冲突、崩溃。Desktop 独立启动时同样需要判断服务器就绪状态。可放 commonMain（仅依赖 Kotlin `Regex`）。
+
+### 中优先级（有用但非立即需要）
+
+5. **`ModService.parseModMetadata()` 系列** — 解析 JAR 内 `fabric.mod.json` / `quilt.mod.json` / `META-INF/mods.toml`。纯 ZIP 读取 + JSON/Toml 解析。Desktop 文件浏览器展示 mod 元数据时需要。需 `ZipInputStream` + ktoml，目标 shared-core/jvmMain。
+6. **`LoaderService` 版本拉取系列** — 四个 `fetchXxxVersions` 方法 + `parseMavenVersions(xml)` + `neoforgeVersionPrefix(mcVersion)` + `validateMcVersionForForge(mcVersion)`。依赖 Ktor HttpClient（shared-core 已有）。Desktop 独立创建实例、选 loader 版本时需要。
+
+### 无需提取
+
+| 文件 | 原因 |
+|---|---|
+| `ServerProcessManager` | 444 行进程生命周期管理，强耦合 Store + Broadcaster |
+| `WsBroadcaster` | Ktor WebSocket 专属 |
+| `ServerJarService` | Daemon 编排层（MojangClient → TaskStore → InstanceStore） |
+| `ModService` 安装/更新/切换操作 | 耦合 ModStore + WsBroadcaster |
+| `PackService` | Daemon 专属 mrpack 生成 |
+| 所有 Store 类 | 耦合 DataDirectory + daemon 基础设施 |
+| `FileService` | Daemon 路径解析逻辑，仅有 `MIME_MAP` 常量值得共享 |
+| `EulaService` / `ServerPropertiesService` | 逻辑太薄（Properties 文件读写），提取收益不大 |
+| `RateLimiter` | 使用 daemon ApiException |
+
+### 提取顺序建议
+
+1. `LaunchTarget` + `LogPatternDetector` — 最简单，零改动成本
+2. `JavaDetector` — 纯搬，`JavaInstallation` 模型已在 shared-core
+3. `PathValidator` — 需要先解决异常类型问题
+4. `parseModMetadata` + `LoaderVersionFetcher` — Desktop 独立模式需要时再提取
