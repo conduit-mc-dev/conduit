@@ -3,29 +3,33 @@ package dev.conduit.desktop.ui.theme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 
 private val ConduitDarkColorScheme = darkColorScheme(
+    primary = AccentBlue,
+    onPrimary = TextPrimary,
+    secondary = AccentPurple,
+    onSecondary = TextPrimary,
+    tertiary = StateRunning,
+    error = StateCrashed,
     background = Background,
+    onBackground = TextPrimary,
     surface = Surface,
-    surfaceContainerLow = Surface,
-    surfaceContainer = SurfaceContainer,
-    surfaceContainerHigh = SurfaceContainerHigh,
-    primary = Primary,
-    onPrimary = OnPrimary,
-    secondary = Secondary,
-    tertiary = Tertiary,
-    error = Error,
-    onSurface = OnSurface,
-    onSurfaceVariant = OnSurfaceVariant,
-    onBackground = OnSurface,
+    onSurface = TextPrimary,
+    onSurfaceVariant = TextSecondary,
+    surfaceContainer = Elevated,
+    surfaceContainerHigh = Elevated,
+    outline = Border,
 )
 
 @Composable
 fun ConduitTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = ConduitDarkColorScheme,
-        shapes = ConduitShapes,
-        typography = ConduitTypography,
-        content = content,
-    )
+    CompositionLocalProvider(LocalConduitColors provides ConduitCustomColors()) {
+        MaterialTheme(
+            colorScheme = ConduitDarkColorScheme,
+            shapes = ConduitShapes,
+            typography = ConduitTypography,
+            content = content,
+        )
+    }
 }
