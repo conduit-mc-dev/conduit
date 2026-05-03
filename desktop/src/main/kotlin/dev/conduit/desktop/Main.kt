@@ -28,7 +28,7 @@ import dev.conduit.desktop.ui.instance.CreateInstanceScreen
 import dev.conduit.desktop.ui.instance.InstanceDetailScreen
 import dev.conduit.desktop.ui.instance.InstanceListScreen
 import dev.conduit.desktop.ui.instance.InstanceListViewModel
-import dev.conduit.desktop.ui.instance.ServerPropertiesScreen
+// ServerPropertiesScreen removed — route deleted in Routes v2
 import dev.conduit.desktop.ui.pair.PairScreen
 import dev.conduit.desktop.ui.theme.ConduitTheme
 import org.koin.compose.KoinApplication
@@ -113,7 +113,7 @@ fun main() {
                                 isLoading = instanceListState.isLoading,
                                 onInstanceClick = { id ->
                                     selectedInstanceId = id
-                                    navController.navigate(InstanceDetailRoute(id)) {
+                                    navController.navigate(InstanceDetailRoute(id, daemonId = "")) {
                                         // Pop previous detail if any, so clicking another instance replaces it
                                         popUpTo<InstanceListRoute> { inclusive = false }
                                     }
@@ -168,25 +168,17 @@ fun main() {
                                     InstanceDetailScreen(
                                         instanceId = route.instanceId,
                                         onEditProperties = {
-                                            navController.navigate(ServerPropertiesRoute(route.instanceId))
+                                            // TODO: navigate to properties view (Task 19+)
                                         },
                                         onDeleted = {
                                             selectedInstanceId = null
                                             navController.navigate(InstanceListRoute) {
-                                                popUpTo(InstanceDetailRoute(route.instanceId)) { inclusive = true }
+                                                popUpTo(InstanceDetailRoute(route.instanceId, route.daemonId)) { inclusive = true }
                                             }
                                         },
                                     )
                                 }
-                                composable<ServerPropertiesRoute> { backStackEntry ->
-                                    val route = backStackEntry.toRoute<ServerPropertiesRoute>()
-                                    ServerPropertiesScreen(
-                                        instanceId = route.instanceId,
-                                        onBack = {
-                                            navController.popBackStack()
-                                        },
-                                    )
-                                }
+                                // ServerPropertiesRoute removed in Routes v2 — properties tab coming in Task 19
                                 composable<LauncherRoute> {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
