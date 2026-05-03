@@ -27,13 +27,24 @@
 
 ### 按钮色
 
+**Header 操作按钮（Style E — 透明底 + 状态色描边）**：仅用于实例详情页 Header 右侧按钮组
+
 | 按钮类型 | 背景 | 文字 | 描边 | 用途 |
 |---------|------|------|------|------|
-| Primary | `#238636` | `#e6edf3` | — | Start / Save / Create / Connect |
-| Secondary | `#30363d` | `#e6edf3` | — | Kill / Revert All |
-| Danger | transparent | `#f85149` | `#f85149` | Delete |
-| Warning | `#9e6a03` | `#e6edf3` | — | Cancel |
-| Disabled | `#161b22` | `#30363d` | — | 不可用状态 |
+| Start | transparent | `#3fb950` | `rgba(63,185,80,0.35)` | Start |
+| Stop | transparent | `#e6edf3` | `rgba(48,54,61,0.6)` | Stop |
+| Kill | transparent | `#8b949e` | `rgba(33,38,45,0.6)` | Kill |
+| Delete | transparent | `#f85149` | `rgba(248,81,73,0.25)` | Delete |
+| Cancel | transparent | `#d29922` | `rgba(210,153,34,0.25)` | Cancel |
+| Disabled | transparent | `#484f58` | `rgba(33,38,45,0.4)` | 不可用状态 |
+
+**表单 / 对话框按钮（实底）**：用于 Create/Save/Connect 表单提交、对话框确认
+
+| 按钮类型 | 背景 | 文字 | 用途 |
+|---------|------|------|------|
+| Primary | `#58a6ff` | `#0d1117` | Create / Save / Connect |
+| Secondary | `#21262d` | `#e6edf3` | Cancel / Revert |
+| Danger | `#da3633` | `#fff` | Delete / Forget / Discard |
 
 ### NavigationRail 色
 

@@ -26,12 +26,12 @@
   .dot-blue { background: #58a6ff; }
 
   .btn-demo { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 5px; font-size: 11px; font-weight: 600; margin: 2px; }
-  .btn-green { background: #238636; color: #fff; }
-  .btn-red { background: #b62324; color: #fff; }
-  .btn-red-outline { background: transparent; border: 1px solid #f85149; color: #f85149; }
-  .btn-gray { background: #21262d; color: #e6edf3; }
-  .btn-disabled { background: #161b22; color: #30363d; cursor: not-allowed; }
-  .btn-yellow { background: #9e6a03; color: #fff; }
+  .btn-green { background: transparent; color: #3fb950; border: 1px solid rgba(63,185,80,0.35); }
+  .btn-red { background: transparent; color: #f85149; border: 1px solid rgba(248,81,73,0.25); }
+  .btn-red-outline { background: transparent; border: 1px solid rgba(248,81,73,0.25); color: #f85149; }
+  .btn-gray { background: transparent; color: #8b949e; border: 1px solid rgba(33,38,45,0.6); }
+  .btn-disabled { background: transparent; color: #484f58; border: 1px solid rgba(33,38,45,0.4); cursor: not-allowed; }
+  .btn-yellow { background: transparent; color: #d29922; border: 1px solid rgba(210,153,34,0.25); }
 
   .btn-visual { display: inline-block; margin: 2px; }
   .btn-visual .inner { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; }
@@ -74,6 +74,7 @@
       <td><span class="dot dot-gray"></span>Stopped</td>
       <td><span class="btn-demo btn-green">✓ Start</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-red-outline">✓ Delete</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
     </tr>
@@ -82,10 +83,12 @@
       <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
-      <td><span class="btn-demo btn-gray">✓ Cancel</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-yellow">✓ Cancel</span></td>
     </tr>
     <tr>
       <td><span class="dot dot-green"></span>Running</td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-green">✓ Stop</span></td>
       <td><span class="btn-demo btn-gray">✓ Kill</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
@@ -94,6 +97,7 @@
     <tr>
       <td><span class="dot dot-orange"></span>Stopping</td>
       <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-gray">✓ Kill</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
@@ -101,6 +105,7 @@
     <tr>
       <td><span class="dot dot-red"></span>Crashed</td>
       <td><span class="btn-demo btn-green">✓ Start</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-gray">✓ Kill</span></td>
       <td><span class="btn-demo btn-red-outline">✓ Delete</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
@@ -110,10 +115,12 @@
       <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-yellow">✓ Cancel</span></td>
     </tr>
     <tr>
       <td><span class="dot dot-blue"></span>Downloading</td>
+      <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
       <td><span class="btn-demo btn-disabled">—</span></td>
@@ -125,11 +132,12 @@
 <h3>按钮样式规范</h3>
 <div class="section">
   <div class="section-desc">
-    <strong>主操作按钮（Primary）</strong> — 绿色填充 <code style="color:#3fb950;">#238636</code>，白色文字。每个状态只有一个主操作：Stopped→Start, Running→Stop, Crashed→Start<br><br>
-    <strong>次操作按钮（Secondary）</strong> — 深灰填充 <code style="color:#e6edf3;">#30363d</code>，白色文字。Kill<br><br>
-    <strong>危险按钮（Danger）</strong> — 红色描边 <code style="color:#f85149;">#f85149</code>，红色文字，透明背景。Delete<br><br>
-    <strong>警告按钮（Warning）</strong> — 黄色填充 <code style="color:#d29922;">#9e6a03</code>，白色文字。Cancel 安装/下载<br><br>
-    <strong>禁用按钮（Disabled）</strong> — 深黑背景 <code style="color:#30363d;">#161b22</code>，极暗文字。不可点击<br><br>
+    <strong>主操作按钮（Primary/Start）</strong> — 透明底，绿色文字 <code style="color:#3fb950;">#3fb950</code>，绿色描边 <code>rgba(63,185,80,0.35)</code>。Start / Save / Create / Connect<br><br>
+    <strong>Stop</strong> — 透明底，白色文字 <code style="color:#e6edf3;">#e6edf3</code>，灰色描边 <code>rgba(48,54,61,0.6)</code><br><br>
+    <strong>次操作按钮（Secondary/Kill）</strong> — 透明底，灰色文字 <code style="color:#8b949e;">#8b949e</code>，灰色描边 <code>rgba(33,38,45,0.6)</code><br><br>
+    <strong>危险按钮（Danger/Delete）</strong> — 透明底，红色文字 <code style="color:#f85149;">#f85149</code>，红色描边 <code>rgba(248,81,73,0.25)</code><br><br>
+    <strong>警告按钮（Warning/Cancel）</strong> — 透明底，黄色文字 <code style="color:#d29922;">#d29922</code>，黄色描边 <code>rgba(210,153,34,0.25)</code><br><br>
+    <strong>禁用按钮（Disabled）</strong> — 透明底，暗灰文字 <code style="color:#484f58;">#484f58</code>，灰色描边 <code>rgba(33,38,45,0.4)</code><br><br>
     <strong>布局规则</strong> — 主操作在最左，Kill 居中（仅 Running/Stopping/Crashed），Delete 始终最右（仅 Stopped/Crashed），Cancel 最右（仅 Starting/Installing/Downloading）
   </div>
 </div>
@@ -143,8 +151,8 @@
     <span class="hp-status"><span class="dot dot-gray"></span><span style="color:#484f58;">Stopped</span></span>
   </div>
   <div class="hp-actions">
-    <div class="btn-visual"><span class="inner" style="background:#238636;color:#fff;">Start</span></div>
-    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid #f85149;color:#f85149;">Delete</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid rgba(63,185,80,0.35);color:#3fb950;">Start</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid rgba(248,81,73,0.25);color:#f85149;">Delete</span></div>
   </div>
 </div>
 
@@ -155,8 +163,8 @@
     <span class="hp-status"><span class="dot dot-green" style="box-shadow:0 0 4px #3fb950;"></span><span style="color:#3fb950;">Running</span></span>
   </div>
   <div class="hp-actions">
-    <div class="btn-visual"><span class="inner" style="background:#238636;color:#fff;">Stop</span></div>
-    <div class="btn-visual"><span class="inner" style="background:#30363d;color:#e6edf3;">Kill</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid rgba(48,54,61,0.6);color:#e6edf3;">Stop</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid rgba(33,38,45,0.6);color:#8b949e;">Kill</span></div>
   </div>
 </div>
 
@@ -167,9 +175,9 @@
     <span class="hp-status"><span class="dot dot-red"></span><span style="color:#f85149;">Crashed</span><span style="color:#8b949e;font-weight:400;margin-left:4px;">— OOM</span></span>
   </div>
   <div class="hp-actions">
-    <div class="btn-visual"><span class="inner" style="background:#238636;color:#fff;">Start</span></div>
-    <div class="btn-visual"><span class="inner" style="background:#30363d;color:#e6edf3;">Kill</span></div>
-    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid #f85149;color:#f85149;">Delete</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid rgba(63,185,80,0.35);color:#3fb950;">Start</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid rgba(33,38,45,0.6);color:#8b949e;">Kill</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid rgba(248,81,73,0.25);color:#f85149;">Delete</span></div>
   </div>
 </div>
 
@@ -180,8 +188,8 @@
     <span class="hp-status"><span class="dot dot-yellow" style="animation:blink 1.5s infinite;"></span><span style="color:#d29922;">Installing 65%</span></span>
   </div>
   <div class="hp-actions">
-    <div class="btn-visual"><span class="inner" style="background:#161b22;color:#30363d;cursor:not-allowed;">Start</span></div>
-    <div class="btn-visual"><span class="inner" style="background:#9e6a03;color:#fff;">Cancel</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid rgba(33,38,45,0.4);color:#484f58;cursor:not-allowed;">Start</span></div>
+    <div class="btn-visual"><span class="inner" style="background:transparent;border:1px solid rgba(210,153,34,0.25);color:#d29922;">Cancel</span></div>
   </div>
 </div>
 
