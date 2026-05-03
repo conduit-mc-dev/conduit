@@ -123,6 +123,21 @@ fun InstanceDetailTabScreen(
                                     playerNames = state.playerNames,
                                 )
 
+                                "config" -> ConfigTab(
+                                    instanceId = instanceId,
+                                    daemonId = daemonId,
+                                )
+
+                                "mods" -> ModsTab(
+                                    instanceId = instanceId,
+                                    daemonId = daemonId,
+                                )
+
+                                "files" -> FilesTab(
+                                    instanceId = instanceId,
+                                    daemonId = daemonId,
+                                )
+
                                 else -> PlaceholderTab(tab)
                             }
                         }
