@@ -46,6 +46,11 @@ fun StatusChip(
             MaterialTheme.colorScheme.onSurfaceVariant,
             "○ 已停止",
         )
+        InstanceState.CRASHED -> Triple(
+            MaterialTheme.colorScheme.error.copy(alpha = 0.2f),
+            MaterialTheme.colorScheme.error,
+            "● 已崩溃",
+        )
     }
     Box(
         modifier = modifier

@@ -162,12 +162,14 @@ private fun InstanceListItem(
             InstanceState.STOPPING -> "停止中"
             InstanceState.INITIALIZING -> "初始化"
             InstanceState.STOPPED -> "已停止"
+            InstanceState.CRASHED -> "已崩溃"
         }
         val statusColor = when (instance.state) {
             InstanceState.RUNNING -> MaterialTheme.colorScheme.tertiary
             InstanceState.STARTING -> MaterialTheme.colorScheme.primary
             InstanceState.STOPPING, InstanceState.INITIALIZING -> MaterialTheme.colorScheme.secondary
             InstanceState.STOPPED -> MaterialTheme.colorScheme.onSurfaceVariant
+            InstanceState.CRASHED -> MaterialTheme.colorScheme.error
         }
         val isRunning = instance.state != InstanceState.STOPPED
         Row(

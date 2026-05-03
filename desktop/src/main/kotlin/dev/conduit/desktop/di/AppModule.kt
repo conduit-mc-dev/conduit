@@ -1,6 +1,7 @@
 package dev.conduit.desktop.di
 
 import dev.conduit.core.api.ConduitApiClient
+import dev.conduit.desktop.session.DaemonManager
 import dev.conduit.desktop.session.SessionManager
 import dev.conduit.desktop.ui.instance.CreateInstanceViewModel
 import dev.conduit.desktop.ui.instance.InstanceDetailViewModel
@@ -13,6 +14,7 @@ import org.koin.dsl.module
 val appModule = module {
     single { ConduitApiClient("http://localhost:9147") }
     single { SessionManager(get()) }
+    single { DaemonManager() }
 
     viewModel { PairViewModel(get(), get()) }
     viewModel { InstanceListViewModel(get(), get()) }

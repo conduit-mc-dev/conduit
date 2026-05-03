@@ -279,6 +279,20 @@ private fun ActionButtons(
             InstanceState.INITIALIZING -> {
                 // 初始化中不显示操作按钮
             }
+            InstanceState.CRASHED -> {
+                Button(
+                    onClick = onRetryDownload,
+                    enabled = !isActionInProgress,
+                ) {
+                    Text("重新下载")
+                }
+                Button(
+                    onClick = onStart,
+                    enabled = !isActionInProgress,
+                ) {
+                    Text("重启")
+                }
+            }
         }
     }
 }
