@@ -2,110 +2,32 @@ package dev.conduit.desktop.ui.instance
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.conduit.core.api.ConduitApiClient
 import dev.conduit.core.model.CreateInstanceRequest
-import dev.conduit.core.model.MinecraftVersion
+import dev.conduit.desktop.session.DaemonManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-data class CreateInstanceUiState(
-    val name: String = "",
-    val description: String = "",
-    val mcPort: String = "",
-    val versions: List<MinecraftVersion> = emptyList(),
-    val selectedVersion: MinecraftVersion? = null,
-    val isLoadingVersions: Boolean = false,
-    val isCreating: Boolean = false,
-    val error: String? = null,
-    val versionsError: String? = null,
-)
+data class CreateInstanceState(val name: String = "", val mcVersion: String = "", val port: Int = 25565, val isCreating: Boolean = false, val error: String? = null)
 
-class CreateInstanceViewModel(private val apiClient: ConduitApiClient) : ViewModel() {
+class CreateInstanceViewModel(private val daemonId: String, private val daemonManager: DaemonManager) : ViewModel() {
+    private val apiClient get() = daemonManager.getSession(daemonId)?.getApi() ?: error("No session")
+    private val _state = MutableStateFlow(CreateInstanceState())
+    val state: StateFlow<CreateInstanceState> = _state
 
-    private val _state = MutableStateFlow(CreateInstanceUiState())
-    val state: StateFlow<CreateInstanceUiState> = _state
+    fun updateName(name: String) { _state.value = _state.value.copy(name = name) }
+    fun updateVersion(version: String) { _state.value = _state.value.copy(mcVersion = version) }
+    fun updatePort(port: Int) { _state.value = _state.value.copy(port = port) }
 
-    init {
-        loadVersions()
-    }
-
-    fun updateName(name: String) {
-        _state.value = _state.value.copy(name = name, error = null)
-    }
-
-    fun updateDescription(description: String) {
-        _state.value = _state.value.copy(description = description)
-    }
-
-    fun updateMcPort(port: String) {
-        _state.value = _state.value.copy(mcPort = port, error = null)
-    }
-
-    fun selectVersion(version: MinecraftVersion) {
-        _state.value = _state.value.copy(selectedVersion = version, error = null)
-    }
-
-    fun loadVersions() {
-        _state.value = _state.value.copy(isLoadingVersions = true, versionsError = null)
+    fun create(onSuccess: () -> Unit) {
+        val s = _state.value
+        if (s.name.isBlank()) { _state.value = s.copy(error = "Name is required"); return }
+        _state.value = s.copy(isCreating = true, error = null)
         viewModelScope.launch {
             try {
-                val response = apiClient.listMinecraftVersions()
-                _state.value = _state.value.copy(
-                    versions = response.versions,
-                    selectedVersion = response.versions.firstOrNull(),
-                    isLoadingVersions = false,
-                )
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    isLoadingVersions = false,
-                    versionsError = "加载版本列表失败: ${e.message}",
-                )
-            }
-        }
-    }
-
-    fun createInstance(onSuccess: () -> Unit) {
-        val current = _state.value
-        if (current.name.isBlank()) {
-            _state.value = current.copy(error = "请输入实例名称")
-            return
-        }
-        if (current.selectedVersion == null) {
-            _state.value = current.copy(error = "请选择 MC 版本")
-            return
-        }
-
-        val port = if (current.mcPort.isBlank()) null else {
-            current.mcPort.toIntOrNull()?.also {
-                if (it !in 1024..65535) {
-                    _state.value = current.copy(error = "端口范围 1024-65535")
-                    return
-                }
-            } ?: run {
-                _state.value = current.copy(error = "端口必须为数字")
-                return
-            }
-        }
-
-        viewModelScope.launch {
-            _state.value = _state.value.copy(isCreating = true, error = null)
-            try {
-                apiClient.createInstance(
-                    CreateInstanceRequest(
-                        name = current.name.trim(),
-                        mcVersion = current.selectedVersion.id,
-                        description = current.description.trim().ifEmpty { null },
-                        mcPort = port,
-                    ),
-                )
+                apiClient.createInstance(CreateInstanceRequest(name = s.name, mcVersion = s.mcVersion.ifBlank { "1.21.4" }, mcPort = s.port))
                 onSuccess()
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    isCreating = false,
-                    error = "创建失败: ${e.message}",
-                )
-            }
+            } catch (e: Exception) { _state.value = _state.value.copy(isCreating = false, error = "Create failed: ${e.message}") }
         }
     }
 }

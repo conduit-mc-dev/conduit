@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable object PairRoute
 @Serializable object InstanceListRoute
-@Serializable object CreateInstanceRoute
+@Serializable data class CreateInstanceRoute(val daemonId: String)
 @Serializable data class InstanceDetailRoute(val instanceId: String, val daemonId: String)
 @Serializable data class DaemonEditRoute(val daemonId: String)
 @Serializable object LauncherRoute

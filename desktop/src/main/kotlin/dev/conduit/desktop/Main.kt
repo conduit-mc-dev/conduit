@@ -21,6 +21,7 @@ import androidx.navigation.toRoute
 import dev.conduit.core.api.ConduitApiClient
 import dev.conduit.desktop.di.appModule
 import dev.conduit.desktop.navigation.*
+import dev.conduit.desktop.session.DaemonManager
 import dev.conduit.desktop.session.SessionManager
 import dev.conduit.desktop.ui.components.InstanceListPanel
 import dev.conduit.desktop.ui.components.Sidebar
@@ -28,7 +29,6 @@ import dev.conduit.desktop.ui.instance.CreateInstanceScreen
 import dev.conduit.desktop.ui.instance.InstanceDetailScreen
 import dev.conduit.desktop.ui.instance.InstanceListScreen
 import dev.conduit.desktop.ui.instance.InstanceListViewModel
-// ServerPropertiesScreen removed — route deleted in Routes v2
 import dev.conduit.desktop.ui.pair.PairScreen
 import dev.conduit.desktop.ui.theme.ConduitTheme
 import org.koin.compose.KoinApplication
@@ -38,7 +38,9 @@ import org.koin.mp.KoinPlatformTools
 
 fun main() {
     val savedSession = SessionManager.loadFromDisk()
+    val daemonSavedSession = DaemonManager().loadSavedSession()
     val isPaired = savedSession != null
+    val initialDaemonId = daemonSavedSession?.daemonId ?: ""
     @Suppress("DEPRECATION")
     val appIcon = BitmapPainter(useResource("logo-icon.png") { loadImageBitmap(it) })
     @Suppress("DEPRECATION")
@@ -69,6 +71,7 @@ fun main() {
                 ConduitTheme {
                     var currentMode by remember { mutableStateOf(AppMode.MANAGE) }
                     var selectedInstanceId by remember { mutableStateOf<String?>(null) }
+                    var currentDaemonId by remember { mutableStateOf(initialDaemonId) }
                     val navController = rememberNavController()
 
                     Row(modifier = Modifier.fillMaxSize()) {
@@ -113,13 +116,13 @@ fun main() {
                                 isLoading = instanceListState.isLoading,
                                 onInstanceClick = { id ->
                                     selectedInstanceId = id
-                                    navController.navigate(InstanceDetailRoute(id, daemonId = "")) {
+                                    navController.navigate(InstanceDetailRoute(id, daemonId = currentDaemonId)) {
                                         // Pop previous detail if any, so clicking another instance replaces it
                                         popUpTo<InstanceListRoute> { inclusive = false }
                                     }
                                 },
                                 onCreateInstance = {
-                                    navController.navigate(CreateInstanceRoute)
+                                    navController.navigate(CreateInstanceRoute(currentDaemonId))
                                 },
                                 onRefresh = instanceListVm::refresh,
                             )
@@ -138,7 +141,8 @@ fun main() {
                             ) {
                                 composable<PairRoute> {
                                     PairScreen(
-                                        onPaired = {
+                                        onPaired = { daemonId ->
+                                            currentDaemonId = daemonId
                                             navController.navigate(InstanceListRoute) {
                                                 popUpTo(PairRoute) { inclusive = true }
                                             }
@@ -148,13 +152,15 @@ fun main() {
                                 composable<InstanceListRoute> {
                                     InstanceListScreen(
                                         onCreateInstance = {
-                                            navController.navigate(CreateInstanceRoute)
+                                            navController.navigate(CreateInstanceRoute(currentDaemonId))
                                         },
                                         hasInstances = instanceListState.instances.isNotEmpty(),
                                     )
                                 }
-                                composable<CreateInstanceRoute> {
+                                composable<CreateInstanceRoute> { backStackEntry ->
+                                    val route = backStackEntry.toRoute<CreateInstanceRoute>()
                                     CreateInstanceScreen(
+                                        daemonId = route.daemonId,
                                         onCreated = {
                                             navController.popBackStack()
                                         },
@@ -178,7 +184,6 @@ fun main() {
                                         },
                                     )
                                 }
-                                // ServerPropertiesRoute removed in Routes v2 — properties tab coming in Task 19
                                 composable<LauncherRoute> {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
