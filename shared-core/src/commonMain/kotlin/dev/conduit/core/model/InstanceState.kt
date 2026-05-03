@@ -10,4 +10,5 @@ enum class InstanceState {
     @SerialName("starting") STARTING,
     @SerialName("running") RUNNING,
     @SerialName("stopping") STOPPING,
+    @SerialName("crashed") CRASHED,
 }
