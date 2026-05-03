@@ -18,6 +18,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -36,6 +38,9 @@ fun NavigationRail(
     Column(
         modifier = modifier.width(72.dp).fillMaxHeight()
             .background(Brush.verticalGradient(listOf(NavRailBgTop, NavRailBgBottom)))
+            .drawBehind {
+                drawLine(NavRailBorder, Offset(size.width, 0f), Offset(size.width, size.height), 1.dp.toPx())
+            }
             .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -50,8 +55,9 @@ fun NavigationRail(
         NavItem(Icons.Default.Dns, "Servers", currentMode == AppMode.MANAGE) { onModeChange(AppMode.MANAGE) }
         Spacer(Modifier.height(6.dp))
         NavItem(Icons.Default.SportsEsports, "Launch", currentMode == AppMode.LAUNCHER) { onModeChange(AppMode.LAUNCHER) }
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(6.dp))
         NavItem(Icons.Default.Settings, "Settings", currentMode == AppMode.SETTINGS) { onModeChange(AppMode.SETTINGS) }
+        Spacer(Modifier.weight(1f))
     }
 }
 
@@ -67,13 +73,15 @@ private fun NavItem(icon: ImageVector, label: String, isSelected: Boolean, onCli
     Column(
         modifier = Modifier.width(56.dp).clip(RoundedCornerShape(14.dp)).background(bgColor)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(vertical = 10.dp),
+            .padding(top = 10.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(icon, contentDescription = label, tint = if (isSelected) AccentBlue else NavRailUnselected, modifier = Modifier.size(22.dp))
-        if (isSelected) {
-            Spacer(Modifier.height(4.dp))
-            Text(label, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AccentBlue, letterSpacing = 0.3.sp)
-        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            label, fontSize = 9.sp, letterSpacing = 0.3.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) AccentBlue else NavRailUnselected,
+        )
     }
 }

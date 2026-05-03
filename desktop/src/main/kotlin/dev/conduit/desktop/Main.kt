@@ -18,33 +18,29 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import dev.conduit.core.api.ConduitApiClient
 import dev.conduit.desktop.di.appModule
 import dev.conduit.desktop.navigation.*
 import dev.conduit.desktop.session.DaemonManager
-import dev.conduit.desktop.session.SessionManager
-import dev.conduit.desktop.ui.components.InstanceListPanel
-import dev.conduit.desktop.ui.components.Sidebar
-import dev.conduit.desktop.ui.instance.CreateInstanceScreen
-import dev.conduit.desktop.ui.instance.InstanceDetailScreen
-import dev.conduit.desktop.ui.instance.InstanceListScreen
-import dev.conduit.desktop.ui.instance.InstanceListViewModel
+import dev.conduit.desktop.ui.components.*
+import dev.conduit.core.model.WsConnectionState
+import dev.conduit.desktop.ui.daemon.DaemonViewModel
+import dev.conduit.desktop.ui.daemon.EditDaemonScreen
+import dev.conduit.desktop.ui.instance.*
+import dev.conduit.desktop.ui.launch.LaunchEmptyScreen
+import dev.conduit.desktop.ui.launch.PairedEmptyScreen
 import dev.conduit.desktop.ui.pair.PairScreen
 import dev.conduit.desktop.ui.theme.ConduitTheme
+import dev.conduit.desktop.ui.theme.TextSecondary
 import org.koin.compose.KoinApplication
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 import org.koin.dsl.koinConfiguration
 import org.koin.mp.KoinPlatformTools
 
 fun main() {
-    val savedSession = SessionManager.loadFromDisk()
-    val daemonSavedSession = DaemonManager().loadSavedSession()
-    val isPaired = savedSession != null
-    val initialDaemonId = daemonSavedSession?.daemonId ?: ""
     @Suppress("DEPRECATION")
     val appIcon = BitmapPainter(useResource("logo-icon.png") { loadImageBitmap(it) })
-    @Suppress("DEPRECATION")
-    val sidebarIcon = BitmapPainter(useResource("logo-icon-transparent.png") { loadImageBitmap(it) })
+
     application {
         Window(
             onCloseRequest = ::exitApplication,
@@ -52,83 +48,102 @@ fun main() {
             icon = appIcon,
             state = rememberWindowState(width = 1280.dp, height = 800.dp),
         ) {
-            // Enforce minimum window size via AWT
             val window = java.awt.Window.getWindows().firstOrNull()
-            LaunchedEffect(Unit) {
-                window?.minimumSize = java.awt.Dimension(900, 600)
-            }
+            LaunchedEffect(Unit) { window?.minimumSize = java.awt.Dimension(900, 600) }
 
             KoinApplication(koinConfiguration { modules(appModule) }) {
-                if (savedSession != null) {
-                    val koin = KoinPlatformTools.defaultContext().get()
-                    val apiClient: ConduitApiClient = koin.get()
-                    val session: SessionManager = koin.get()
-                    apiClient.setBaseUrl(savedSession.daemonUrl)
-                    apiClient.setToken(savedSession.token)
-                    session.start(savedSession.token)
+                val koin = KoinPlatformTools.defaultContext().get()
+                val daemonManager: DaemonManager = koin.get()
+
+                val savedSession = daemonManager.loadSavedSession()
+                var currentDaemonId by remember { mutableStateOf(savedSession?.daemonId ?: "") }
+                val isPaired = savedSession != null
+
+                LaunchedEffect(Unit) {
+                    if (savedSession != null && daemonManager.getSession(savedSession.daemonId) == null) {
+                        daemonManager.addDaemon(
+                            savedSession.daemonId,
+                            savedSession.daemonName,
+                            savedSession.daemonUrl,
+                            savedSession.token,
+                        )
+                    }
                 }
 
                 ConduitTheme {
-                    var currentMode by remember { mutableStateOf(AppMode.MANAGE) }
+                    var currentMode by remember { mutableStateOf(AppMode.LAUNCHER) }
                     var selectedInstanceId by remember { mutableStateOf<String?>(null) }
-                    var currentDaemonId by remember { mutableStateOf(initialDaemonId) }
                     val navController = rememberNavController()
 
                     Row(modifier = Modifier.fillMaxSize()) {
-                        // Column 1: Icon rail
-                        Sidebar(
-                            currentMode = currentMode,
-                            appIcon = sidebarIcon,
-                            onModeChange = { newMode ->
-                                currentMode = newMode
-                                when (newMode) {
-                                    AppMode.MANAGE -> {
-                                        if (isPaired) {
+                        // Column 1: NavigationRail
+                        if (isPaired) {
+                            NavigationRail(
+                                currentMode = currentMode,
+                                onModeChange = { newMode ->
+                                    currentMode = newMode
+                                    when (newMode) {
+                                        AppMode.LAUNCHER -> {
+                                            selectedInstanceId = null
+                                            navController.navigate(LauncherRoute) {
+                                                popUpTo(0) { inclusive = true }
+                                            }
+                                        }
+                                        AppMode.MANAGE -> {
                                             selectedInstanceId = null
                                             navController.navigate(InstanceListRoute) {
                                                 popUpTo(0) { inclusive = true }
                                             }
                                         }
-                                    }
-                                    AppMode.LAUNCHER -> {
-                                        navController.navigate(LauncherRoute) {
-                                            popUpTo(0) { inclusive = true }
+                                        AppMode.SETTINGS -> {
+                                            navController.navigate(SettingsRoute) {
+                                                popUpTo(0) { inclusive = true }
+                                            }
                                         }
                                     }
-                                    AppMode.SETTINGS -> {
-                                        navController.navigate(SettingsRoute) {
-                                            popUpTo(0) { inclusive = true }
-                                        }
-                                    }
-                                }
-                            },
-                        )
-
-                        // Instance list ViewModel (shared between sidebar panel and NavHost)
-                        val instanceListVm: InstanceListViewModel = koinViewModel()
-                        val instanceListState by instanceListVm.state.collectAsState()
-
-                        // Column 2: Instance list panel (only in MANAGE mode when paired)
-                        if (currentMode == AppMode.MANAGE && isPaired) {
-                            InstanceListPanel(
-                                instances = instanceListState.instances,
-                                selectedInstanceId = selectedInstanceId,
-                                isLoading = instanceListState.isLoading,
-                                onInstanceClick = { id ->
-                                    selectedInstanceId = id
-                                    navController.navigate(InstanceDetailRoute(id, daemonId = currentDaemonId)) {
-                                        // Pop previous detail if any, so clicking another instance replaces it
-                                        popUpTo<InstanceListRoute> { inclusive = false }
-                                    }
                                 },
-                                onCreateInstance = {
-                                    navController.navigate(CreateInstanceRoute(currentDaemonId))
-                                },
-                                onRefresh = instanceListVm::refresh,
                             )
                         }
 
-                        // Column 3: Main content
+                        // Column 2: Instance list panel (MANAGE mode + paired)
+                        if (currentMode == AppMode.MANAGE && isPaired) {
+                            val listVm: InstanceListViewModel = koinViewModel()
+                            val listState by listVm.state.collectAsState()
+                            val daemonVm: DaemonViewModel = koinViewModel()
+
+                            InstanceListPanel(
+                                daemonGroups = listState.daemonGroups,
+                                selectedInstanceId = selectedInstanceId,
+                                onInstanceClick = { daemonId, instanceId ->
+                                    selectedInstanceId = instanceId
+                                    currentDaemonId = daemonId
+                                    navController.navigate(
+                                        InstanceDetailRoute(instanceId, daemonId),
+                                    ) {
+                                        popUpTo<InstanceListRoute> { inclusive = false }
+                                    }
+                                },
+                                onCreateInstance = { daemonId ->
+                                    navController.navigate(CreateInstanceRoute(daemonId))
+                                },
+                                onPairDaemon = {
+                                    navController.navigate(PairRoute) {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                },
+                                onDaemonEdit = { daemonId ->
+                                    navController.navigate(DaemonEditRoute(daemonId))
+                                },
+                                onDaemonDisconnect = { daemonId ->
+                                    daemonVm.disconnect(daemonId)
+                                },
+                                onDaemonForget = { daemonId ->
+                                    daemonVm.forget(daemonId)
+                                },
+                            )
+                        }
+
+                        // Column 3: Content
                         Surface(modifier = Modifier.weight(1f).fillMaxHeight()) {
                             NavHost(
                                 navController = navController,
@@ -143,6 +158,7 @@ fun main() {
                                     PairScreen(
                                         onPaired = { daemonId ->
                                             currentDaemonId = daemonId
+                                            currentMode = AppMode.MANAGE
                                             navController.navigate(InstanceListRoute) {
                                                 popUpTo(PairRoute) { inclusive = true }
                                             }
@@ -150,51 +166,71 @@ fun main() {
                                     )
                                 }
                                 composable<InstanceListRoute> {
-                                    InstanceListScreen(
-                                        onCreateInstance = {
-                                            navController.navigate(CreateInstanceRoute(currentDaemonId))
+                                    PairedEmptyScreen(
+                                        onCreateServer = {
+                                            navController.navigate(
+                                                CreateInstanceRoute(currentDaemonId),
+                                            )
                                         },
-                                        hasInstances = instanceListState.instances.isNotEmpty(),
                                     )
                                 }
                                 composable<CreateInstanceRoute> { backStackEntry ->
                                     val route = backStackEntry.toRoute<CreateInstanceRoute>()
                                     CreateInstanceScreen(
                                         daemonId = route.daemonId,
-                                        onCreated = {
-                                            navController.popBackStack()
-                                        },
-                                        onCancel = {
-                                            navController.popBackStack()
-                                        },
+                                        onCreated = { navController.popBackStack() },
+                                        onCancel = { navController.popBackStack() },
                                     )
                                 }
                                 composable<InstanceDetailRoute> { backStackEntry ->
                                     val route = backStackEntry.toRoute<InstanceDetailRoute>()
-                                    InstanceDetailScreen(
+                                    val detailVm: InstanceDetailViewModel = koinViewModel {
+                                        parametersOf(route.instanceId, route.daemonId)
+                                    }
+                                    val detailState by detailVm.state.collectAsState()
+
+                                    val session = daemonManager.getSession(route.daemonId)
+                                    val daemonConnState = session?.connectionState?.collectAsState()?.value ?: WsConnectionState.DISCONNECTED
+                                    val daemonDisplayName = session?.daemonName ?: route.daemonId
+
+                                    InstanceDetailTabScreen(
                                         instanceId = route.instanceId,
-                                        onEditProperties = {
-                                            // TODO: navigate to properties view (Task 19+)
-                                        },
-                                        onDeleted = {
-                                            selectedInstanceId = null
-                                            navController.navigate(InstanceListRoute) {
-                                                popUpTo(InstanceDetailRoute(route.instanceId, route.daemonId)) { inclusive = true }
-                                            }
-                                        },
+                                        daemonId = route.daemonId,
+                                        state = detailState,
+                                        connectionState = daemonConnState,
+                                        daemonName = daemonDisplayName,
+                                        onSelectTab = detailVm::selectTab,
+                                        onStart = detailVm::startServer,
+                                        onStop = detailVm::stopServer,
+                                        onKill = detailVm::killServer,
+                                        onDelete = { detailVm.setShowDeleteDialog(true) },
+                                        onCancel = detailVm::cancelTask,
+                                        onDismissDelete = { detailVm.setShowDeleteDialog(false) },
+                                        onConfirmDelete = detailVm::deleteInstance,
+                                        onUpdateCommand = detailVm::updateCommandInput,
+                                        onSendCommand = detailVm::sendCommand,
+                                    )
+                                }
+                                composable<DaemonEditRoute> { backStackEntry ->
+                                    val route = backStackEntry.toRoute<DaemonEditRoute>()
+                                    EditDaemonScreen(
+                                        daemonId = route.daemonId,
+                                        onBack = { navController.popBackStack() },
                                     )
                                 }
                                 composable<LauncherRoute> {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text(
-                                            text = "启动器 — 即将推出",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
+                                    LaunchEmptyScreen(
+                                        onCreateInstance = {
+                                            navController.navigate(
+                                                CreateInstanceRoute(currentDaemonId),
+                                            )
+                                        },
+                                        onConnectServer = {
+                                            navController.navigate(PairRoute) {
+                                                popUpTo(0) { inclusive = true }
+                                            }
+                                        },
+                                    )
                                 }
                                 composable<SettingsRoute> {
                                     Box(
@@ -202,9 +238,9 @@ fun main() {
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Text(
-                                            text = "设置 — 即将推出",
+                                            text = "Settings — coming soon",
                                             style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = TextSecondary,
                                         )
                                     }
                                 }

@@ -13,8 +13,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.conduit.desktop.ui.components.*
 import dev.conduit.desktop.ui.theme.*
 import org.koin.compose.viewmodel.koinViewModel
@@ -57,7 +59,8 @@ fun ConfigTab(
                 enabled = state.modifiedCount > 0 && !state.isSaving,
             )
         }
-        Spacer(Modifier.height(12.dp))
+        HorizontalDivider(color = Border, modifier = Modifier.padding(top = 12.dp))
+        Spacer(Modifier.height(8.dp))
 
         // Search
         SearchBar(
@@ -70,20 +73,20 @@ fun ConfigTab(
         // Property list
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(state.filteredProperties, key = { it.key }) { prop ->
-                val borderColor = if (prop.isModified) AccentBlue else Border
+                val borderColor = if (prop.isModified) AccentBlue.copy(alpha = 0.3f) else Border
                 Row(
                     modifier = Modifier.fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(Surface)
-                        .border(1.dp, borderColor, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .border(1.dp, borderColor, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         prop.key,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
-                        modifier = Modifier.widthIn(max = 200.dp),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = MonoFontFamily),
+                        color = TextPrimary,
+                        modifier = Modifier.widthIn(min = 160.dp, max = 240.dp),
                     )
                     Spacer(Modifier.width(12.dp))
 
@@ -102,17 +105,18 @@ fun ConfigTab(
                         Text(
                             if (prop.isModified) prop.originalValue else prop.currentValue,
                             style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = MonoFontFamily,
                                 textDecoration = if (prop.isModified) TextDecoration.LineThrough else null,
                             ),
-                            color = if (prop.isModified) TextMuted else TextPrimary,
-                            modifier = Modifier.weight(1f),
+                            color = if (prop.isModified) TextMuted else TextSecondary,
+                            modifier = Modifier.widthIn(min = 160.dp, max = 240.dp),
                         )
                         if (prop.isModified) {
+                            Text(" → ", style = MaterialTheme.typography.bodySmall, color = AccentBlue)
                             Text(
                                 prop.currentValue,
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = MonoFontFamily),
                                 color = AccentBlue,
-                                modifier = Modifier.padding(start = 8.dp),
                             )
                         }
                     }
@@ -121,13 +125,15 @@ fun ConfigTab(
                         onClick = {
                             editingKey = if (editingKey == prop.key) null else prop.key
                         },
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(28.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Border),
                     ) {
                         Icon(
                             Icons.Default.Edit,
                             contentDescription = "Edit",
                             tint = TextMuted,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(12.dp),
                         )
                     }
                 }

@@ -7,7 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.conduit.core.model.InstanceState
 import dev.conduit.desktop.ui.theme.*
 
@@ -21,7 +23,7 @@ fun ActionButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val shape = RoundedCornerShape(8.dp)
+    val shape = RoundedCornerShape(6.dp)
     when (variant) {
         ButtonVariant.Primary -> Button(
             onClick = onClick, enabled = enabled, modifier = modifier, shape = shape,
@@ -29,7 +31,7 @@ fun ActionButton(
                 containerColor = ButtonPrimary, contentColor = ButtonPrimaryText,
                 disabledContainerColor = ButtonDisabled, disabledContentColor = ButtonDisabledText,
             ),
-        ) { Text(text, style = MaterialTheme.typography.bodySmall) }
+        ) { Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold)) }
 
         ButtonVariant.Secondary -> Button(
             onClick = onClick, enabled = enabled, modifier = modifier, shape = shape,
@@ -37,13 +39,13 @@ fun ActionButton(
                 containerColor = ButtonSecondary, contentColor = ButtonSecondaryText,
                 disabledContainerColor = ButtonDisabled, disabledContentColor = ButtonDisabledText,
             ),
-        ) { Text(text, style = MaterialTheme.typography.bodySmall) }
+        ) { Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold)) }
 
         ButtonVariant.Danger -> OutlinedButton(
             onClick = onClick, enabled = enabled, modifier = modifier, shape = shape,
             border = ButtonDefaults.outlinedButtonBorder(enabled).copy(brush = SolidColor(ButtonDanger)),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = ButtonDanger, disabledContentColor = ButtonDisabledText),
-        ) { Text(text, style = MaterialTheme.typography.bodySmall) }
+        ) { Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold)) }
 
         ButtonVariant.Warning -> Button(
             onClick = onClick, enabled = enabled, modifier = modifier, shape = shape,
@@ -51,7 +53,7 @@ fun ActionButton(
                 containerColor = ButtonWarning, contentColor = ButtonPrimaryText,
                 disabledContainerColor = ButtonDisabled, disabledContentColor = ButtonDisabledText,
             ),
-        ) { Text(text, style = MaterialTheme.typography.bodySmall) }
+        ) { Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold)) }
     }
 }
 
@@ -66,7 +68,7 @@ fun InstanceActionButtons(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         when (state) {
             InstanceState.STOPPED -> {
                 ActionButton("Start", ButtonVariant.Primary, onStart, enabled = !isActionInProgress)
@@ -74,6 +76,8 @@ fun InstanceActionButtons(
                 ActionButton("Delete", ButtonVariant.Danger, onDelete, enabled = !isActionInProgress)
             }
             InstanceState.STARTING -> {
+                ActionButton("Stop", ButtonVariant.Primary, onStop, enabled = false)
+                ActionButton("Kill", ButtonVariant.Secondary, onKill, enabled = false)
                 Spacer(Modifier.weight(1f))
                 ActionButton("Cancel", ButtonVariant.Warning, onCancel, enabled = !isActionInProgress)
             }
@@ -82,6 +86,7 @@ fun InstanceActionButtons(
                 ActionButton("Kill", ButtonVariant.Secondary, onKill, enabled = !isActionInProgress)
             }
             InstanceState.STOPPING -> {
+                ActionButton("Stop", ButtonVariant.Primary, onStop, enabled = false)
                 ActionButton("Kill", ButtonVariant.Secondary, onKill, enabled = !isActionInProgress)
             }
             InstanceState.CRASHED -> {

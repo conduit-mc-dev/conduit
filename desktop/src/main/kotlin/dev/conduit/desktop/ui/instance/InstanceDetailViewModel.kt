@@ -2,10 +2,8 @@ package dev.conduit.desktop.ui.instance
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.conduit.core.api.ConduitApiClient
-import dev.conduit.core.api.ConduitApiException
 import dev.conduit.core.model.*
-import dev.conduit.desktop.session.SessionManager
+import dev.conduit.desktop.session.DaemonManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,40 +12,48 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
-import java.util.logging.Logger
 
 data class InstanceDetailUiState(
     val instance: InstanceSummary? = null,
-    val eulaAccepted: Boolean? = null,
+    val selectedTab: String = "console",
     val consoleLines: List<String> = emptyList(),
     val commandInput: String = "",
     val isLoading: Boolean = false,
     val isActionInProgress: Boolean = false,
-    val showEulaDialog: Boolean = false,
     val error: String? = null,
     val isDeleted: Boolean = false,
     val playerNames: List<String> = emptyList(),
+    val showDeleteDialog: Boolean = false,
+    val eulaAccepted: Boolean? = null,
+    val showEulaDialog: Boolean = false,
 )
 
 class InstanceDetailViewModel(
     private val instanceId: String,
-    private val apiClient: ConduitApiClient,
-    private val session: SessionManager,
+    private val daemonId: String,
+    private val daemonManager: DaemonManager,
 ) : ViewModel() {
 
-    private val log = Logger.getLogger(InstanceDetailViewModel::class.java.name)
     private val json = Json { ignoreUnknownKeys = true }
     private var playerPollJob: Job? = null
+    private val session get() = daemonManager.getSession(daemonId)
+    private val apiClient get() = session?.getApi() ?: error("No session for daemon $daemonId")
 
     private val _state = MutableStateFlow(InstanceDetailUiState())
     val state: StateFlow<InstanceDetailUiState> = _state
 
     init {
-        _state.value = _state.value.copy(
-            consoleLines = session.getConsoleLines(instanceId).value,
-        )
+        session?.let {
+            _state.value = _state.value.copy(
+                consoleLines = it.getConsoleLines(instanceId).value,
+            )
+        }
         loadInstance()
         connectWebSocket()
+    }
+
+    fun selectTab(tabId: String) {
+        _state.value = _state.value.copy(selectedTab = tabId)
     }
 
     fun loadInstance() {
@@ -67,33 +73,33 @@ class InstanceDetailViewModel(
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    error = "加载实例失败: ${e.message}",
+                    error = "Failed to load: ${e.message}",
                 )
             }
         }
     }
 
     private fun connectWebSocket() {
-        val wsClient = session.wsClient
+        val ws = session?.wsClient ?: return
         viewModelScope.launch {
             delay(500)
-            wsClient.subscribe(instanceId)
+            ws.subscribe(instanceId)
         }
         viewModelScope.launch {
-            wsClient.messages.collect { msg ->
+            ws.messages.collect { msg ->
                 if (msg.instanceId != instanceId) return@collect
                 when (msg.type) {
                     WsMessage.CONSOLE_OUTPUT -> {
                         try {
                             val payload = json.decodeFromJsonElement<ConsoleOutputPayload>(msg.payload)
-                            session.appendConsoleLine(instanceId, payload.line)
+                            session?.appendConsoleLine(instanceId, payload.line)
                             _state.value = _state.value.copy(
-                                consoleLines = session.getConsoleLines(instanceId).value,
+                                consoleLines = session?.getConsoleLines(instanceId)?.value
+                                    ?: emptyList(),
                             )
-                        } catch (e: Exception) {
-                            log.warning("Failed to parse console output: ${e.message}")
-                        }
+                        } catch (_: Exception) {}
                     }
+
                     WsMessage.STATE_CHANGED -> {
                         try {
                             val payload = json.decodeFromJsonElement<StateChangedPayload>(msg.payload)
@@ -103,23 +109,13 @@ class InstanceDetailViewModel(
                                 ),
                             )
                             if (payload.newState == InstanceState.RUNNING) {
-                                playerPollJob?.cancel()
-                                playerPollJob = viewModelScope.launch {
-                                    refreshPlayerNames()
-                                    while (isActive) {
-                                        delay(30_000)
-                                        refreshPlayerNames()
-                                    }
-                                }
+                                startPlayerPolling()
                             } else {
-                                playerPollJob?.cancel()
-                                playerPollJob = null
-                                _state.value = _state.value.copy(playerNames = emptyList())
+                                stopPlayerPolling()
                             }
-                        } catch (e: Exception) {
-                            log.warning("Failed to parse state change: ${e.message}")
-                        }
+                        } catch (_: Exception) {}
                     }
+
                     WsMessage.PLAYERS_CHANGED -> {
                         try {
                             val payload = json.decodeFromJsonElement<PlayersChangedPayload>(msg.payload)
@@ -129,86 +125,48 @@ class InstanceDetailViewModel(
                                     maxPlayers = payload.maxPlayers,
                                 ),
                             )
-                        } catch (e: Exception) {
-                            log.warning("Failed to parse players changed: ${e.message}")
-                        }
+                        } catch (_: Exception) {}
                     }
                 }
             }
         }
     }
 
-    private suspend fun refreshPlayerNames() {
-        try {
-            val status = apiClient.getServerStatus(instanceId)
-            _state.value = _state.value.copy(playerNames = status.players)
-        } catch (e: Exception) {
-            log.fine("Failed to refresh player names: ${e.message}")
+    private fun startPlayerPolling() {
+        playerPollJob?.cancel()
+        playerPollJob = viewModelScope.launch {
+            refreshPlayerNames()
+            while (isActive) {
+                delay(30_000)
+                refreshPlayerNames()
+            }
         }
     }
 
-    fun retryDownload() {
-        viewModelScope.launch {
-            _state.value = _state.value.copy(isActionInProgress = true, error = null)
-            try {
-                val updated = apiClient.retryDownload(instanceId)
-                _state.value = _state.value.copy(instance = updated, isActionInProgress = false)
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    isActionInProgress = false,
-                    error = "重试下载失败: ${e.message}",
-                )
-            }
-        }
+    private fun stopPlayerPolling() {
+        playerPollJob?.cancel()
+        playerPollJob = null
+        _state.value = _state.value.copy(playerNames = emptyList())
+    }
+
+    private suspend fun refreshPlayerNames() {
+        try {
+            _state.value = _state.value.copy(
+                playerNames = apiClient.getServerStatus(instanceId).players,
+            )
+        } catch (_: Exception) {}
     }
 
     fun startServer() {
-        viewModelScope.launch {
-            if (_state.value.eulaAccepted != true) {
-                _state.value = _state.value.copy(showEulaDialog = true)
-                return@launch
-            }
-            _state.value = _state.value.copy(isActionInProgress = true, error = null)
-            try {
-                val status = apiClient.startServer(instanceId)
-                _state.value = _state.value.copy(
-                    instance = _state.value.instance?.copy(state = status.state),
-                    isActionInProgress = false,
-                )
-            } catch (e: ConduitApiException) {
-                if (e.errorResponse?.error?.code == "EULA_NOT_ACCEPTED") {
-                    _state.value = _state.value.copy(showEulaDialog = true, isActionInProgress = false)
-                } else {
-                    _state.value = _state.value.copy(
-                        isActionInProgress = false,
-                        error = "启动失败: ${e.message}",
-                    )
-                }
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    isActionInProgress = false,
-                    error = "启动失败: ${e.message}",
-                )
-            }
+        if (_state.value.eulaAccepted != true) {
+            _state.value = _state.value.copy(showEulaDialog = true)
+            return
         }
+        performAction { apiClient.startServer(instanceId) }
     }
 
     fun stopServer() {
-        viewModelScope.launch {
-            _state.value = _state.value.copy(isActionInProgress = true, error = null)
-            try {
-                val status = apiClient.stopServer(instanceId)
-                _state.value = _state.value.copy(
-                    instance = _state.value.instance?.copy(state = status.state),
-                    isActionInProgress = false,
-                )
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(
-                    isActionInProgress = false,
-                    error = "停止失败: ${e.message}",
-                )
-            }
-        }
+        performAction { apiClient.stopServer(instanceId) }
     }
 
     fun killServer() {
@@ -216,41 +174,56 @@ class InstanceDetailViewModel(
             _state.value = _state.value.copy(isActionInProgress = true, error = null)
             try {
                 apiClient.killServer(instanceId)
-                _state.value = _state.value.copy(isActionInProgress = false)
                 loadInstance()
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
-                    isActionInProgress = false,
-                    error = "强制停止失败: ${e.message}",
+                    error = "Kill failed: ${e.message}",
                 )
+            } finally {
+                _state.value = _state.value.copy(isActionInProgress = false)
             }
         }
     }
 
     fun deleteInstance() {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isActionInProgress = true, error = null)
+            _state.value = _state.value.copy(
+                isActionInProgress = true,
+                showDeleteDialog = false,
+            )
             try {
                 apiClient.deleteInstance(instanceId)
-                _state.value = _state.value.copy(isActionInProgress = false, isDeleted = true)
+                _state.value = _state.value.copy(isDeleted = true)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
-                    isActionInProgress = false,
-                    error = "删除失败: ${e.message}",
+                    error = "Delete failed: ${e.message}",
                 )
+            } finally {
+                _state.value = _state.value.copy(isActionInProgress = false)
             }
         }
+    }
+
+    fun cancelTask() {
+        // TODO: wire up when task cancellation API is available
+    }
+
+    fun setShowDeleteDialog(show: Boolean) {
+        _state.value = _state.value.copy(showDeleteDialog = show)
     }
 
     fun acceptEula() {
         viewModelScope.launch {
             try {
                 apiClient.acceptEula(instanceId)
-                _state.value = _state.value.copy(eulaAccepted = true, showEulaDialog = false)
+                _state.value = _state.value.copy(
+                    eulaAccepted = true,
+                    showEulaDialog = false,
+                )
                 startServer()
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
-                    error = "接受 EULA 失败: ${e.message}",
+                    error = "EULA accept failed: ${e.message}",
                 )
             }
         }
@@ -270,14 +243,33 @@ class InstanceDetailViewModel(
         viewModelScope.launch {
             try {
                 apiClient.sendCommand(instanceId, command)
-                session.appendConsoleLine(instanceId, "> $command")
+                session?.appendConsoleLine(instanceId, "> $command")
                 _state.value = _state.value.copy(
-                    consoleLines = session.getConsoleLines(instanceId).value,
+                    consoleLines = session?.getConsoleLines(instanceId)?.value
+                        ?: emptyList(),
                     commandInput = "",
                 )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
-                    error = "发送命令失败: ${e.message}",
+                    error = "Command failed: ${e.message}",
+                )
+            }
+        }
+    }
+
+    private fun performAction(action: suspend () -> ServerStatusResponse) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isActionInProgress = true, error = null)
+            try {
+                val status = action()
+                _state.value = _state.value.copy(
+                    instance = _state.value.instance?.copy(state = status.state),
+                    isActionInProgress = false,
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isActionInProgress = false,
+                    error = "${e.message}",
                 )
             }
         }

@@ -13,7 +13,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.conduit.desktop.ui.theme.*
 
 @Composable
@@ -38,29 +42,36 @@ fun PlayersTab(
                 .background(Surface)
                 .border(1.dp, Border, RoundedCornerShape(10.dp))
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(32.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Column {
-                Text("Online", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     "$playerCount",
-                    style = MaterialTheme.typography.headlineLarge,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight(700),
                     color = StateRunning,
                 )
+                Text("Online", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
             }
-            Column {
-                Text(
-                    "Max Players",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary,
-                )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     "$maxPlayers",
-                    style = MaterialTheme.typography.headlineLarge,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight(700),
                     color = TextMuted,
                 )
+                Text("Max Players", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
             }
         }
+
+        // Section label
+        Text(
+            "ONLINE NOW",
+            fontSize = 10.sp,
+            fontWeight = FontWeight(700),
+            color = TextMuted,
+            letterSpacing = 0.5.sp,
+        )
 
         // Player list
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -83,8 +94,14 @@ fun PlayersTab(
 
 @Composable
 private fun PlayerCard(name: String) {
-    val colors = listOf(AccentBlue, AccentPurple, StateRunning, StateInstalling, StateStopping)
-    val initialColor = colors[name.hashCode().and(0x7FFFFFFF) % colors.size]
+    val colors = listOf(
+        AccentBlue to AccentBlue.copy(alpha = 0.3f),
+        AccentPurple to AccentPurple.copy(alpha = 0.3f),
+        StateRunning to StateRunning.copy(alpha = 0.3f),
+        StateInstalling to StateInstalling.copy(alpha = 0.3f),
+        StateStopping to StateStopping.copy(alpha = 0.3f),
+    )
+    val (baseColor, darkColor) = colors[name.hashCode().and(0x7FFFFFFF) % colors.size]
 
     Row(
         modifier = Modifier
@@ -92,21 +109,21 @@ private fun PlayerCard(name: String) {
             .clip(RoundedCornerShape(10.dp))
             .background(Surface)
             .border(1.dp, Border, RoundedCornerShape(10.dp))
-            .padding(12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(initialColor.copy(alpha = 0.2f)),
+                .size(36.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Brush.linearGradient(listOf(baseColor, darkColor))),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 name.firstOrNull()?.uppercase() ?: "?",
                 style = MaterialTheme.typography.titleSmall,
-                color = initialColor,
+                color = baseColor,
             )
         }
         Text(
@@ -117,7 +134,7 @@ private fun PlayerCard(name: String) {
         )
         Box(
             Modifier
-                .size(6.dp)
+                .size(7.dp)
                 .clip(CircleShape)
                 .background(StateRunning),
         )

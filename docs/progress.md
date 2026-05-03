@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-03（迭代 4 完成：UI 打磨 — 侧边栏骨架 + Material You Dark 主题）
+> 最新更新：2026-05-04（UI Redesign v2 视觉对齐 — P0/P2/P3 修复 + 全页面 mockup 审计）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -10,6 +10,8 @@
 ---
 
 ## Now（进行中）
+
+**UI Redesign v2 视觉对齐**：P0 + P2/P3 全局修复已完成，P1 工作待推进。完整审计报告见 `docs/ui-alignment-audit.md`。
 
 **Desktop MVP 迭代 4（完成）**：server.properties 编辑器、实例删除、玩家列表 + UI 打磨（侧边栏骨架 + Material You Dark 主题）全部完成。
 
@@ -21,7 +23,8 @@
 
 - [x] shared-core `ConduitWsClient` 重连逻辑 + 5 个测试用例（→ 实际 8 个）
 - [x] Desktop MVP 迭代 4 剩余：实例删除 + 玩家列表 + UI 打磨
-- [ ] Desktop MVP 迭代 4 收尾：UI 打磨
+- [x] Desktop MVP 迭代 4 收尾：UI 打磨
+- [ ] UI 视觉对齐 P1：S02 空状态、S20 Reconnect banner、S21 Offline 修复、S13/S14 InstallProgress 重写、CreateInstance 版本选择器、对话框自定义样式（详见 `docs/ui-alignment-audit.md`）
 - [x] 持久化审计 + TokenStore 磁盘持久化（2026-05-02）
 - [x] 修复：实例列表自动刷新（WebSocket 事件）
 - [x] 修复：控制台输出跨界面持久化（SessionManager）
@@ -45,6 +48,35 @@
 ---
 
 ## Done
+
+- [x] **UI Redesign v2 视觉对齐 — P0/P2/P3 修复 + 全页面审计**（2026-05-04）
+  - **全页面 mockup 审计**：4 个并行 agent 对比 26 个 HTML mockup 与 Kotlin/Compose 实现，生成 `docs/ui-alignment-audit.md`
+  - **P0 跨页面通用组件修复**（5 处，影响所有页面）：
+    - ButtonPrimary 颜色 `#58A6FF`(蓝)→`#238636`(绿)，ButtonPrimaryText `#FFFFFF`→`#0D1117`(深)
+    - ButtonSecondary 背景 `#30363D`→`#21262D`
+    - ContentHeader 名称字号 ~28sp→18sp/800
+    - TabBar 下划线固定 40dp→动态铺满 + 底部 1px Border 分割线
+  - **P2/P3 参数调优**（12 处）：
+    - Disabled 按钮颜色 `#161B22`/`#30363D`→`#21262D`/`#484F58`
+    - 按钮圆角 8dp→6dp，字号 bodySmall→11sp
+    - Toast 文字从白色改为按类型着色（绿/红/黄）
+    - Config tab 未编辑值 TextPrimary→TextSecondary，新值 13sp/SemiBold，Edit 按钮加背景
+    - 状态文字省略号 "Starting..."/"Stopping..."
+    - Console placeholder "Type a command..."，Starting/Stopping 日志行着色
+    - Tab 项水平间距 12dp→16dp，Toast 右侧距离 24dp→16dp
+  - **Mods Tab 全面重写**（4 项视觉修复）：
+    - Filter: ActionButton→下划线指示器 Tab（drawBehind，active 蓝 2px/inactive 灰 1px）
+    - Status: Switch toggle→Enabled/Disabled badge（9sp/SemiBold，绿/灰配色）
+    - Icons: 统一紫色→基于 mod name hash 的 8 色对角渐变
+    - Context menu: MoreVert "..." + DropdownMenu（Disable/Enable + Remove）
+  - **其他状态页面修复**：
+    - ConduitCard info 文字颜色：Starting=紫色，Stopping=橙色，Crashed=红色
+    - Crashed 选中边框蓝色→红色 tint
+    - Crash banner（红色背景 + ErrorOutline + 错误信息）
+    - Starting/Stopping 按钮组添加 disabled 按钮
+    - NavigationRail Settings 上移到顶部
+  - **审计发现的剩余 P1 项**：S02 空状态独立页面、S20 Reconnect banner、S21 Offline 按钮、S13/S14 InstallProgressScreen 重写、CreateInstance 版本选择器、对话框自定义样式
+  - 改动文件：11 个 Kotlin + 1 个审计报告
 
 - [x] **Desktop UI 打磨：侧边栏骨架 + Material You Dark 主题**（2026-05-03）
   - **主题系统**：`ui/theme/` — Color.kt（12 色 token）、Shape.kt（8/12/16dp 圆角）、Type.kt（4 级字体）、Theme.kt（ConduitDarkColorScheme + ConduitTheme composable）

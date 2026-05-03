@@ -27,7 +27,7 @@ fun ToastHost(currentToast: ToastMessage?, onDismiss: () -> Unit, modifier: Modi
     LaunchedEffect(currentToast) {
         if (currentToast != null) { delay(3000); onDismiss() }
     }
-    Box(modifier = modifier.fillMaxSize().padding(bottom = 48.dp, end = 24.dp), contentAlignment = Alignment.BottomEnd) {
+    Box(modifier = modifier.fillMaxSize().padding(bottom = 48.dp, end = 16.dp), contentAlignment = Alignment.BottomEnd) {
         AnimatedVisibility(
             visible = currentToast != null,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -44,7 +44,7 @@ fun ToastHost(currentToast: ToastMessage?, onDismiss: () -> Unit, modifier: Modi
                 ) {
                     Icon(icon, contentDescription = null, tint = borderColor, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
-                    Text(toast.text, style = MaterialTheme.typography.bodySmall, color = TextPrimary)
+                    Text(toast.text, style = MaterialTheme.typography.bodySmall, color = borderColor)
                     Spacer(Modifier.width(12.dp))
                     IconButton(onClick = onDismiss, modifier = Modifier.size(16.dp)) {
                         Icon(Icons.Default.Close, contentDescription = "Dismiss", tint = TextMuted, modifier = Modifier.size(12.dp))

@@ -16,7 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.conduit.desktop.ui.components.*
 import dev.conduit.desktop.ui.theme.*
 import org.koin.compose.viewmodel.koinViewModel
@@ -72,15 +74,15 @@ fun FilesTab(
         Spacer(Modifier.height(12.dp))
 
         // File list
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(5.dp)) {
             items(state.entries, key = { it.name }) { entry ->
                 val isProtected = entry.name in PROTECTED
                 Row(
                     modifier = Modifier.fillMaxWidth()
                         .alpha(if (isProtected) 0.5f else 1f)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(Surface)
-                        .border(1.dp, Border, RoundedCornerShape(8.dp))
+                        .border(1.dp, Border, RoundedCornerShape(10.dp))
                         .then(
                             if (entry.type == "directory") {
                                 Modifier.clickable { viewModel.navigateToFolder(entry.name) }
@@ -88,7 +90,7 @@ fun FilesTab(
                                 Modifier
                             },
                         )
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -101,15 +103,22 @@ fun FilesTab(
                     )
                     Text(
                         entry.name,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextPrimary,
+                        style = if (entry.type == "directory")
+                            MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                        else MaterialTheme.typography.bodySmall,
+                        color = if (entry.type == "directory") AccentBlue else if (isProtected) TextSecondary else TextPrimary,
                         modifier = Modifier.weight(1f),
                     )
                     if (isProtected) {
                         Text(
                             "Protected",
-                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = StateCrashed,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(StateCrashed.copy(alpha = 0.1f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
                         )
                     }
                     val fileSize = entry.size
@@ -117,7 +126,7 @@ fun FilesTab(
                         Text(
                             formatSize(fileSize),
                             style = MaterialTheme.typography.labelMedium,
-                            color = TextMuted,
+                            color = TextSecondary,
                         )
                     }
                 }

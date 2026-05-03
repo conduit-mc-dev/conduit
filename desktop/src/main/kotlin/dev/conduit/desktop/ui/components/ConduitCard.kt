@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
@@ -30,15 +31,21 @@ fun ConduitCard(
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    dimmed: Boolean = false,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
-    val borderColor = if (isSelected) AccentBlue.copy(alpha = 0.4f) else Border
-    val bgColor = if (isHovered) Elevated else Surface
+    val borderColor = when {
+        isSelected && instance.state == InstanceState.CRASHED -> StateCrashed.copy(alpha = 0.4f)
+        isSelected -> AccentBlue.copy(alpha = 0.4f)
+        else -> Border
+    }
+    val bgColor = Surface
 
     Box(
         modifier = modifier
+            .then(if (dimmed) Modifier.alpha(0.55f) else Modifier)
             .fillMaxWidth()
             .height(58.dp)
             .clip(RoundedCornerShape(10.dp))
@@ -66,14 +73,21 @@ fun ConduitCard(
                 StatusDot(instance.state, StatusDotSize.Small)
             }
             val infoText = buildString {
-                append("MC ${instance.mcVersion}")
-                instance.loader?.let { append(" · ${it.type.name.lowercase()}") }
+                instance.loader?.let { append("${it.type.name.lowercase().replaceFirstChar { c -> c.uppercase() }} ") }
+                append(instance.mcVersion)
                 if (instance.state == InstanceState.RUNNING) append(" · ${instance.playerCount}/${instance.maxPlayers}")
             }
             Text(
                 text = infoText,
                 style = MaterialTheme.typography.labelMedium,
-                color = if (instance.state == InstanceState.RUNNING) StateRunning else TextSecondary,
+                color = when (instance.state) {
+                    InstanceState.RUNNING -> StateRunning
+                    InstanceState.STARTING -> StateStarting
+                    InstanceState.STOPPING -> StateStopping
+                    InstanceState.CRASHED -> StateCrashed
+                    InstanceState.STOPPED -> TextMuted
+                    InstanceState.INITIALIZING -> StateInstalling
+                },
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }

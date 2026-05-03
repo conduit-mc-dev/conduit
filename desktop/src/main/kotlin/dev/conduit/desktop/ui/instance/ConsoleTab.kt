@@ -78,7 +78,7 @@ fun ConsoleTab(
             OutlinedTextField(
                 value = commandInput,
                 onValueChange = onCommandChange,
-                placeholder = { Text("Type command...", color = TextMuted) },
+                placeholder = { Text("Type a command...", color = TextMuted) },
                 enabled = isRunning,
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodySmall.copy(
@@ -118,6 +118,12 @@ private fun colorizeLogLine(line: String) = buildAnnotatedString {
 
         line.contains("Done") || line.contains("joined") ->
             withStyle(SpanStyle(color = StateRunning)) { append(line) }
+
+        line.contains("Starting", ignoreCase = true) ->
+            withStyle(SpanStyle(color = StateStarting)) { append(line) }
+
+        line.contains("Stopping", ignoreCase = true) ->
+            withStyle(SpanStyle(color = StateStopping)) { append(line) }
 
         line.startsWith(">") ->
             withStyle(SpanStyle(color = AccentBlue)) { append(line) }

@@ -7,7 +7,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.conduit.core.model.InstanceState
 import dev.conduit.desktop.ui.theme.*
 
@@ -28,19 +30,19 @@ fun ContentHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(instanceName, style = MaterialTheme.typography.headlineMedium, color = TextPrimary)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(instanceName, style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp, fontWeight = FontWeight(800)), color = TextPrimary)
             StatusDot(instanceState, StatusDotSize.Medium)
             Text(
                 when (instanceState) {
                     InstanceState.RUNNING -> "Running"
                     InstanceState.STOPPED -> "Stopped"
-                    InstanceState.STARTING -> "Starting"
-                    InstanceState.STOPPING -> "Stopping"
+                    InstanceState.STARTING -> "Starting..."
+                    InstanceState.STOPPING -> "Stopping..."
                     InstanceState.CRASHED -> "Crashed"
                     InstanceState.INITIALIZING -> "Installing"
                 },
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
                 color = when (instanceState) {
                     InstanceState.RUNNING -> StateRunning
                     InstanceState.STOPPED -> StateStopped
