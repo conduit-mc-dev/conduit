@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>Component Styles — Current vs GitHub</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #010409; font-family: -apple-system, 'Segoe UI', system-ui, sans-serif; color: #e6edf3; padding: 40px; }
+  h1 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .subtitle { font-size: 13px; color: #8b949e; margin-bottom: 32px; }
+
+  .section { margin-bottom: 40px; }
+  .section-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; color: #58a6ff; }
+  .comparison-row { display: flex; gap: 32px; }
+  .col { flex: 1; }
+  .col-label { font-size: 11px; color: #484f58; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+
+  /* ── Cards ── */
+  .card {
+    width: 100%; height: 58px; background: #161b22; border: 1px solid #21262d;
+    border-radius: 10px; padding: 10px 14px; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 8px;
+  }
+  .card.selected { border-color: rgba(88,166,255,0.4); }
+  .card-top { display: flex; justify-content: space-between; align-items: center; }
+  .card-name { font-size: 12px; font-weight: 700; }
+  .card-info { font-size: 10px; margin-top: 3px; }
+
+  /* Current progress bar */
+  .progress-current {
+    position: absolute; bottom: 0; left: 14px; width: 50%; height: 3px;
+    border-radius: 0 0 10px 10px;
+    background: linear-gradient(90deg, #d29922, #f0b232);
+  }
+  /* GitHub-style progress bar */
+  .progress-github {
+    position: absolute; bottom: 0; left: 0; width: 100%; height: 3px;
+    background: #d29922;
+  }
+  .progress-github.download { background: #58a6ff; }
+  .progress-github.done { background: #3fb950; }
+
+  /* Status dots */
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot-running { background: #3fb950; }
+  .dot-stopped { background: #484f58; }
+  .dot-starting { background: #a371f7; }
+  .dot-crashed { background: #f85149; }
+  .dot-installing { background: #d29922; }
+
+  /* Current: with glow */
+  .dot-glow { box-shadow: 0 0 6px currentColor; }
+  .dot-running.glow { box-shadow: 0 0 6px #3fb950; }
+
+  /* GitHub: no glow, just solid */
+  /* (uses .dot classes above without .glow) */
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 5px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit; line-height: 1.4;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  /* E-style (already adopted) */
+  .btn-e-start { background: transparent; color: #3fb950; border: 1px solid rgba(63,185,80,0.35); }
+  .btn-e-stop { background: transparent; color: #e6edf3; border: 1px solid rgba(48,54,61,0.6); }
+  .btn-e-kill { background: transparent; color: #8b949e; border: 1px solid rgba(33,38,45,0.6); }
+  .btn-e-delete { background: transparent; color: #f85149; border: 1px solid rgba(248,81,73,0.25); }
+  .btn-e-disabled { background: transparent; color: #484f58; border: 1px solid rgba(33,38,45,0.4); cursor: default; }
+
+  /* ── Alerts / Banners ── */
+  .alert {
+    padding: 10px 16px; border-radius: 6px; font-size: 12px;
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  }
+  .alert-current { border-radius: 8px; padding: 12px 16px; }
+  .alert-github { border-radius: 6px; padding: 10px 16px; border: 1px solid; }
+  .alert-critical { background: rgba(248,81,73,0.1); color: #f85149; border-color: rgba(248,81,73,0.3); }
+  .alert-warning { background: rgba(210,153,34,0.06); color: #d29922; border-color: rgba(210,153,34,0.2); }
+  .alert-warning-gh { background: rgba(210,153,34,0.1); color: #d29922; border-color: rgba(210,153,34,0.4); }
+  .alert-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* ── Search ── */
+  .search {
+    background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+    padding: 8px 10px; display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: #484f58; width: 200px;
+  }
+  .search svg { width: 14px; height: 14px; stroke: #484f58; flex-shrink: 0; }
+  .search-github { border-radius: 6px; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; border-bottom: 1px solid #21262d; padding: 0 16px; margin-bottom: 12px; }
+  .tab { padding: 8px 16px; font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab.active { color: #58a6ff; font-weight: 600; border-bottom-color: #58a6ff; }
+  .tab:not(.active) { color: #8b949e; }
+
+  /* ── Typography comparison ── */
+  .type-sample { margin-bottom: 8px; }
+  .type-label { font-size: 10px; color: #484f58; margin-bottom: 2px; }
+  .type-current { font-size: 11px; }
+  .type-github { font-size: 12px; }
+
+  .page-label {
+    position: fixed; bottom: 12px; right: 16px;
+    background: rgba(22,27,34,0.9); border: 1px solid #21262d;
+    border-radius: 8px; padding: 6px 12px;
+    font-size: 11px; color: #484f58;
+    font-family: 'JetBrains Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<h1>Component Styles — Current vs GitHub</h1>
+<p class="subtitle">Side-by-side comparison of key components. Changes are subtle but consistent.</p>
+
+<!-- 1. Cards with Progress Bar -->
+<div class="section">
+  <div class="section-title">1. ConduitCard — Progress Bar</div>
+  <div class="comparison-row">
+    <div class="col">
+      <div class="col-label">Current</div>
+      <div class="card selected">
+        <div class="card-top"><span class="card-name">Survival SMP</span></div>
+        <div class="card-info" style="color:#d29922;">Installing...</div>
+        <div class="progress-current"></div>
+      </div>
+      <div class="card">
+        <div class="card-top"><span class="card-name">Creative</span></div>
+        <div class="card-info" style="color:#58a6ff;">Downloading...</div>
+        <div class="progress-current" style="background:linear-gradient(90deg,#58a6ff,#a371f7);width:75%;"></div>
+      </div>
+      <div style="font-size:11px;color:#8b949e;margin-top:8px;">Left-aligned, 50% width, gradient fill, rounded bottom</div>
+    </div>
+    <div class="col">
+      <div class="col-label">GitHub</div>
+      <div class="card selected">
+        <div class="card-top"><span class="card-name">Survival SMP</span></div>
+        <div class="card-info" style="color:#d29922;">Installing...</div>
+        <div class="progress-github"></div>
+      </div>
+      <div class="card">
+        <div class="card-top"><span class="card-name">Creative</span></div>
+        <div class="card-info" style="color:#58a6ff;">Downloading...</div>
+        <div class="progress-github download" style="width:75%;"></div>
+      </div>
+      <div style="font-size:11px;color:#8b949e;margin-top:8px;">Full-width, 3px, solid status color, no radius</div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Status Dots -->
+<div class="section">
+  <div class="section-title">2. Status Dots</div>
+  <div class="comparison-row">
+    <div class="col">
+      <div class="col-label">Current (with glow)</div>
+      <div style="display:flex;gap:16px;align-items:center;">
+        <div style="text-align:center;"><span class="dot dot-running dot-glow"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Running</div></div>
+        <div style="text-align:center;"><span class="dot dot-stopped"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Stopped</div></div>
+        <div style="text-align:center;"><span class="dot dot-starting"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Starting</div></div>
+        <div style="text-align:center;"><span class="dot dot-crashed"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Crashed</div></div>
+        <div style="text-align:center;"><span class="dot dot-installing"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Installing</div></div>
+      </div>
+      <div style="font-size:11px;color:#8b949e;margin-top:12px;">Running has box-shadow glow. Other states are plain.</div>
+    </div>
+    <div class="col">
+      <div class="col-label">GitHub (no glow)</div>
+      <div style="display:flex;gap:16px;align-items:center;">
+        <div style="text-align:center;"><span class="dot dot-running"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Running</div></div>
+        <div style="text-align:center;"><span class="dot dot-stopped"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Stopped</div></div>
+        <div style="text-align:center;"><span class="dot dot-starting"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Starting</div></div>
+        <div style="text-align:center;"><span class="dot dot-crashed"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Crashed</div></div>
+        <div style="text-align:center;"><span class="dot dot-installing"></span><div style="font-size:10px;color:#484f58;margin-top:4px;">Installing</div></div>
+      </div>
+      <div style="font-size:11px;color:#8b949e;margin-top:12px;">All dots are flat, no shadow. Simpler, more consistent.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Alerts / Banners -->
+<div class="section">
+  <div class="section-title">3. Alerts / Banners (Crash, Reconnect)</div>
+  <div class="comparison-row">
+    <div class="col">
+      <div class="col-label">Current</div>
+      <div class="alert alert-current alert-critical">
+        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="#f85149" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div><strong style="font-size:12px;">Server crashed</strong><div style="font-size:10px;color:#8b949e;">Exit code 137</div></div>
+      </div>
+      <div class="alert alert-current alert-warning">
+        <div style="width:16px;height:16px;border:2px solid #21262d;border-top-color:#d29922;border-radius:50;animation:spin 1s linear infinite;flex-shrink:0;"></div>
+        <div><span style="font-size:12px;">Reconnecting to Home VPS...</span><div style="font-size:11px;color:#8b949e;">Retrying connection</div></div>
+      </div>
+      <div style="font-size:11px;color:#8b949e;margin-top:8px;">8dp radius, 12px padding, no border on warning</div>
+    </div>
+    <div class="col">
+      <div class="col-label">GitHub</div>
+      <div class="alert alert-github alert-critical">
+        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="#f85149" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div><strong style="font-size:12px;">Server crashed</strong><div style="font-size:10px;color:#8b949e;">Exit code 137</div></div>
+      </div>
+      <div class="alert alert-github alert-warning-gh">
+        <div style="width:16px;height:16px;border:2px solid #21262d;border-top-color:#d29922;border-radius:50%;animation:spin 1s linear infinite;flex-shrink:0;"></div>
+        <div><span style="font-size:12px;">Reconnecting to Home VPS...</span><div style="font-size:11px;color:#8b949e;">Retrying connection</div></div>
+      </div>
+      <div style="font-size:11px;color:#8b949e;margin-top:8px;">6dp radius, 10px padding, explicit 1px border</div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. Search -->
+<div class="section">
+  <div class="section-title">4. Search Bar</div>
+  <div class="comparison-row">
+    <div class="col">
+      <div class="col-label">Current</div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <span>Search servers...</span>
+      </div>
+      <div style="font-size:11px;color:#8b949e;margin-top:8px;">8dp radius, 8px 10px padding</div>
+    </div>
+    <div class="col">
+      <div class="col-label">GitHub</div>
+      <div class="search search-github">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <span>Search servers...</span>
+      </div>
+      <div style="font-size:11px;color:#8b949e;margin-top:8px;">6dp radius, same padding</div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Typography -->
+<div class="section">
+  <div class="section-title">5. Typography</div>
+  <div class="comparison-row">
+    <div class="col">
+      <div class="col-label">Current</div>
+      <div class="type-sample"><div class="type-label">bodySmall (buttons, info)</div><div class="type-current" style="font-size:11px;">NeoForge 1.20.4 · 2/20</div></div>
+      <div class="type-sample"><div class="type-label">labelSmall (status text)</div><div class="type-current" style="font-size:10px;">online</div></div>
+      <div class="type-sample"><div class="type-label">bodyMedium (body text)</div><div class="type-current" style="font-size:12px;">Create your first server on Home VPS to get started.</div></div>
+      <div style="font-size:11px;color:#8b949e;margin-top:8px;">11sp bodySmall, 10sp labelSmall</div>
+    </div>
+    <div class="col">
+      <div class="col-label">GitHub</div>
+      <div class="type-sample"><div class="type-label">bodySmall → 12px</div><div class="type-github">NeoForge 1.20.4 · 2/20</div></div>
+      <div class="type-sample"><div class="type-label">labelSmall → 12px</div><div class="type-github">online</div></div>
+      <div class="type-sample"><div class="type-label">bodyMedium → 14px</div><div class="type-github" style="font-size:14px;">Create your first server on Home VPS to get started.</div></div>
+      <div style="font-size:11px;color:#8b949e;margin-top:8px;">12px bodySmall, 12px labelSmall, 14px bodyMedium</div>
+    </div>
+  </div>
+</div>
+
+<!-- 6. Buttons (already E-style, just confirm) -->
+<div class="section">
+  <div class="section-title">6. Buttons (E-style, already adopted)</div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <button class="btn btn-e-start">Start</button>
+    <button class="btn btn-e-stop">Stop</button>
+    <button class="btn btn-e-kill">Kill</button>
+    <button class="btn btn-e-delete">Delete</button>
+    <button class="btn btn-e-disabled">Disabled</button>
+  </div>
+  <div style="font-size:11px;color:#8b949e;margin-top:8px;">Already aligned with GitHub. No changes needed.</div>
+</div>
+
+<div class="page-label">Current vs GitHub — Component Comparison</div>
+<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+</body>
+</html>

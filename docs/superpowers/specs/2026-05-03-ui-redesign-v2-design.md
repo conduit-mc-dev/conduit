@@ -26,8 +26,8 @@
 
 - 宽度：72px
 - 组件：M3 `NavigationRail`
-- 背景：渐变 `#1a1a2e → #16213e`
-- 边框：`rgba(88,166,255,0.12)` 右侧分隔线
+- 背景：`#0d1117`（与 Background 统一）
+- 边框：`#21262d` 右侧分隔线
 - Logo：40×40px，圆角 12px，渐变 `#58a6ff → #a371f7`
 - 导航项：56×48px，圆角 14px
 - 选中态：pill 背景 `rgba(88,166,255,0.12)`，图标 `#58a6ff`，下方文字标签（9px，bold）
@@ -44,9 +44,10 @@
 
 ### 搜索栏
 - 位置：固定顶部，独立一行
-- 样式：`#161b22` 背景，`#21262d` 边框，圆角 8px，内边距 8px 10px
-- 搜索图标 + placeholder "Search servers..."
-- 搜索时有值时显示 × 清除按钮
+- 样式：`#161b22` 背景，`#21262d` 边框，圆角 6dp，内边距 8px 10px
+- 搜索图标（14dp）+ placeholder "Search servers..."
+- 有值时显示 × 清除按钮（`#484f58`，hover `#e6edf3`）
+- 聚焦状态：边框 → `rgba(88,166,255,0.3)`，搜索图标 → `#58a6ff`
 
 ### Daemon 分组标签
 - 位置：sticky top，始终可见（即使只有 1 个 Daemon）
@@ -210,11 +211,44 @@
 - Muted：`#484f58`
 
 ### NavigationRail 色
-- 背景渐变：`#1a1a2e → #16213e`
+- 背景：`#0d1117`（与 Background 统一，GitHub Dark canvas 色）
 - 选中背景：`rgba(88,166,255,0.12)`
 - 选中图标/文字：`#58a6ff`
 - 未选中：`#6e7681`
-- 边框：`rgba(88,166,255,0.12)`
+- 边框：`#21262d`（与 Border 统一）
+
+## GitHub Dark 对齐规范
+
+所有组件对齐 GitHub Dark 设计语言。StatusDot 保留自定义设计（带 glow）。
+
+### 圆角
+- 卡片：10dp（不变）
+- 按钮 / Alert / 搜索框：6dp
+- 输入框：6dp
+
+### 进度条（ConduitCard）
+- 位置：底部全宽，紧贴卡片边缘
+- 高度：3px
+- 颜色：纯状态色（Installing `#d29922`、Downloading `#58a6ff`、Done `#3fb950`）
+- 无圆角、无渐变
+
+### Alert / Banner（Crash、Reconnect）
+- 圆角：6dp
+- 内边距：10px 16px
+- 边框：1px 状态色（alpha 0.2-0.4）
+- Crash：`rgba(248,81,73,0.1)` 底色 + `rgba(248,81,73,0.3)` 边框
+- Reconnect：`rgba(210,153,34,0.1)` 底色 + `rgba(210,153,34,0.4)` 边框
+
+### 字号
+- bodySmall：12sp（按钮文字、卡片信息）
+- labelSmall：12sp（状态文字）
+- bodyMedium：14sp（正文段落）
+- titleSmall：13sp（卡片标题）
+
+### StatusDot（保留自定义）
+- Running：`#3fb950` + box-shadow glow
+- 其他状态：纯色圆点，无 glow
+- 呼吸动画：仅 STARTING / STOPPING / INITIALIZING
 
 ## 首次启动流程
 
