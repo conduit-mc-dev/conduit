@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-04（UI Redesign v2 视觉对齐 — P0/P2/P3 修复 + 全页面 mockup 审计）
+> 最新更新：2026-05-04（UI 文档整理 — 正式设计规范建立 + 过时文档归档 + remaining-gaps 审计）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,7 +11,13 @@
 
 ## Now（进行中）
 
-**UI Redesign v2 视觉对齐**：P0 + P2/P3 全局修复已完成，P1 工作待推进。完整审计报告见 `docs/ui-alignment-audit.md`。
+**UI 文档整理**：正式设计规范 `docs/design-spec.md` 已建立（从 v2 临时 spec 提取并修正 8 个冲突），过时文档归档到 `docs/superpowers/archive/`，剩余 gap 审计见 `docs/ui-alignment-remaining-gaps.md`。
+
+**UI 视觉对齐 — 剩余工作**：
+- P0（2 项）：ActionButton Style E 未应用到 Primary/Secondary
+- P1（6 项）：NavigationRail 背景、搜索栏焦点态、Banner 边框、Reconnect Edit 按钮、对话框自定义样式
+- P2（7 项）：圆角/间距/颜色微调
+- 详见 `docs/ui-alignment-remaining-gaps.md`
 
 **Desktop MVP 迭代 4（完成）**：server.properties 编辑器、实例删除、玩家列表 + UI 打磨（侧边栏骨架 + Material You Dark 主题）全部完成。
 
@@ -24,7 +30,7 @@
 - [x] shared-core `ConduitWsClient` 重连逻辑 + 5 个测试用例（→ 实际 8 个）
 - [x] Desktop MVP 迭代 4 剩余：实例删除 + 玩家列表 + UI 打磨
 - [x] Desktop MVP 迭代 4 收尾：UI 打磨
-- [ ] UI 视觉对齐 P1：S02 空状态、S20 Reconnect banner、S21 Offline 修复、S13/S14 InstallProgress 重写、CreateInstance 版本选择器、对话框自定义样式（详见 `docs/ui-alignment-audit.md`）
+- [ ] UI 视觉对齐：P0/P1/P2 剩余 gap 修复（详见 `docs/ui-alignment-remaining-gaps.md`）
 - [x] 持久化审计 + TokenStore 磁盘持久化（2026-05-02）
 - [x] 修复：实例列表自动刷新（WebSocket 事件）
 - [x] 修复：控制台输出跨界面持久化（SessionManager）
@@ -50,7 +56,7 @@
 ## Done
 
 - [x] **UI Redesign v2 视觉对齐 — P0/P2/P3 修复 + 全页面审计**（2026-05-04）
-  - **全页面 mockup 审计**：4 个并行 agent 对比 26 个 HTML mockup 与 Kotlin/Compose 实现，生成 `docs/ui-alignment-audit.md`
+  - **全页面 mockup 审计**：4 个并行 agent 对比 26 个 HTML mockup 与 Kotlin/Compose 实现，生成 `docs/ui-alignment-audit.md`（已归档，剩余项见 `docs/ui-alignment-remaining-gaps.md`）
   - **P0 跨页面通用组件修复**（5 处，影响所有页面）：
     - ButtonPrimary 颜色 `#58A6FF`(蓝)→`#238636`(绿)，ButtonPrimaryText `#FFFFFF`→`#0D1117`(深)
     - ButtonSecondary 背景 `#30363D`→`#21262D`
@@ -75,7 +81,7 @@
     - Crash banner（红色背景 + ErrorOutline + 错误信息）
     - Starting/Stopping 按钮组添加 disabled 按钮
     - NavigationRail Settings 上移到顶部
-  - **审计发现的剩余 P1 项**：S02 空状态独立页面、S20 Reconnect banner、S21 Offline 按钮、S13/S14 InstallProgressScreen 重写、CreateInstance 版本选择器、对话框自定义样式
+  - **审计发现的剩余 P1 项**：S02 空状态独立页面、S20 Reconnect banner、S13/S14 InstallProgressScreen 重写、CreateInstance 版本选择器、对话框自定义样式
   - 改动文件：11 个 Kotlin + 1 个审计报告
 
 - [x] **Desktop UI 打磨：侧边栏骨架 + Material You Dark 主题**（2026-05-03）
@@ -86,8 +92,8 @@
   - **Main.kt 重构**：三栏布局（Sidebar 48px + InstanceListPanel 200px + NavHost 弹性）。配对状态决定是否显示侧边栏面板。LauncherRoute/SettingsRoute 占位页
   - **屏幕适配**：InstanceDetailScreen 去掉"← 返回"（改 onDeleted 回调）；ServerPropertiesScreen 去掉"← 返回"（改 onSaveComplete）；CreateInstanceScreen 去掉"取消"按钮
   - **窗口尺寸**：默认 1280×800，最小 900×600（AWT minimumSize）
-  - 设计规范：`docs/superpowers/specs/2026-05-03-ui-polish-design.md`
-  - 实现计划：`docs/superpowers/plans/2026-05-03-ui-polish.md`
+  - 设计规范：`docs/superpowers/archive/2026-05-03-ui-polish-design.md`
+  - 实现计划：`docs/superpowers/archive/2026-05-03-ui-polish.md`
   - 结果：desktop 11 tests 全绿，零回归
 
 - [x] **持久化审计 + TokenStore 磁盘持久化**（2026-05-02）

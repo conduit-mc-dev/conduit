@@ -125,6 +125,14 @@
 | Launcher（游戏启动） | route | placeholder（复用 LaunchEmptyScreen） |
 | Settings | route | placeholder（"coming soon" 文字） |
 
+### 缺失 Mockup 说明
+
+| Screen ID | 状态 | 说明 |
+|-----------|------|------|
+| S14 (Downloading) | 待创建 | 实现时参考 S13 (Installing)，颜色改为蓝色 |
+| S21 (Daemon Offline) | 不适用 | WebSocket 无限重试，无终态离线。重连期间显示 S20 banner |
+| S06 / S15 / S23-S25 | 编号空位 | 无对应屏幕概念，仅为编号体系留白 |
+
 ---
 
 ## 导航流

@@ -76,10 +76,22 @@ conduit-mc/
 ## 关键参考文档
 
 - [`docs/api-protocol.md`](docs/api-protocol.md) — API 协议规范（REST + WebSocket + 错误码，**实现的唯一标准**）
+- [`docs/routing-spec.md`](docs/routing-spec.md) — Desktop 导航模型、路由映射、核心约束、已知 gap
+- [`docs/design-spec.md`](docs/design-spec.md) — Desktop 视觉设计规范（色彩、组件、状态、动画）
+- [`docs/desktop-mockups/`](docs/desktop-mockups/) — Desktop 页面 mockup HTML（视觉确认用）
 - [`docs/progress.md`](docs/progress.md) — 当前进度与下一步计划
 - [`docs/architecture-notes.md`](docs/architecture-notes.md) — 架构决策、代码组织评估、外部项目借鉴
 - [`docs/desktop-mvp-plan.md`](docs/desktop-mvp-plan.md) — Desktop MVP 迭代方案
 - [`docs/branding.md`](docs/branding.md) — 品牌规范（命名、Logo、调性）
+
+## 文档层级（Source of Truth）
+
+UI 相关文档冲突时以编号小的为准：
+
+1. `docs/routing-spec.md` — 导航/行为真相（最权威）
+2. `docs/desktop-mockups/` — 视觉真相（浏览器确认）
+3. `docs/design-spec.md` — 视觉设计补充（不得与前两者矛盾）
+4. `docs/progress.md` — 状态真相
 
 ## 当前开发阶段
 
