@@ -71,8 +71,7 @@ conduit-data/
 # ---- Claude Code ----
 .worktrees/
 .claude/worktrees/
-docs/superpowers/plans/
-docs/superpowers/specs/
+docs/superpowers/
 
 # ---- CodeBuddy / editor local state (safe to ignore, not the whole .codebuddy folder) ----
 .codebuddy/cache/
