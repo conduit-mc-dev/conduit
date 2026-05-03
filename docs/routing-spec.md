@@ -129,7 +129,7 @@
 
 | Screen ID | 状态 | 说明 |
 |-----------|------|------|
-| S14 (Downloading) | 待创建 | 实现时参考 S13 (Installing)，颜色改为蓝色 |
+| S14 (Downloading) | 不适用 | 同 S13 屏幕，通过 task type 切换进度条颜色（蓝=下载，橙=安装） |
 | S21 (Daemon Offline) | 不适用 | WebSocket 无限重试，无终态离线。重连期间显示 S20 banner |
 | S06 / S15 / S23-S25 | 编号空位 | 无对应屏幕概念，仅为编号体系留白 |
 

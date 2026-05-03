@@ -125,6 +125,7 @@
   - 位置：absolute bottom 0
   - 颜色：纯状态色（Installing `#d29922`、Downloading `#58a6ff`），无渐变
   - Running / Stopped / Crashed：无进度条
+  - 进度粒度：Downloading（`server_jar_download`）为字节级平滑推进；Installing（`loader_install` / `pack_build`）为离散步进（下载安装器→解压库→打补丁，每步跳一级）。两者均通过 WebSocket `task.progress` 事件上报 `progress: 0.0-1.0`，Daemon 实现时按 task type 区分颜色
 
 ### New Server 尾卡
 
@@ -179,6 +180,7 @@
 - 高度：3dp
 - 颜色：纯状态色（Installing `#d29922`、Downloading `#58a6ff`、Done `#3fb950`）
 - 无圆角、无渐变
+- 进度粒度同 InstanceListPanel（见上方说明）
 
 ### Toast 通知
 

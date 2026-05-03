@@ -377,12 +377,27 @@ Baseline: mockup commits through `28e57f8`, code commits through `22b3a4a`
 
 ---
 
+## 27. NavigationRail + InstanceListPanel — Unpaired Visibility
+
+**Spec (routing-spec.md §known gap #4, #6):** NavigationRail 始终可见（三栏布局），未配对时 InstanceListPanel 显示空态（"No servers"）。
+
+**Code:** `!isPaired` 时隐藏 NavigationRail 和 InstanceListPanel，只显示 DaemonForm 全屏。
+- `Main.kt`: 条件判断控制整个第二栏和 NavRail 的显示
+
+**Gap:** 代码在未配对时隐藏了 NavRail 和 InstanceListPanel，违反"三栏始终可见"的核心布局规则。与所有 mockup（S01-S27）不一致——mockup 全部展示完整三栏。
+
+**Fix:** 移除 `!isPaired` 对 NavRail 和 InstanceListPanel 的显示条件。未配对时 InstanceListPanel 显示空态，Content 区域显示 DaemonForm。
+
+**Priority:** P1
+
+---
+
 ## Summary by Priority
 
 | Priority | Count | Items |
 |----------|-------|-------|
 | P0       | 2     | #2/#3 ActionButton style E |
-| P1       | 5     | #1 NavRail bg, #4 SearchBar focus, #6 CrashBanner border, #8 ReconnectBanner border, #10 ReconnectBanner Edit btn, #13 Dialogs |
+| P1       | 6     | #1 NavRail bg, #4 SearchBar focus, #6 CrashBanner border, #8 ReconnectBanner border, #10 ReconnectBanner Edit btn, #13 Dialogs, #27 NavRail+ListPanel unpaired visibility |
 | P2       | 8     | #5 SearchBar radius, #7 CrashBanner radius, #9 ReconnectBanner alpha, #11 Card progress bar, #12 InstallProgress track, #15 Player detail, #16 MaxPlayers color, #18 Tab padding, #19 ContentHeader border, #20 Daemon dot size, #22 Card info weight, #23 Gear menu items, #24 CrashBanner sub font |
 | P3       | 1     | #26 CrashBanner title weight |
 
