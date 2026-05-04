@@ -209,6 +209,7 @@ fun main() {
                                         onConfirmDelete = detailVm::deleteInstance,
                                         onUpdateCommand = detailVm::updateCommandInput,
                                         onSendCommand = detailVm::sendCommand,
+                                        onConfigDirtyChanged = { isDirty -> detailVm.setHasUnsavedConfig(isDirty) },
                                     )
                                 }
                                 composable<DaemonEditRoute> { backStackEntry ->

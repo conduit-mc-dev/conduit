@@ -14,6 +14,9 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,13 +51,23 @@ fun InstanceDetailTabScreen(
     onConfirmDelete: () -> Unit,
     onUpdateCommand: (String) -> Unit,
     onSendCommand: () -> Unit,
+    onConfigDirtyChanged: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val isDaemonReconnecting = connectionState == WsConnectionState.RECONNECTING || connectionState == WsConnectionState.CONNECTING
+    var pendingTab by remember { mutableStateOf<String?>(null) }
     if (state.showDeleteDialog) {
         state.instance?.let {
             DeleteInstanceDialog(it.name, onConfirm = onConfirmDelete, onDismiss = onDismissDelete)
         }
+    }
+    pendingTab?.let { target ->
+        UnsavedChangesDialog(
+            changes = emptyList(),
+            onDiscard = { pendingTab = null; onSelectTab(target) },
+            onCancel = { pendingTab = null },
+            onSaveAndLeave = { pendingTab = null; onSelectTab(target) },
+        )
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -120,7 +133,13 @@ fun InstanceDetailTabScreen(
                     TabBar(
                         tabs = tabs,
                         selectedTabId = state.selectedTab,
-                        onTabSelected = onSelectTab,
+                        onTabSelected = { newTab ->
+                            if (state.hasUnsavedConfig && newTab != "config" && state.selectedTab == "config") {
+                                pendingTab = newTab
+                            } else {
+                                onSelectTab(newTab)
+                            }
+                        },
                     )
 
                     state.error?.takeIf { inst.state != InstanceState.CRASHED }?.let {
@@ -163,6 +182,7 @@ fun InstanceDetailTabScreen(
                                 "config" -> ConfigTab(
                                     instanceId = instanceId,
                                     daemonId = daemonId,
+                                    onDirtyChanged = onConfigDirtyChanged,
                                 )
 
                                 "mods" -> ModsTab(
