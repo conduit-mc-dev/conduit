@@ -27,8 +27,8 @@ class DaemonManager(
         daemonName: String,
         daemonUrl: String,
         token: String,
+        apiClient: ConduitApiClient = ConduitApiClient(daemonUrl),
     ): DaemonSession {
-        val apiClient = ConduitApiClient(daemonUrl)
         val session = DaemonSession(daemonId, daemonName, daemonUrl, apiClient)
         session.start(token, scope)
         _sessions.value = _sessions.value + session

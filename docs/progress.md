@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-04（路由规范全部闭合 — 10/10 gap resolved，UI 对齐 15/16）
+> 最新更新：2026-05-04（路由规范 10/10 gap resolved，UI 对齐 16/16，Desktop 测试修复）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,14 +11,24 @@
 
 ## Now（进行中）
 
-**UI 视觉对齐 — 完成**（15/16 gap 闭合）：
+**UI 视觉对齐 — 完成**（16/16 gap 闭合）：
 - ✅ P1：#13 对话框自定义样式 — ConduitDialog 基础组件重写（自定义 Dialog + 图标盒 + 参考卡片 + 警告块 + 实底按钮）
 - ✅ P2：#23 Gear 菜单 — 删除 Disconnect 项，对齐 mockup
+- ✅ P3：#26 CrashBanner 标题字重 — SemiBold → 默认（对齐 mockup）
 - ⏭️ P2→v0.2+：#15 玩家详情行 — 推迟（SLP Ping 无连接时间数据）
-- P3：#26 CrashBanner 标题字重（可接受偏差）
 - 详见 `docs/ui-alignment-remaining-gaps.md`
 
 **Desktop MVP 迭代 4（完成）**：server.properties 编辑器、实例删除、玩家列表 + UI 打磨（侧边栏骨架 + Material You Dark 主题）全部完成。
+
+**Desktop 测试修复**（2026-05-04）：
+- 修复 `SessionManager` → `DaemonSession`/`DaemonManager` 重命名后的测试编译错误
+- 修复 `ServerPropertiesViewModel` → `ConfigTabViewModel` 重命名后的测试
+- 重写 `TestHelpers.mockSession` → `mockDaemonManager`（使用真实 DaemonManager + 注入 mock API client）
+- 修复 `InstanceListViewModel` 测试：适配 `daemonGroups` 分组状态结构 + `WhileSubscribed` flow 订阅
+- 修复 `ConfigTabViewModel.save()` bug：`isSaving` 未在重载完成后重置
+- 修复 `InstanceDetailTabScreen` CrashBanner 标题字重：SemiBold → 默认（对齐 mockup #26）
+- DaemonManager.addDaemon 新增可选 `apiClient` 参数（测试注入用）
+- desktop 29 tests 全绿
 
 ---
 

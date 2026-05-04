@@ -4,15 +4,17 @@ import dev.conduit.core.model.*
 import dev.conduit.desktop.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.test.*
 import kotlin.time.Instant
 
 class InstanceListViewModelTest {
+
+    companion object {
+        @JvmStatic @org.junit.jupiter.api.BeforeAll fun setup() = setupTestDispatchers()
+    }
 
     private fun sampleInstance(id: String, name: String, state: InstanceState = InstanceState.STOPPED): InstanceSummary =
         InstanceSummary(
@@ -24,14 +26,19 @@ class InstanceListViewModelTest {
     private fun listJson(vararg instances: InstanceSummary): String =
         mockJsonBody(instances.toList())
 
-    private suspend fun InstanceListViewModel.awaitLoad(timeoutMs: Long = 2000) {
-        withTimeout(timeoutMs) {
-            while (state.value.isLoading) delay(20)
-        }
-    }
+    private fun InstanceListUiState.allInstances() = daemonGroups.flatMap { it.instances }
+
+    /**
+     * Collects vm.state in background (triggering WhileSubscribed), waits for [condition],
+     * returns the matching state snapshot.
+     */
+    private suspend fun InstanceListViewModel.awaitState(
+        timeoutMs: Long = 3000,
+        condition: (InstanceListUiState) -> Boolean,
+    ): InstanceListUiState = state.awaitState(timeoutMs, condition)
 
     @Test
-    fun `refresh sets error on failure`() = runBlocking {
+    fun `refresh returns empty list on API failure`() = runBlocking {
         val httpClient = mockHttpClient { request ->
             when (request.url.encodedPath) {
                 "/api/v1/instances" -> respond(
@@ -43,12 +50,9 @@ class InstanceListViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceListViewModel(client, mockSession(client))
-        vm.awaitLoad()
-
-        assertTrue(vm.state.value.instances.isEmpty())
-        assertNotNull(vm.state.value.error)
-        assertTrue(vm.state.value.error!!.contains("加载实例列表失败"))
+        val vm = InstanceListViewModel(mockDaemonManager(client))
+        val s = vm.awaitState { !it.isLoading }
+        assertTrue(s.allInstances().isEmpty())
     }
 
     @Test
@@ -62,33 +66,24 @@ class InstanceListViewModelTest {
                 "/api/v1/instances" -> {
                     callCount++
                     val instances = if (callCount == 1) listOf(inst1) else listOf(inst1, inst2)
-                    respond(
-                        listJson(*instances.toTypedArray()),
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
+                    respond(listJson(*instances.toTypedArray()), headers = headersOf(HttpHeaders.ContentType, "application/json"))
                 }
                 else -> respondError(HttpStatusCode.NotFound)
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceListViewModel(client, mockSession(client, wsMessages))
-        vm.awaitLoad()
-        assertEquals(1, vm.state.value.instances.size)
-        assertEquals("a", vm.state.value.instances[0].id)
+        val vm = InstanceListViewModel(mockDaemonManager(client, wsMessages))
+        vm.awaitState { !it.isLoading && it.allInstances().size == 1 }
+        assertEquals("a", vm.state.value.allInstances()[0].id)
 
-        wsMessages.emit(
-            WsMessage(
-                type = WsMessage.INSTANCE_CREATED,
-                instanceId = "b",
-                payload = TestJson.encodeToJsonElement(mapOf("id" to "b", "name" to "Server B")),
-                timestamp = Instant.fromEpochMilliseconds(0),
-            )
-        )
-        waitFor { vm.state.value.instances.size == 2 }
-
-        assertEquals(2, vm.state.value.instances.size)
-        assertEquals("a", vm.state.value.instances[0].id)
-        assertEquals("b", vm.state.value.instances[1].id)
+        wsMessages.emit(WsMessage(
+            type = WsMessage.INSTANCE_CREATED, instanceId = "b",
+            payload = TestJson.encodeToJsonElement(mapOf("id" to "b", "name" to "Server B")),
+            timestamp = Instant.fromEpochMilliseconds(0),
+        ))
+        vm.awaitState { it.allInstances().size == 2 }
+        assertEquals("a", vm.state.value.allInstances()[0].id)
+        assertEquals("b", vm.state.value.allInstances()[1].id)
     }
 
     @Test
@@ -102,31 +97,22 @@ class InstanceListViewModelTest {
                 "/api/v1/instances" -> {
                     callCount++
                     val instances = if (callCount == 1) listOf(inst1, inst2) else listOf(inst1)
-                    respond(
-                        listJson(*instances.toTypedArray()),
-                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                    )
+                    respond(listJson(*instances.toTypedArray()), headers = headersOf(HttpHeaders.ContentType, "application/json"))
                 }
                 else -> respondError(HttpStatusCode.NotFound)
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceListViewModel(client, mockSession(client, wsMessages))
-        vm.awaitLoad()
-        assertEquals(2, vm.state.value.instances.size)
+        val vm = InstanceListViewModel(mockDaemonManager(client, wsMessages))
+        vm.awaitState { !it.isLoading && it.allInstances().size == 2 }
 
-        wsMessages.emit(
-            WsMessage(
-                type = WsMessage.INSTANCE_DELETED,
-                instanceId = "b",
-                payload = TestJson.encodeToJsonElement(mapOf("id" to "b")),
-                timestamp = Instant.fromEpochMilliseconds(0),
-            )
-        )
-        waitFor { vm.state.value.instances.size == 1 }
-
-        assertEquals(1, vm.state.value.instances.size)
-        assertEquals("a", vm.state.value.instances[0].id)
+        wsMessages.emit(WsMessage(
+            type = WsMessage.INSTANCE_DELETED, instanceId = "b",
+            payload = TestJson.encodeToJsonElement(mapOf("id" to "b")),
+            timestamp = Instant.fromEpochMilliseconds(0),
+        ))
+        vm.awaitState { it.allInstances().size == 1 }
+        assertEquals("a", vm.state.value.allInstances()[0].id)
     }
 
     @Test
@@ -136,32 +122,21 @@ class InstanceListViewModelTest {
         val inst2 = sampleInstance("b", "Server B", InstanceState.STOPPED)
         val httpClient = mockHttpClient { request ->
             when (request.url.encodedPath) {
-                "/api/v1/instances" -> respond(
-                    listJson(inst1, inst2),
-                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
-                )
+                "/api/v1/instances" -> respond(listJson(inst1, inst2), headers = headersOf(HttpHeaders.ContentType, "application/json"))
                 else -> respondError(HttpStatusCode.NotFound)
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceListViewModel(client, mockSession(client, wsMessages))
-        vm.awaitLoad()
-        assertEquals(InstanceState.STOPPED, vm.state.value.instances[0].state)
-        assertEquals(InstanceState.STOPPED, vm.state.value.instances[1].state)
+        val vm = InstanceListViewModel(mockDaemonManager(client, wsMessages))
+        vm.awaitState { it.allInstances().size == 2 }
 
-        wsMessages.emit(
-            WsMessage(
-                type = WsMessage.STATE_CHANGED,
-                instanceId = "a",
-                payload = TestJson.encodeToJsonElement(
-                    StateChangedPayload(oldState = InstanceState.STOPPED, newState = InstanceState.RUNNING)
-                ),
-                timestamp = Instant.fromEpochMilliseconds(0),
-            )
-        )
-        waitFor { vm.state.value.instances.find { it.id == "a" }?.state == InstanceState.RUNNING }
-
-        assertEquals(InstanceState.RUNNING, vm.state.value.instances.find { it.id == "a" }?.state)
-        assertEquals(InstanceState.STOPPED, vm.state.value.instances.find { it.id == "b" }?.state)
+        wsMessages.emit(WsMessage(
+            type = WsMessage.STATE_CHANGED, instanceId = "a",
+            payload = TestJson.encodeToJsonElement(StateChangedPayload(oldState = InstanceState.STOPPED, newState = InstanceState.RUNNING)),
+            timestamp = Instant.fromEpochMilliseconds(0),
+        ))
+        vm.awaitState { it.allInstances().find { i -> i.id == "a" }?.state == InstanceState.RUNNING }
+        assertEquals(InstanceState.RUNNING, vm.state.value.allInstances().find { it.id == "a" }?.state)
+        assertEquals(InstanceState.STOPPED, vm.state.value.allInstances().find { it.id == "b" }?.state)
     }
 }

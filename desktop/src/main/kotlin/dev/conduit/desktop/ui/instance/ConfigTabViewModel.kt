@@ -78,9 +78,9 @@ class ConfigTabViewModel(
         )
     }
 
-    fun save() {
+    fun save(onComplete: (() -> Unit)? = null) {
         val modified = _state.value.properties.filter { it.isModified }
-        if (modified.isEmpty()) return
+        if (modified.isEmpty()) { onComplete?.invoke(); return }
         _state.value = _state.value.copy(isSaving = true)
         viewModelScope.launch {
             try {
@@ -88,13 +88,19 @@ class ConfigTabViewModel(
                     instanceId,
                     modified.associate { it.key to it.currentValue },
                 )
-                loadProperties()
+                val props = apiClient.getServerProperties(instanceId)
+                _state.value = _state.value.copy(
+                    properties = props.map { ConfigProperty(it.key, it.value, it.value) }
+                        .sortedBy { it.key },
+                    isSaving = false,
+                )
             } catch (e: Exception) {
                 _state.value = _state.value.copy(
                     isSaving = false,
                     error = "Save failed: ${e.message}",
                 )
             }
+            onComplete?.invoke()
         }
     }
 

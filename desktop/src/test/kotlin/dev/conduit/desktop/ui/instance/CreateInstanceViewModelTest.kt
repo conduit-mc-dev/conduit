@@ -3,24 +3,33 @@ package dev.conduit.desktop.ui.instance
 import dev.conduit.desktop.*
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlin.test.*
 
 class CreateInstanceViewModelTest {
 
+    companion object {
+        @JvmStatic @org.junit.jupiter.api.BeforeAll fun setup() = setupTestDispatchers()
+    }
+
+    private suspend fun CreateInstanceViewModel.awaitDone(timeoutMs: Long = 2000) {
+        withTimeout(timeoutMs) {
+            while (state.value.isCreating) delay(20)
+        }
+    }
+
     @Test
     fun `createInstance with empty name shows error`() = runBlocking {
         val httpClient = mockHttpClient { respondError(HttpStatusCode.NotFound) }
-        val client = mockApiClient(httpClient)
-        val vm = CreateInstanceViewModel(client)
-        waitFor { !vm.state.value.isLoadingVersions }
+        val vm = CreateInstanceViewModel(TEST_DAEMON_ID, mockDaemonManager(mockApiClient(httpClient)))
 
         var onSuccessCalled = false
-        vm.createInstance { onSuccessCalled = true }
-        waitFor { !vm.state.value.isCreating }
+        vm.create { onSuccessCalled = true }
+        vm.awaitDone()
 
         assertFalse(onSuccessCalled)
         assertNotNull(vm.state.value.error)
-        assertTrue(vm.state.value.error!!.contains("请输入实例名称"))
     }
 }

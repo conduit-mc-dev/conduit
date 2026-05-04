@@ -363,16 +363,15 @@ Baseline: mockup commits through `28e57f8`, code commits through `22b3a4a`
 
 ---
 
-## 26. CrashBanner — Title Font Weight
+## ~~26. CrashBanner — Title Font Weight~~ ✅ 2026-05-04
 
-**Mockup (S12):** "Server crashed" text is bold (implied by `.crash-banner-text { font-size: 12px; color: #f85149; }` — no explicit weight, so browser default ~400)
+**Mockup (S12):** "Server crashed" text uses browser default weight (~400)
 
-**Code:** Uses `fontWeight = FontWeight.SemiBold` (600)
-- `InstanceDetailTabScreen.kt:221`: `fontWeight = FontWeight.SemiBold`
+**Code (before):** `fontWeight = FontWeight.SemiBold` (600)
 
-**Gap:** Code is bolder than mockup. However, this is a minor improvement — Semibold reads better at 12px. Keep as-is unless strict mockup parity is required.
+**Fix:** Removed explicit `fontWeight` parameter, falling back to default (~400) to match mockup.
 
-**Priority:** P3 (acceptable deviation)
+**Priority:** ~~P3~~ ✅
 
 ---
 
@@ -399,6 +398,6 @@ Baseline: mockup commits through `28e57f8`, code commits through `22b3a4a`
 | ~~P1~~   | ~~7~~ | ~~#1, #4, #6, #8, #10, #13, #27~~ ✅ 2026-05-04 (×2) |
 | ~~P2~~   | ~~10~~ | ~~#5, #7, #9, #11, #12, #16, #18, #19, #20, #22, #23, #24~~ ✅ 2026-05-04 (×2) |
 | P2→v0.2  | 1     | #15 Player detail (data-dependent, 推迟到 v0.2+) |
-| P3       | 1     | #26 CrashBanner title weight (acceptable deviation) |
+| ~~P3~~   | ~~1~~ | ~~#26 CrashBanner title weight~~ ✅ 2026-05-04 |
 
-**Total: 16 actionable gaps → 15 closed, 1 deferred (#15).**
+**Total: 16 actionable gaps → 16 closed (15 implemented + 1 deferred #15).**

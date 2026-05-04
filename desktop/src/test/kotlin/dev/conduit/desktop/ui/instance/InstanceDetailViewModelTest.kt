@@ -14,6 +14,10 @@ import kotlin.time.Instant
 
 class InstanceDetailViewModelTest {
 
+    companion object {
+        @JvmStatic @org.junit.jupiter.api.BeforeAll fun setup() = setupTestDispatchers()
+    }
+
     private suspend fun InstanceDetailViewModel.awaitLoad(timeoutMs: Long = 2000) {
         withTimeout(timeoutMs) {
             while (state.value.isLoading) delay(20)
@@ -48,7 +52,7 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockSession(client))
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, mockDaemonManager(client))
         vm.awaitLoad()
 
         vm.startServer()
@@ -84,7 +88,7 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockSession(client))
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, mockDaemonManager(client))
         vm.awaitLoad()
 
         vm.deleteInstance()
@@ -124,7 +128,7 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockSession(client))
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, mockDaemonManager(client))
         vm.awaitLoad()
 
         vm.deleteInstance()
@@ -171,8 +175,8 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val session = mockSession(client, wsMessages)
-        val vm = InstanceDetailViewModel("test-inst", client, session)
+        val manager = mockDaemonManager(client, wsMessages)
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, manager)
         vm.awaitLoad()
 
         val payloadJson = TestJson.encodeToJsonElement(
@@ -227,7 +231,7 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val vm = InstanceDetailViewModel("test-inst", client, mockSession(client))
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, mockDaemonManager(client))
         vm.awaitLoad()
 
         waitFor { vm.state.value.playerNames.isNotEmpty() }
@@ -270,8 +274,8 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val session = mockSession(client, wsMessages)
-        val vm = InstanceDetailViewModel("test-inst", client, session)
+        val manager = mockDaemonManager(client, wsMessages)
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, manager)
         vm.awaitLoad()
 
         waitFor { vm.state.value.playerNames.isNotEmpty() }
@@ -315,10 +319,11 @@ class InstanceDetailViewModelTest {
             }
         }
         val client = mockApiClient(httpClient)
-        val session = mockSession(client)
+        val manager = mockDaemonManager(client)
+        val session = manager.getSession(TEST_DAEMON_ID)!!
         session.appendConsoleLine("test-inst", "old line")
 
-        val vm = InstanceDetailViewModel("test-inst", client, session)
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, manager)
         vm.awaitLoad()
 
         assertEquals(listOf("old line"), vm.state.value.consoleLines)

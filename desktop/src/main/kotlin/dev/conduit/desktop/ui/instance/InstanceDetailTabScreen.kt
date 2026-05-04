@@ -257,7 +257,6 @@ private fun CrashBanner(error: String?) {
             Text(
                 "Server crashed",
                 fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
                 color = StateCrashed,
             )
             if (error != null) {

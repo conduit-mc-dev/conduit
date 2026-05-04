@@ -48,7 +48,7 @@
 
 | Mockup | Screen 概念 | 触发条件 | 导航类型 | 状态 |
 |--------|------------|---------|---------|------|
-| screen-s01 | 无 Daemon（三栏空态） | Servers 模式 + 未配对：NavRail + 空 InstanceListPanel("No servers") + DaemonForm 内容区 | route | partial（DaemonForm 存在，但 InstanceListPanel 空态和三栏布局未对齐） |
+| screen-s01 | 无 Daemon（三栏空态） | Servers 模式 + 未配对：NavRail + 空 InstanceListPanel("No servers") + DaemonForm 内容区 | route | done |
 
 > 注：S01 是完整的三栏布局——NavRail + InstanceListPanel 空态 + DaemonForm 作为内容区，不是全屏配对页面。daemon 断连后无限重试（S20），不存在终态"离线"。
 
@@ -69,7 +69,7 @@
 | screen-s05 | 实例启动中 | Instance Detail + state == STARTING | state | done |
 | screen-s11 | 实例停止中 | Instance Detail + state == STOPPING | state | done |
 | screen-s12 | 实例崩溃 | Instance Detail + state == CRASHED | state | done |
-| screen-s13 | 安装中 | Instance Detail + state == INITIALIZING | state（替换整个内容区为 InstallProgressScreen） | partial |
+| screen-s13 | 安装中 | Instance Detail + state == INITIALIZING | state（替换整个内容区为 InstallProgressScreen） | partial（功能缺口：需对接 WS task.progress，属迭代 5） |
 
 > 注：RUNNING 状态没有独立 mockup，复用当前 tab 内容（Console/Mods/Players/Config/Files）。
 
@@ -106,7 +106,7 @@
 |--------|------------|---------|---------|------|
 | screen-s19-0 | Gear 下拉菜单 | 侧边栏 daemon label 点击齿轮图标，含 Edit 和 Forget 两项 | inline（DropdownMenu） | done |
 | screen-s01 / screen-s19 | Daemon 表单（配对 / 编辑） | 未配对时作为内容区显示；或 Gear → Edit；或 S20 重连 banner → Edit | route | done |
-| screen-s20 | 重连横幅 | daemon 连接状态 == RECONNECTING，banner 含"Edit"按钮可快速跳转 DaemonForm | state（Instance Detail 内 banner + 灰化内容） | partial（缺 Edit 按钮） |
+| screen-s20 | 重连横幅 | daemon 连接状态 == RECONNECTING，banner 含"Edit"按钮可快速跳转 DaemonForm | state（Instance Detail 内 banner + 灰化内容） | done |
 
 > 注：S01（配对）和 S19（编辑）合并为同一个 DaemonForm screen——配对码字段仅在新建/re-pair 时显示。
 > S21（Daemon 离线）不适用——WebSocket 无限重试，无终态。重连期间用户可通过 banner 上的 Edit 按钮修改 daemon 连接信息。
