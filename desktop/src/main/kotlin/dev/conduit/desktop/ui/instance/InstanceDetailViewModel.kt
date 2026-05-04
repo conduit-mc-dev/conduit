@@ -26,6 +26,7 @@ data class InstanceDetailUiState(
     val showDeleteDialog: Boolean = false,
     val eulaAccepted: Boolean? = null,
     val showEulaDialog: Boolean = false,
+    val hasUnsavedConfig: Boolean = false,
 )
 
 class InstanceDetailViewModel(
@@ -231,6 +232,10 @@ class InstanceDetailViewModel(
 
     fun dismissEulaDialog() {
         _state.value = _state.value.copy(showEulaDialog = false)
+    }
+
+    fun setHasUnsavedConfig(value: Boolean) {
+        _state.value = _state.value.copy(hasUnsavedConfig = value)
     }
 
     fun updateCommandInput(input: String) {

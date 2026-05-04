@@ -234,6 +234,7 @@ fun main() {
                                         onEditDaemon = { navController.navigate(DaemonEditRoute(route.daemonId)) },
                                         onUpdateCommand = detailVm::updateCommandInput,
                                         onSendCommand = detailVm::sendCommand,
+                                        onConfigDirtyChanged = { isDirty -> detailVm.setHasUnsavedConfig(isDirty) },
                                     )
                                 }
                                 composable<DaemonEditRoute> { backStackEntry ->

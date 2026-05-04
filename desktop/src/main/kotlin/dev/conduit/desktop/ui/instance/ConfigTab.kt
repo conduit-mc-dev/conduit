@@ -26,10 +26,15 @@ import org.koin.core.parameter.parametersOf
 fun ConfigTab(
     instanceId: String,
     daemonId: String,
+    onDirtyChanged: (Boolean) -> Unit = {},
     viewModel: ConfigTabViewModel = koinViewModel { parametersOf(instanceId, daemonId) },
 ) {
     val state by viewModel.state.collectAsState()
     var editingKey by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(state.modifiedCount) {
+        onDirtyChanged(state.modifiedCount > 0)
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(Background).padding(16.dp)) {
         // Toolbar

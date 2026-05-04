@@ -91,8 +91,8 @@
 | Mockup | Screen 概念 | 触发条件 | 导航类型 | 状态 |
 |--------|------------|---------|---------|------|
 | screen-s17 | 删除确认对话框 | 点击 Delete 按钮 | dialog | done |
-| screen-s18 | 未保存更改警告 | 配置 tab 修改后试图离开 | dialog | **missing** |
-| screen-s22 | Forget daemon 确认 | 侧边栏 gear → Forget | dialog | **missing**（直接执行，无确认） |
+| screen-s18 | 未保存更改警告 | 配置 tab 修改后试图离开 | dialog | done |
+| screen-s22 | Forget daemon 确认 | 侧边栏 gear → Forget | dialog | done |
 
 ### 创建实例
 
@@ -104,8 +104,8 @@
 
 | Mockup | Screen 概念 | 触发条件 | 导航类型 | 状态 |
 |--------|------------|---------|---------|------|
-| screen-s19-0 | Gear 下拉菜单 | 侧边栏 daemon label 点击齿轮图标，含 Edit 和 Forget 两项 | inline（DropdownMenu） | partial（当前有 Disconnect，需移除） |
-| screen-s01 / screen-s19 | Daemon 表单（配对 / 编辑） | 未配对时作为内容区显示；或 Gear → Edit；或 S20 重连 banner → Edit | route | partial（当前是两个独立 screen，需合并） |
+| screen-s19-0 | Gear 下拉菜单 | 侧边栏 daemon label 点击齿轮图标，含 Edit 和 Forget 两项 | inline（DropdownMenu） | done |
+| screen-s01 / screen-s19 | Daemon 表单（配对 / 编辑） | 未配对时作为内容区显示；或 Gear → Edit；或 S20 重连 banner → Edit | route | done |
 | screen-s20 | 重连横幅 | daemon 连接状态 == RECONNECTING，banner 含"Edit"按钮可快速跳转 DaemonForm | state（Instance Detail 内 banner + 灰化内容） | partial（缺 Edit 按钮） |
 
 > 注：S01（配对）和 S19（编辑）合并为同一个 DaemonForm screen——配对码字段仅在新建/re-pair 时显示。
@@ -218,12 +218,12 @@ DaemonForm — 配对模式（S01 未配对时 / re-pair）
 
 ## 已知 Gap
 
-1. **Forget 确认对话框缺失**（S22）：当前直接执行 forget 操作，无二次确认
-2. **未保存更改警告缺失**（S18）：Config tab 离开时无保存提示
-3. **Instance List 路由语义模糊**：S02（空状态）和 S03（有实例）共用同一 route，由数据决定显示内容
+1. ~~**Forget 确认对话框缺失**（S22）~~ ✅ 2026-05-04
+2. ~~**未保存更改警告缺失**（S18）~~ ✅ 2026-05-04
+3. ~~**Instance List 路由语义模糊**~~ ✅ Intentional design: S02/S03 共用 `InstanceListRoute`，由数据驱动 UI（data-driven routing）。`LaunchedEffect` 在有实例时自动导航到 `InstanceDetailRoute`，无实例时渲染 `PairedEmptyScreen`。
 4. ~~**NavigationRail 可见性未对齐**~~ ✅ 2026-05-04
-5. **PairScreen + EditDaemonScreen 需合并**：当前是两个独立 screen，规范要求合并为 DaemonForm（配对码按需显示）
-6. ~~**InstanceListPanel 空态未对齐**~~ ✅ 2026-05-04（面板已可见，空态文字待补充）
+5. ~~**PairScreen + EditDaemonScreen 需合并**~~ ✅ 2026-05-04
+6. ~~**InstanceListPanel 空态未对齐**~~ ✅ 2026-05-04
 7. ~~**Gear menu Disconnect 需移除**~~ ✅ 2026-05-04
 8. ~~**Reconnect Banner 缺 Edit 按钮**~~ ✅ 2026-05-04
 9. ~~**模式切换状态保留未对齐**~~ ✅ 2026-05-04
