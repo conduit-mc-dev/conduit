@@ -220,7 +220,7 @@ DaemonForm — 配对模式（S01 未配对时 / re-pair）
 
 1. **Forget 确认对话框缺失**（S22）：当前直接执行 forget 操作，无二次确认
 2. **未保存更改警告缺失**（S18）：Config tab 离开时无保存提示
-3. **Instance List 路由语义模糊**：S02（空状态）和 S03（有实例）共用同一 route，由数据决定显示内容
+3. ~~**Instance List 路由语义模糊**~~ ✅ Intentional design: S02/S03 共用 `InstanceListRoute`，由数据驱动 UI（data-driven routing）。`LaunchedEffect` 在有实例时自动导航到 `InstanceDetailRoute`，无实例时渲染 `PairedEmptyScreen`。
 4. **NavigationRail 可见性未对齐**：当前实现 `!isPaired` 时隐藏 NavigationRail，规范要求始终显示
 5. **PairScreen + EditDaemonScreen 需合并**：当前是两个独立 screen，规范要求合并为 DaemonForm（配对码按需显示）
 6. **InstanceListPanel 空态未对齐**：S01 要求未配对时也显示 InstanceListPanel（"No servers" 空态），当前未配对时整个第二栏隐藏
