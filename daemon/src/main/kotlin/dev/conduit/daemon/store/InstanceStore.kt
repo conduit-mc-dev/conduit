@@ -367,6 +367,7 @@ class InstanceStore(
         InstanceState.INITIALIZING ->
             "Initialization interrupted -- retry download"
         InstanceState.STOPPED -> null
+        InstanceState.CRASHED -> "Instance was crashed before daemon restart"
     }
 
     private fun generateUniqueId(): String {

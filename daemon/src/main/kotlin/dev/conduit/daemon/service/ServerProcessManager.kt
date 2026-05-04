@@ -264,7 +264,7 @@ class ServerProcessManager(
             processes[instanceId]?.intentionalExit = true
             val current = instanceStore.get(instanceId).state
             when (current) {
-                InstanceState.STOPPED -> throw ApiException(HttpStatusCode.Conflict, "SERVER_NOT_RUNNING", "Server is not running")
+                InstanceState.STOPPED, InstanceState.CRASHED -> throw ApiException(HttpStatusCode.Conflict, "SERVER_NOT_RUNNING", "Server is not running")
                 InstanceState.INITIALIZING -> throw ApiException(HttpStatusCode.Conflict, "INSTANCE_INITIALIZING", "Instance is still initializing")
                 InstanceState.STARTING, InstanceState.STOPPING -> throw ApiException(HttpStatusCode.Conflict, "SERVER_ALREADY_RUNNING", "Server is in a transitional state")
                 InstanceState.RUNNING -> {} // proceed

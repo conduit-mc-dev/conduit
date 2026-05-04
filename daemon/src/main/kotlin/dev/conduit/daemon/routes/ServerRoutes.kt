@@ -51,7 +51,7 @@ fun Route.serverRoutes(
                 }
                 InstanceState.STARTING, InstanceState.STOPPING ->
                     throw ApiException(HttpStatusCode.Conflict, "SERVER_ALREADY_RUNNING", "Server is in a transitional state")
-                InstanceState.STOPPED -> {} // proceed
+                InstanceState.STOPPED, InstanceState.CRASHED -> {} // proceed
             }
 
             if (!eulaService.isAccepted(id)) {
@@ -85,7 +85,7 @@ fun Route.serverRoutes(
                     processManager.awaitProcessExit(id)
                     processManager.start(id)
                 }
-                InstanceState.STOPPED -> processManager.start(id)
+                InstanceState.STOPPED, InstanceState.CRASHED -> processManager.start(id)
             }
             call.respond(buildServerStatus(id, instanceStore, processManager))
         }
