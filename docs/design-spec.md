@@ -275,9 +275,9 @@
 S01（配对）和 S19（编辑）合并为单一 DaemonForm。配对码字段仅在新建 / re-pair 时显示。
 
 **配对模式**（未配对时 / re-pair after 401）：
-- Server Address：IP/域名 + 端口（默认 8080），两个输入框
+- Server Address：IP/域名 + 端口（默认 9147），两个输入框，地址 placeholder 为 "localhost"
 - Daemon Name：显示名称（如 "Home VPS"）
-- Pairing Code：XXXX-XXXX-XXXX 格式
+- Pairing Code：6 位数字格式（daemon 生成，5 分钟过期）
 - Connect 按钮
 - 提示："Pairing code shown in Daemon console"
 

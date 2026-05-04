@@ -76,37 +76,35 @@ fun main() {
                     val navController = rememberNavController()
 
                     Row(modifier = Modifier.fillMaxSize()) {
-                        // Column 1: NavigationRail
-                        if (isPaired) {
-                            NavigationRail(
-                                currentMode = currentMode,
-                                onModeChange = { newMode ->
-                                    currentMode = newMode
-                                    when (newMode) {
-                                        AppMode.LAUNCHER -> {
-                                            selectedInstanceId = null
-                                            navController.navigate(LauncherRoute) {
-                                                popUpTo(0) { inclusive = true }
-                                            }
-                                        }
-                                        AppMode.MANAGE -> {
-                                            selectedInstanceId = null
-                                            navController.navigate(InstanceListRoute) {
-                                                popUpTo(0) { inclusive = true }
-                                            }
-                                        }
-                                        AppMode.SETTINGS -> {
-                                            navController.navigate(SettingsRoute) {
-                                                popUpTo(0) { inclusive = true }
-                                            }
+                        // Column 1: NavigationRail (always visible)
+                        NavigationRail(
+                            currentMode = currentMode,
+                            onModeChange = { newMode ->
+                                currentMode = newMode
+                                when (newMode) {
+                                    AppMode.LAUNCHER -> {
+                                        selectedInstanceId = null
+                                        navController.navigate(LauncherRoute) {
+                                            popUpTo(0) { inclusive = true }
                                         }
                                     }
-                                },
-                            )
-                        }
+                                    AppMode.MANAGE -> {
+                                        selectedInstanceId = null
+                                        navController.navigate(if (isPaired) InstanceListRoute else PairRoute) {
+                                            popUpTo(0) { inclusive = true }
+                                        }
+                                    }
+                                    AppMode.SETTINGS -> {
+                                        navController.navigate(SettingsRoute) {
+                                            popUpTo(0) { inclusive = true }
+                                        }
+                                    }
+                                }
+                            },
+                        )
 
-                        // Column 2: Instance list panel (MANAGE mode + paired)
-                        if (currentMode == AppMode.MANAGE && isPaired) {
+                        // Column 2: Instance list panel (always visible in MANAGE mode)
+                        if (currentMode == AppMode.MANAGE) {
                             val listVm: InstanceListViewModel = koinViewModel()
                             val listState by listVm.state.collectAsState()
                             val daemonVm: DaemonViewModel = koinViewModel()
@@ -207,6 +205,7 @@ fun main() {
                                         onCancel = detailVm::cancelTask,
                                         onDismissDelete = { detailVm.setShowDeleteDialog(false) },
                                         onConfirmDelete = detailVm::deleteInstance,
+                                        onEditDaemon = { navController.navigate(DaemonEditRoute(route.daemonId)) },
                                         onUpdateCommand = detailVm::updateCommandInput,
                                         onSendCommand = detailVm::sendCommand,
                                     )

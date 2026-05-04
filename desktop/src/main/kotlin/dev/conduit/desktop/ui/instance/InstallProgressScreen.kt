@@ -58,7 +58,7 @@ fun InstallProgressScreen(
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(Elevated),
+                    .background(Background),
             ) {
                 Box(
                     modifier = Modifier

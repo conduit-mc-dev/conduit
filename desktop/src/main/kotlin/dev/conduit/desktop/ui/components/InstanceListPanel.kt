@@ -130,7 +130,7 @@ private fun DaemonGroupHeader(
         modifier = Modifier.fillMaxWidth().background(Background).padding(vertical = 8.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DaemonStatusDot(group.connectionState, StatusDotSize.Small)
+        DaemonStatusDot(group.connectionState, StatusDotSize.Daemon)
         Spacer(Modifier.width(6.dp))
         Text(group.daemonName.uppercase(), style = MaterialTheme.typography.labelMedium, color = TextSecondary)
         Spacer(Modifier.width(4.dp))

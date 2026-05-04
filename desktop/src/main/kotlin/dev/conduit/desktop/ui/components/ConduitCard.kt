@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -79,7 +78,7 @@ fun ConduitCard(
             }
             Text(
                 text = infoText,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Normal),
                 color = when (instance.state) {
                     InstanceState.RUNNING -> StateRunning
                     InstanceState.STARTING -> StateStarting
@@ -91,15 +90,14 @@ fun ConduitCard(
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
-        // Bottom progress bar for INSTALLING
+        // Bottom progress bar for INSTALLING (edge-to-edge, solid color)
         if (instance.state == InstanceState.INITIALIZING) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth(0.5f) // TODO: wire real progress
                     .height(3.dp)
-                    .clip(RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp))
-                    .background(Brush.horizontalGradient(listOf(ProgressInstallingStart, ProgressInstallingEnd))),
+                    .background(StateInstalling),
             )
         }
     }

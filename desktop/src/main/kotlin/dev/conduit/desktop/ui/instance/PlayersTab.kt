@@ -58,7 +58,7 @@ fun PlayersTab(
                     "$maxPlayers",
                     fontSize = 28.sp,
                     fontWeight = FontWeight(700),
-                    color = TextMuted,
+                    color = TextSecondary,
                 )
                 Text("Max Players", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
             }

@@ -396,9 +396,11 @@ Baseline: mockup commits through `28e57f8`, code commits through `22b3a4a`
 
 | Priority | Count | Items |
 |----------|-------|-------|
-| P0       | 2     | #2/#3 ActionButton style E |
-| P1       | 6     | #1 NavRail bg, #4 SearchBar focus, #6 CrashBanner border, #8 ReconnectBanner border, #10 ReconnectBanner Edit btn, #13 Dialogs, #27 NavRail+ListPanel unpaired visibility |
-| P2       | 8     | #5 SearchBar radius, #7 CrashBanner radius, #9 ReconnectBanner alpha, #11 Card progress bar, #12 InstallProgress track, #15 Player detail, #16 MaxPlayers color, #18 Tab padding, #19 ContentHeader border, #20 Daemon dot size, #22 Card info weight, #23 Gear menu items, #24 CrashBanner sub font |
-| P3       | 1     | #26 CrashBanner title weight |
+| ~~P0~~   | ~~2~~ | ~~#2/#3 ActionButton style E~~ ✅ 2026-05-04 |
+| P1       | 1     | #13 Dialogs (功能正确，视觉细节待优化) |
+| ~~P1~~   | ~~6~~ | ~~#1, #4, #6, #8, #10, #27~~ ✅ 2026-05-04 |
+| P2       | 3     | #15 Player detail (data-dependent), #23 Gear menu (design decision) |
+| ~~P2~~   | ~~8~~ | ~~#5, #7, #9, #11, #12, #16, #18, #19, #20, #22, #24~~ ✅ 2026-05-04 |
+| P3       | 1     | #26 CrashBanner title weight (acceptable deviation) |
 
 **Total: 16 actionable gaps** (excluding already-correct items and P3).

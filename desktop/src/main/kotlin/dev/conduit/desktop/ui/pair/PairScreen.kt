@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun PairScreen(onPaired: (daemonId: String) -> Unit, daemonManager: DaemonManager = org.koin.compose.koinInject()) {
     var address by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("8080") }
+    var port by remember { mutableStateOf("9147") }
     var daemonName by remember { mutableStateOf("") }
     var pairingCode by remember { mutableStateOf("") }
     var isConnecting by remember { mutableStateOf(false) }
@@ -40,7 +40,7 @@ fun PairScreen(onPaired: (daemonId: String) -> Unit, daemonManager: DaemonManage
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Server Address", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-                    OutlinedTextField(value = address, onValueChange = { address = it }, placeholder = { Text("192.168.1.100", color = TextMuted) },
+                    OutlinedTextField(value = address, onValueChange = { address = it }, placeholder = { Text("localhost", color = TextMuted) },
                         singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(color = TextPrimary), modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.small)
                 }
                 Column(modifier = Modifier.width(80.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -58,7 +58,7 @@ fun PairScreen(onPaired: (daemonId: String) -> Unit, daemonManager: DaemonManage
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Pairing Code", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-                OutlinedTextField(value = pairingCode, onValueChange = { pairingCode = it }, placeholder = { Text("XXXX-XXXX-XXXX", color = TextMuted) },
+                OutlinedTextField(value = pairingCode, onValueChange = { pairingCode = it }, placeholder = { Text("000000", color = TextMuted) },
                     singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = MonoFontFamily, color = TextPrimary), modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.small)
             }
 

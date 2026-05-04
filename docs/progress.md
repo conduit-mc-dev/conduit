@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-04（UI 文档整理 — 正式设计规范建立 + 过时文档归档 + remaining-gaps 审计）
+> 最新更新：2026-05-04（UI 视觉对齐 — P0/P1/P2 修复，13/16 gap 闭合）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,12 +11,10 @@
 
 ## Now（进行中）
 
-**UI 文档整理**：正式设计规范 `docs/design-spec.md` 已建立（从 v2 临时 spec 提取并修正 8 个冲突），过时文档归档到 `docs/superpowers/archive/`，剩余 gap 审计见 `docs/ui-alignment-remaining-gaps.md`。
-
-**UI 视觉对齐 — 剩余工作**：
-- P0（2 项）：ActionButton Style E 未应用到 Primary/Secondary
-- P1（6 项）：NavigationRail 背景、搜索栏焦点态、Banner 边框、Reconnect Edit 按钮、对话框自定义样式
-- P2（7 项）：圆角/间距/颜色微调
+**UI 视觉对齐 — 剩余 3 项**（13/16 已闭合）：
+- P1：#13 对话框自定义样式（功能正确，视觉细节待优化）
+- P2：#15 玩家详情行（依赖 API 数据）、#23 Gear 菜单项（设计决策）
+- P3：#26 CrashBanner 标题字重（可接受偏差）
 - 详见 `docs/ui-alignment-remaining-gaps.md`
 
 **Desktop MVP 迭代 4（完成）**：server.properties 编辑器、实例删除、玩家列表 + UI 打磨（侧边栏骨架 + Material You Dark 主题）全部完成。
@@ -54,6 +52,26 @@
 ---
 
 ## Done
+
+- [x] **UI 视觉对齐 — P0/P1/P2 修复，13/16 gap 闭合**（2026-05-04）
+  - **P0 ActionButton Style E**（2 项）：所有按钮改为 OutlinedButton（transparent bg + status-color border），新增 Stop/Kill 变体。Primary=绿色边框、Secondary=灰色边框、Danger=红色边框、Warning=橙色边框、Disabled=统一灰色
+  - **P1 修复**（6 项）：
+    - NavigationRail 背景：渐变 `#1A1A2E→#16213E` → 实心 `#0D1117`
+    - SearchBar 焦点态：添加 `onFocusChanged`，焦点时边框 `AccentBlue.copy(0.3)` + 搜索图标变蓝
+    - SearchBar 圆角：8dp → 6dp
+    - CrashBanner：添加红色边框 `StateCrashed.copy(0.3)` + 圆角 6dp + 子文字 10sp → 11sp
+    - ReconnectBanner：添加橙色边框 `DaemonReconnecting.copy(0.4)` + alpha 0.06 → 0.1 + Edit 按钮
+    - NavRail+InstanceListPanel：未配对时始终可见（移除 `isPaired` 条件）
+  - **P2 微调**（8 项）：
+    - ConduitCard 进度条：渐变 → 实心 `StateInstalling`
+    - InstallProgress 轨道色：`Elevated` → `Background`
+    - MaxPlayers 颜色：`TextMuted` → `TextSecondary`
+    - Tab 内边距：10dp → 8dp
+    - ContentHeader：添加底部 1px Border 分割线
+    - Daemon dot：新增 `StatusDotSize.Daemon(7.dp)`，InstanceListPanel 使用
+    - Card info 字重：`FontWeight.Bold` → `FontWeight.Normal`
+  - 改动文件：12 个 Kotlin + 2 个文档
+  - 剩余 3 项：#13 对话框（功能正确，视觉细节待优化）、#15 玩家详情（数据依赖）、#23 Gear 菜单（设计决策）
 
 - [x] **UI Redesign v2 视觉对齐 — P0/P2/P3 修复 + 全页面审计**（2026-05-04）
   - **全页面 mockup 审计**：4 个并行 agent 对比 26 个 HTML mockup 与 Kotlin/Compose 实现，生成 `docs/ui-alignment-audit.md`（已归档，剩余项见 `docs/ui-alignment-remaining-gaps.md`）

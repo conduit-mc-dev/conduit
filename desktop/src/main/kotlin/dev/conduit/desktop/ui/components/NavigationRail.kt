@@ -1,5 +1,6 @@
 package dev.conduit.desktop.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,9 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,20 +39,19 @@ fun NavigationRail(
 ) {
     Column(
         modifier = modifier.width(72.dp).fillMaxHeight()
-            .background(Brush.verticalGradient(listOf(NavRailBgTop, NavRailBgBottom)))
+            .background(Background)
             .drawBehind {
                 drawLine(NavRailBorder, Offset(size.width, 0f), Offset(size.width, size.height), 1.dp.toPx())
             }
             .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier.size(44.dp).clip(RoundedCornerShape(13.dp))
-                .background(Brush.linearGradient(listOf(AccentBlue, AccentPurple))),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("C", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight(800))
-        }
+        Image(
+            painter = painterResource("logo-icon-transparent.png"),
+            contentDescription = "Conduit MC",
+            modifier = Modifier.size(44.dp),
+            contentScale = ContentScale.Fit,
+        )
         Spacer(Modifier.height(20.dp))
         NavItem(Icons.Default.Dns, "Servers", currentMode == AppMode.MANAGE) { onModeChange(AppMode.MANAGE) }
         Spacer(Modifier.height(6.dp))

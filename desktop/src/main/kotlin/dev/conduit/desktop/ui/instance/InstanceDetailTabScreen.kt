@@ -7,6 +7,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -46,6 +47,7 @@ fun InstanceDetailTabScreen(
     onCancel: () -> Unit,
     onDismissDelete: () -> Unit,
     onConfirmDelete: () -> Unit,
+    onEditDaemon: (() -> Unit)? = null,
     onUpdateCommand: (String) -> Unit,
     onSendCommand: () -> Unit,
     modifier: Modifier = Modifier,
@@ -86,7 +88,7 @@ fun InstanceDetailTabScreen(
                 )
 
                 if (isDaemonReconnecting) {
-                    ReconnectBanner(daemonName = daemonName)
+                    ReconnectBanner(daemonName = daemonName, onEdit = onEditDaemon)
                     TabBar(
                         tabs = listOf(
                             TabItem("console", "Console"),
@@ -203,7 +205,8 @@ private fun PlaceholderTab(name: String) {
 private fun CrashBanner(error: String?) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .border(1.dp, StateCrashed.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(6.dp))
             .background(StateCrashed.copy(alpha = 0.1f))
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -225,7 +228,7 @@ private fun CrashBanner(error: String?) {
             if (error != null) {
                 Text(
                     error,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     color = TextSecondary,
                 )
             }
@@ -234,7 +237,7 @@ private fun CrashBanner(error: String?) {
 }
 
 @Composable
-private fun ReconnectBanner(daemonName: String) {
+private fun ReconnectBanner(daemonName: String, onEdit: (() -> Unit)? = null) {
     val transition = rememberInfiniteTransition(label = "reconnectSpin")
     val rotation by transition.animateFloat(
         initialValue = 0f, targetValue = 360f,
@@ -244,14 +247,9 @@ private fun ReconnectBanner(daemonName: String) {
 
     Row(
         modifier = Modifier.fillMaxWidth()
-            .background(DaemonReconnecting.copy(alpha = 0.06f))
-            .drawBehind {
-                drawLine(
-                    color = DaemonReconnecting.copy(alpha = 0.2f),
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                )
-            }
+            .border(1.dp, DaemonReconnecting.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(6.dp))
+            .background(DaemonReconnecting.copy(alpha = 0.1f))
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -272,6 +270,10 @@ private fun ReconnectBanner(daemonName: String) {
         Column {
             Text("Reconnecting to $daemonName...", fontSize = 12.sp, color = DaemonReconnecting)
             Text("Retrying connection", fontSize = 11.sp, color = TextSecondary)
+        }
+        Spacer(Modifier.weight(1f))
+        onEdit?.let { edit ->
+            ActionButton("Edit", ButtonVariant.Secondary, onClick = edit)
         }
     }
 }

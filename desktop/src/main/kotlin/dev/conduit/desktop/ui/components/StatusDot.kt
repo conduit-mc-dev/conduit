@@ -23,6 +23,7 @@ import dev.conduit.desktop.ui.theme.*
 
 enum class StatusDotSize(val dp: Dp) {
     Small(6.dp),
+    Daemon(7.dp),
     Medium(8.dp),
     Large(10.dp),
 }

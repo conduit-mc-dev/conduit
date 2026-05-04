@@ -47,7 +47,7 @@ fun TabBar(tabs: List<TabItem>, selectedTabId: String, onTabSelected: (String) -
                             drawLine(AccentBlue, Offset(0f, size.height), Offset(size.width, size.height), 2.dp.toPx())
                         }
                     }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
