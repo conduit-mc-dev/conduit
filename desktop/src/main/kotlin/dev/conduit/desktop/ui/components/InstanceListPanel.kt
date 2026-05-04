@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
@@ -86,6 +87,19 @@ fun InstanceListPanel(
                         onClick = { onCreateInstance(group.daemonId) },
                         enabled = group.connectionState == WsConnectionState.CONNECTED,
                     )
+                }
+            }
+            if (daemonGroups.isEmpty() && searchQuery.isBlank()) {
+                item(key = "empty-state") {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(Icons.Default.Computer, contentDescription = null, tint = Elevated, modifier = Modifier.size(32.dp))
+                        Text("No servers", style = MaterialTheme.typography.bodySmall, color = TextMuted, textAlign = TextAlign.Center)
+                        Text("Pair a daemon to get started", style = MaterialTheme.typography.labelSmall, color = TextMuted, textAlign = TextAlign.Center)
+                    }
                 }
             }
             if (!hasResults) {
