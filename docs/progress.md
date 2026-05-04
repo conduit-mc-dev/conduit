@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-04（Restart 按钮全链路，路由规范 10/10 gap resolved，UI 对齐 16/16，Desktop 测试修复）
+> 最新更新：2026-05-04（Daemon 功能完整性审计，Restart 按钮全链路，ButtonVariant→GitHub Dark tokens）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -51,6 +51,33 @@
 - [ ] 实例编辑（重命名等）：API client `updateInstance()` + UI
 - [ ] Settings 页面：替换 "coming soon" 占位
 - [ ] 整体打磨
+
+### Daemon 功能完整性修复（2026-05-04 审计发现）
+
+**Bug：**
+
+- [ ] **CRASHED 实例无法启动** — `ServerRoutes` 允许 CRASHED 进入 start，但 `startInternal()` 硬编码 `from = STOPPED`（`ServerProcessManager.kt:99`），CRASHED 实例会抛 `INVALID_STATE`。修复：start() 接受 CRASHED 作为 from 状态
+- [ ] **CRASHED 状态从未被设置** — LogPatternDetector 检测到 OOM/端口冲突只记日志（`ServerProcessManager.kt:160-163`），monitorJob 永远 forceState(STOPPED)。UI 侧 CrashBanner 已就绪但永远不会触发。修复：monitorJob 异常退出时转 CRASHED（非 intentionalExit 且 exitCode ≠ 0）
+
+**并发/可靠性：**
+
+- [ ] **start() 与 kill() 竞态** — kill 不持锁（intentional），可在 start 启动中途 forceState(STOPPED)，导致进程运行但 store 标记 STOPPED。`ServerProcessManager.kt:302-319` vs `122-246`
+- [ ] **shutdownAll() force-kill 协程可能被取消** — 10s 强杀用 `scope.launch`，scope 取消时协程不执行。`ServerProcessManager.kt:356-364`。修复：用 `NonCancellable` 或独立 scope
+- [ ] **kill() 对非托管实例不广播** — forceState(STOPPED) 后无 broadcastStateChanged，WS 客户端漏事件。`ServerProcessManager.kt:313-314`
+
+**代码质量：**
+
+- [ ] **stop() 死代码** — `startupTimeoutJob?.cancel()`（line 263）不可达，因 STARTING 在 line 269 已被拒绝
+
+**测试缺口：**
+
+- [ ] kill() RUNNING 状态测试
+- [ ] stop() 30s 超时强杀测试
+- [ ] 并发混合操作测试（stop+start, start+kill, stop+kill）
+- [ ] restart() RUNNING 状态端到端测试
+- [ ] broadcast oldState/newState 正确性测试
+- [ ] shutdownAll() 测试
+- [ ] pending auto-restart 取消测试（stop/kill 在 2s 延迟期间）
 
 ### 延迟项（MVP 后 / v0.2+）
 
