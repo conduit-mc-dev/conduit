@@ -34,16 +34,24 @@
 
 ## Next（下一步）
 
-### Desktop 依赖（当前阶段）
+### Desktop MVP 迭代 5（当前阶段）
 
-- [x] shared-core `ConduitWsClient` 重连逻辑 + 5 个测试用例（→ 实际 8 个）
-- [x] Desktop MVP 迭代 4 剩余：实例删除 + 玩家列表 + UI 打磨
-- [x] Desktop MVP 迭代 4 收尾：UI 打磨
-- [x] UI 视觉对齐：P0/P1/P2 剩余 gap 修复（详见 `docs/ui-alignment-remaining-gaps.md`）— 15/16 闭合，#15 推迟 v0.2+
-- [x] 持久化审计 + TokenStore 磁盘持久化（2026-05-02）
-- [x] 修复：实例列表自动刷新（WebSocket 事件）
-- [x] 修复：控制台输出跨界面持久化（SessionManager）
-- [x] 修复：配对 token 持久化到磁盘（跳过重复配对）
+- [ ] API client 补齐：`restartServer(id)` / `cancelTask(taskId)` / `uploadFile()`
+- [ ] InstallProgressScreen 对接 WS `task.progress` 事件（当前静态占位）
+- [ ] ConduitCard 进度条对接真实数据（`TODO: wire real progress`）
+- [ ] InstanceDetailViewModel 处理 `task.progress` / `task.completed` 事件
+- [ ] 任务取消：InstanceDetailViewModel 接入 `POST /tasks/{id}/cancel`
+- [ ] Toast 全局通知：监听 task.completed / 错误事件自动弹出
+- [ ] FilesTab Upload / New Folder 按钮对接 daemon 文件 API
+- [ ] routing-spec S13 改为 done
+
+### Desktop MVP 迭代 6
+
+- [ ] 重启按钮：API client `restartServer()` + UI
+- [ ] JVM 配置 UI：getJvmConfig / updateJvmConfig 编辑界面
+- [ ] 实例编辑（重命名等）：API client `updateInstance()` + UI
+- [ ] Settings 页面：替换 "coming soon" 占位
+- [ ] 整体打磨
 
 ### 延迟项（MVP 后 / v0.2+）
 

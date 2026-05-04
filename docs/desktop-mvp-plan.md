@@ -40,9 +40,29 @@ KMP 生态事实标准，Compose 集成（`koinViewModel()`）。
 
 | 迭代 | 内容 |
 |---|---|
-| 4 | server.properties 读写 + 实例删除 + 玩家列表 + UI 打磨 |
-| 5 | WebSocket 实时更新 + 下载进度条 + TPS/内存统计 |
-| 6 | JVM 配置 + 重启 + 实例编辑 + 整体打磨 |
+| 4 | server.properties 读写 + 实例删除 + 玩家列表 + UI 打磨 ✅ |
+| 5 | 下载进度条 + task 事件对接 + 任务取消 + Toast 通知 + 文件上传 |
+| 6 | JVM 配置 + 重启 + 实例编辑 + 整体打磨（Settings 页面等） |
+
+迭代 5 详细任务：
+
+- [ ] API client 补齐：`restartServer(id)` / `cancelTask(taskId)` / `uploadFile()`
+- [ ] InstallProgressScreen 对接 WS `task.progress` 事件（当前静态占位）
+- [ ] ConduitCard 进度条对接真实数据（`TODO: wire real progress`）
+- [ ] InstanceDetailViewModel 处理 `task.progress` / `task.completed` 事件
+- [ ] 任务取消：InstanceDetailViewModel 接入 `POST /tasks/{id}/cancel`
+- [ ] Toast 全局通知：监听 task.completed / 错误事件自动弹出
+- [ ] FilesTab Upload / New Folder 按钮对接 daemon 文件 API
+- [ ] routing-spec S13 改为 done
+
+迭代 6 详细任务：
+
+- [ ] API client 补齐：`updateInstance(id, request)`
+- [ ] 重启按钮：UI + API client `restartServer()` 接入
+- [ ] JVM 配置 UI：getJvmConfig / updateJvmConfig 编辑界面
+- [ ] 实例编辑（重命名等）：PUT /instances/{id} + UI
+- [ ] Settings 页面：替换 "coming soon" 占位
+- [ ] 整体打磨
 
 迭代 4-6 完成后进入 Loader / Mod 管理里程碑。
 
