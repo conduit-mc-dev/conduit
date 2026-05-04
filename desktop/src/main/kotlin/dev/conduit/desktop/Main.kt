@@ -71,7 +71,7 @@ fun main() {
                 }
 
                 ConduitTheme {
-                    var currentMode by remember { mutableStateOf(AppMode.LAUNCHER) }
+                    var currentMode by remember { mutableStateOf(AppMode.MANAGE) }
                     var selectedInstanceId by remember { mutableStateOf<String?>(null) }
                     val navController = rememberNavController()
 
@@ -83,20 +83,21 @@ fun main() {
                                 currentMode = newMode
                                 when (newMode) {
                                     AppMode.LAUNCHER -> {
-                                        selectedInstanceId = null
                                         navController.navigate(LauncherRoute) {
-                                            popUpTo(0) { inclusive = true }
+                                            popUpTo<LauncherRoute> { inclusive = false }
+                                            launchSingleTop = true
                                         }
                                     }
                                     AppMode.MANAGE -> {
-                                        selectedInstanceId = null
-                                        navController.navigate(if (isPaired) InstanceListRoute else PairRoute) {
-                                            popUpTo(0) { inclusive = true }
+                                        val target = if (isPaired) InstanceListRoute else PairRoute
+                                        if (!navController.popBackStack(target::class, false)) {
+                                            navController.navigate(target) { launchSingleTop = true }
                                         }
                                     }
                                     AppMode.SETTINGS -> {
                                         navController.navigate(SettingsRoute) {
-                                            popUpTo(0) { inclusive = true }
+                                            popUpTo<SettingsRoute> { inclusive = false }
+                                            launchSingleTop = true
                                         }
                                     }
                                 }
@@ -161,13 +162,31 @@ fun main() {
                                     )
                                 }
                                 composable<InstanceListRoute> {
-                                    PairedEmptyScreen(
-                                        onCreateServer = {
-                                            navController.navigate(
-                                                CreateInstanceRoute(currentDaemonId),
-                                            )
-                                        },
-                                    )
+                                    val listVm: InstanceListViewModel = koinViewModel()
+                                    val listState by listVm.state.collectAsState()
+                                    val allInstances = listState.daemonGroups.flatMap { g ->
+                                        g.instances.map { g.daemonId to it }
+                                    }
+
+                                    LaunchedEffect(allInstances, selectedInstanceId) {
+                                        if (allInstances.isNotEmpty()) {
+                                            val match = allInstances.find { it.second.id == selectedInstanceId }
+                                            val (daemonId, instance) = match ?: allInstances.first()
+                                            selectedInstanceId = instance.id
+                                            currentDaemonId = daemonId
+                                            navController.navigate(InstanceDetailRoute(instance.id, daemonId)) {
+                                                popUpTo<InstanceListRoute> { inclusive = false }
+                                            }
+                                        }
+                                    }
+
+                                    if (allInstances.isEmpty()) {
+                                        PairedEmptyScreen(
+                                            onCreateServer = {
+                                                navController.navigate(CreateInstanceRoute(currentDaemonId))
+                                            },
+                                        )
+                                    }
                                 }
                                 composable<CreateInstanceRoute> { backStackEntry ->
                                     val route = backStackEntry.toRoute<CreateInstanceRoute>()
