@@ -179,7 +179,7 @@ Instance Detail (screen-s04~s14)
 ├── 无返回按钮——通过侧边栏 server card 切换实例
 ├── Tab 切换 → Console / Players / Config / Mods / Files（状态驱动，同 route）
 ├── 状态变化 → 自动切换显示（STOPPED → STARTING → RUNNING → ...）
-├── 点击 Start/Stop/Kill/Delete → 状态变更 + 对话框
+├── 点击 Start/Stop/Restart/Kill/Delete → 状态变更 + 对话框
 ├── daemon 断连 → 显示 Reconnect Banner (screen-s20) + 灰化内容 + "Edit" 快速入口
 
 Create Instance (screen-02/s16)

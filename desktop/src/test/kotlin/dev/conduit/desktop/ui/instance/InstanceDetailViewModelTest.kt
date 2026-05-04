@@ -62,6 +62,82 @@ class InstanceDetailViewModelTest {
     }
 
     @Test
+    fun `restartServer with eula not accepted shows dialog`() = runBlocking {
+        val httpClient = mockHttpClient { request ->
+            when (request.url.encodedPath) {
+                "/api/v1/instances/test-inst" -> respond(
+                    mockJsonBody(
+                        InstanceSummary(
+                            id = "test-inst", name = "My Server", state = InstanceState.RUNNING,
+                            mcVersion = "1.20.4", mcPort = 25565, playerCount = 0, maxPlayers = 20,
+                            createdAt = Instant.fromEpochMilliseconds(0),
+                        )
+                    ),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                "/api/v1/instances/test-inst/server/eula" -> respond(
+                    mockJsonBody(EulaResponse(accepted = false)),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, mockDaemonManager(client))
+        vm.awaitLoad()
+
+        vm.restartServer()
+        waitFor { vm.state.value.showEulaDialog }
+
+        assertTrue(vm.state.value.showEulaDialog)
+    }
+
+    @Test
+    fun `restartServer success updates state`() = runBlocking {
+        val httpClient = mockHttpClient { request ->
+            when (request.url.encodedPath) {
+                "/api/v1/instances/test-inst" -> respond(
+                    mockJsonBody(
+                        InstanceSummary(
+                            id = "test-inst", name = "My Server", state = InstanceState.RUNNING,
+                            mcVersion = "1.20.4", mcPort = 25565, playerCount = 0, maxPlayers = 20,
+                            createdAt = Instant.fromEpochMilliseconds(0),
+                        )
+                    ),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                "/api/v1/instances/test-inst/server/eula" -> respond(
+                    mockJsonBody(EulaResponse(accepted = true)),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                "/api/v1/instances/test-inst/server/restart" -> respond(
+                    mockJsonBody(
+                        ServerStatusResponse(
+                            state = InstanceState.STARTING,
+                            playerCount = 0,
+                            maxPlayers = 20,
+                            players = emptyList(),
+                            uptime = 0,
+                            mcVersion = "1.20.4",
+                        )
+                    ),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, mockDaemonManager(client))
+        vm.awaitLoad()
+
+        vm.restartServer()
+        vm.awaitAction()
+
+        assertEquals(InstanceState.STARTING, vm.state.value.instance?.state)
+        assertNull(vm.state.value.error)
+    }
+
+    @Test
     fun `deleteInstance success sets isDeleted`() = runBlocking {
         val httpClient = mockHttpClient { request ->
             val path = request.url.encodedPath

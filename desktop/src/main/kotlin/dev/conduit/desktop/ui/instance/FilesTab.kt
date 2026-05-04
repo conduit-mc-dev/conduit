@@ -68,8 +68,8 @@ fun FilesTab(
                 }
             }
             Spacer(Modifier.weight(1f))
-            ActionButton("Upload", ButtonVariant.Secondary, onClick = { /* TODO */ })
-            ActionButton("New Folder", ButtonVariant.Secondary, onClick = { /* TODO */ })
+            ActionButton("Upload", ButtonVariant.Default, onClick = { /* TODO */ })
+            ActionButton("New Folder", ButtonVariant.Default, onClick = { /* TODO */ })
         }
         Spacer(Modifier.height(12.dp))
 

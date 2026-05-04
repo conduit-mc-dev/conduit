@@ -33,8 +33,8 @@ fun LaunchEmptyScreen(onCreateInstance: () -> Unit, onConnectServer: () -> Unit,
             style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 360.dp))
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            ActionButton("+ Create Instance", ButtonVariant.Primary, onClick = onCreateInstance)
-            ActionButton("Connect Server", ButtonVariant.Secondary, onClick = onConnectServer)
+            ActionButton("+ Create Instance", ButtonVariant.Success, onClick = onCreateInstance)
+            ActionButton("Connect Server", ButtonVariant.Default, onClick = onConnectServer)
         }
         Spacer(Modifier.height(12.dp))
         Text("Quick start:", style = TextStyle(fontSize = 11.sp), color = TextMuted)

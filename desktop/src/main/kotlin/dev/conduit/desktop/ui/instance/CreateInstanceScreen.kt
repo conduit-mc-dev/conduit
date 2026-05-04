@@ -44,8 +44,8 @@ fun CreateInstanceScreen(
             Field("Port", state.port.toString(), { viewModel.updatePort(it.toIntOrNull() ?: 25565) }, "25565")
             state.error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = StateCrashed) }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                ActionButton("Cancel", ButtonVariant.Secondary, onClick = onCancel)
-                ActionButton("Create", ButtonVariant.Primary, onClick = { viewModel.create(onCreated) }, enabled = !state.isCreating)
+                ActionButton("Cancel", ButtonVariant.Default, onClick = onCancel)
+                ActionButton("Create", ButtonVariant.Success, onClick = { viewModel.create(onCreated) }, enabled = !state.isCreating)
             }
         }
     }

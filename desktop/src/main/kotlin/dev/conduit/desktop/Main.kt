@@ -226,6 +226,7 @@ fun main() {
                                         onSelectTab = detailVm::selectTab,
                                         onStart = detailVm::startServer,
                                         onStop = detailVm::stopServer,
+                                        onRestart = detailVm::restartServer,
                                         onKill = detailVm::killServer,
                                         onDelete = { detailVm.setShowDeleteDialog(true) },
                                         onCancel = detailVm::cancelTask,

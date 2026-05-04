@@ -144,17 +144,17 @@
 
 ### ActionButton — 按钮状态矩阵
 
-| 实例状态 | 主操作（Primary） | 次操作（Secondary） | 危险（Danger） | 取消（Warning） |
-|---------|------------------|--------------------|--------------|-----------------|
-| Stopped | Start | — | Delete | — |
-| Starting | — | — | — | Cancel |
-| Running | Stop | Kill | — | — |
-| Stopping | — | Kill | — | — |
-| Crashed | Start | Kill | Delete | — |
-| Installing | — | — | — | Cancel |
-| Downloading | — | — | — | Cancel |
+| 实例状态 | Start | Restart | Stop | Kill | Delete | Cancel |
+|---------|-------|---------|------|------|--------|--------|
+| Stopped | ✓ | — | — | — | ✓ | — |
+| Starting | — | — | — | — | — | ✓ |
+| Running | — | ✓ | ✓ | ✓ | — | — |
+| Stopping | — | — | — | ✓ | — | — |
+| Crashed | ✓ | — | — | ✓ | ✓ | — |
+| Installing | — | — | — | — | — | ✓ |
+| Downloading | — | — | — | — | — | ✓ |
 
-布局：主操作最左，Kill 居中，Delete/Cancel 最右
+布局：Start/Stop 最左，Restart 紧随，Kill 居中，Delete/Cancel 最右。样式参见 `desktop-mockups/button-matrix.html`
 
 ### Tab 栏
 

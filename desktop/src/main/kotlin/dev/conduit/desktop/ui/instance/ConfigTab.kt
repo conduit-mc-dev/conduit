@@ -53,13 +53,13 @@ fun ConfigTab(
             Spacer(Modifier.weight(1f))
             ActionButton(
                 "Revert All",
-                ButtonVariant.Secondary,
+                ButtonVariant.Default,
                 onClick = viewModel::revertAll,
                 enabled = state.modifiedCount > 0,
             )
             ActionButton(
                 "Save",
-                ButtonVariant.Primary,
+                ButtonVariant.Success,
                 onClick = viewModel::save,
                 enabled = state.modifiedCount > 0 && !state.isSaving,
             )

@@ -100,7 +100,7 @@ fun ConsoleTab(
             Spacer(Modifier.width(8.dp))
             ActionButton(
                 "Send",
-                ButtonVariant.Primary,
+                ButtonVariant.Success,
                 onClick = onSendCommand,
                 enabled = isRunning,
             )

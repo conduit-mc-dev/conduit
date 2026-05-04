@@ -108,6 +108,9 @@ class ConduitApiClient(
     suspend fun killServer(id: String): ServerStatusResponse =
         post("/api/v1/instances/$id/server/kill")
 
+    suspend fun restartServer(id: String): ServerStatusResponse =
+        post("/api/v1/instances/$id/server/restart")
+
     suspend fun sendCommand(id: String, command: String): CommandAcceptedResponse =
         post("/api/v1/instances/$id/server/command") {
             contentType(ContentType.Application.Json)

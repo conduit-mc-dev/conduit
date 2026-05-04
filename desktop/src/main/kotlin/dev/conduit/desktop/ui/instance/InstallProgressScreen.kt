@@ -76,6 +76,6 @@ fun InstallProgressScreen(
             Text("Waiting for progress...", style = MaterialTheme.typography.bodySmall, color = TextMuted)
         }
 
-        ActionButton("Cancel", ButtonVariant.Warning, onClick = { /* TODO */ })
+        ActionButton("Cancel", ButtonVariant.Attention, onClick = { /* TODO */ })
     }
 }

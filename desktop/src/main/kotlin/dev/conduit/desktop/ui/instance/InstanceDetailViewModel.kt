@@ -170,6 +170,14 @@ class InstanceDetailViewModel(
         performAction { apiClient.stopServer(instanceId) }
     }
 
+    fun restartServer() {
+        if (_state.value.eulaAccepted != true) {
+            _state.value = _state.value.copy(showEulaDialog = true)
+            return
+        }
+        performAction { apiClient.restartServer(instanceId) }
+    }
+
     fun killServer() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isActionInProgress = true, error = null)

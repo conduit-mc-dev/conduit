@@ -111,14 +111,14 @@ fun DaemonForm(
 
             if (isEditMode) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                    ActionButton("Cancel", ButtonVariant.Secondary, onClick = { onBack?.invoke() })
-                    ActionButton("Save", ButtonVariant.Primary,
+                    ActionButton("Cancel", ButtonVariant.Default, onClick = { onBack?.invoke() })
+                    ActionButton("Save", ButtonVariant.Success,
                         onClick = { editViewModel.save(daemonId) { onDone(daemonId) } },
                         enabled = !isBusy,
                     )
                 }
             } else {
-                ActionButton("Connect", ButtonVariant.Primary,
+                ActionButton("Connect", ButtonVariant.Success,
                     onClick = {
                         isConnecting = true; pairError = null
                         scope.launch {

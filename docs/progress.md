@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-04（路由规范 10/10 gap resolved，UI 对齐 16/16，Desktop 测试修复）
+> 最新更新：2026-05-04（Restart 按钮全链路，路由规范 10/10 gap resolved，UI 对齐 16/16，Desktop 测试修复）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -36,7 +36,7 @@
 
 ### Desktop MVP 迭代 5（当前阶段）
 
-- [ ] API client 补齐：`restartServer(id)` / `cancelTask(taskId)` / `uploadFile()`
+- [ ] API client 补齐：`cancelTask(taskId)` / `uploadFile()`
 - [ ] InstallProgressScreen 对接 WS `task.progress` 事件（当前静态占位）
 - [ ] ConduitCard 进度条对接真实数据（`TODO: wire real progress`）
 - [ ] InstanceDetailViewModel 处理 `task.progress` / `task.completed` 事件
@@ -47,7 +47,6 @@
 
 ### Desktop MVP 迭代 6
 
-- [ ] 重启按钮：API client `restartServer()` + UI
 - [ ] JVM 配置 UI：getJvmConfig / updateJvmConfig 编辑界面
 - [ ] 实例编辑（重命名等）：API client `updateInstance()` + UI
 - [ ] Settings 页面：替换 "coming soon" 占位
@@ -72,6 +71,18 @@
 ---
 
 ## Done
+
+- [x] **Restart 按钮 — API client + ViewModel + UI 全链路**（2026-05-04）
+  - **设计决策**：仅 RUNNING 状态显示，使用 Primary 绿色风格（与 Start 同色），布局 Stop → Restart → Kill
+  - **参考项目**：MCSManager 和 Wings 都将 Restart 作为四个核心 power action 之一
+  - **文档更新**：design-spec.md 按钮矩阵加 Restart 列、button-matrix.html mockup 同步、routing-spec.md 按钮列表
+  - **代码改动**：
+    - `ConduitApiClient` 新增 `restartServer(id)` → `POST /api/v1/instances/{id}/server/restart`
+    - `InstanceDetailViewModel` 新增 `restartServer()` 方法（含 EULA 前置检查）
+    - `InstanceActionButtons` 新增 `onRestart` 回调 + RUNNING 状态 Restart 按钮
+    - `ContentHeader` / `InstanceDetailTabScreen` / `Main.kt` 逐层传递 `onRestart`
+  - Daemon 端点 `ServerRoutes.kt:70` 已实现（先 stop → awaitProcessExit → start），本次无需改动
+  - desktop 29 tests 全绿，零回归
 
 - [x] **路由规范对齐 — 全部 10 个 gap 闭合**（2026-05-04）
   - **Batch 1（BLOCKING ×3）**：默认模式 LAUNCHER→MANAGE、模式切换状态保留（popUpTo<RootRoute>）、自动选中第一个实例（LaunchedEffect）

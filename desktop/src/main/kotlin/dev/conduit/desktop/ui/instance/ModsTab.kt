@@ -64,8 +64,8 @@ fun ModsTab(
                 placeholder = "Search mods...",
                 modifier = Modifier.weight(1f),
             )
-            ActionButton("Install from Modrinth", ButtonVariant.Secondary, onClick = { /* TODO */ })
-            ActionButton("Upload .jar", ButtonVariant.Secondary, onClick = { /* TODO */ })
+            ActionButton("Install from Modrinth", ButtonVariant.Default, onClick = { /* TODO */ })
+            ActionButton("Upload .jar", ButtonVariant.Default, onClick = { /* TODO */ })
         }
 
         // Filter underline tabs

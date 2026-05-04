@@ -22,6 +22,7 @@ fun ContentHeader(
     isActionInProgress: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onRestart: () -> Unit,
     onKill: () -> Unit,
     onDelete: () -> Unit,
     onCancel: () -> Unit,
@@ -59,6 +60,6 @@ fun ContentHeader(
                 },
             )
         }
-        InstanceActionButtons(instanceState, isActionInProgress, onStart, onStop, onKill, onDelete, onCancel)
+        InstanceActionButtons(instanceState, isActionInProgress, onStart, onStop, onRestart, onKill, onDelete, onCancel)
     }
 }

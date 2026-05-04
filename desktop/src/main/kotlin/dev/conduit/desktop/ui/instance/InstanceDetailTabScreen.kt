@@ -45,6 +45,7 @@ fun InstanceDetailTabScreen(
     onSelectTab: (String) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onRestart: () -> Unit,
     onKill: () -> Unit,
     onDelete: () -> Unit,
     onCancel: () -> Unit,
@@ -110,6 +111,7 @@ fun InstanceDetailTabScreen(
                     isActionInProgress = state.isActionInProgress || isDaemonReconnecting,
                     onStart = onStart,
                     onStop = onStop,
+                    onRestart = onRestart,
                     onKill = onKill,
                     onDelete = onDelete,
                     onCancel = onCancel,
@@ -307,7 +309,7 @@ private fun ReconnectBanner(daemonName: String, onEdit: (() -> Unit)? = null) {
         }
         Spacer(Modifier.weight(1f))
         onEdit?.let { edit ->
-            ActionButton("Edit", ButtonVariant.Secondary, onClick = edit)
+            ActionButton("Edit", ButtonVariant.Default, onClick = edit)
         }
     }
 }

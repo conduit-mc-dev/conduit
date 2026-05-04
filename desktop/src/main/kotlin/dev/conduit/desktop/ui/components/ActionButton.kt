@@ -14,7 +14,7 @@ import dev.conduit.core.model.InstanceState
 import dev.conduit.desktop.ui.theme.*
 import androidx.compose.foundation.BorderStroke
 
-enum class ButtonVariant { Primary, Secondary, Stop, Kill, Danger, Warning }
+enum class ButtonVariant { Success, Default, Muted, Danger, Attention }
 
 @Composable
 fun ActionButton(
@@ -30,7 +30,7 @@ fun ActionButton(
     val disabledBorder = BorderStroke(borderWidth, SolidColor(ButtonDisabledBorder))
 
     when (variant) {
-        ButtonVariant.Primary -> OutlinedButton(
+        ButtonVariant.Success -> OutlinedButton(
             onClick = onClick, enabled = enabled, modifier = modifier, shape = shape,
             border = if (enabled) BorderStroke(borderWidth, SolidColor(ButtonStartBorder)) else disabledBorder,
             colors = ButtonDefaults.outlinedButtonColors(
@@ -38,7 +38,7 @@ fun ActionButton(
             ),
         ) { Text(text, style = textStyle) }
 
-        ButtonVariant.Secondary -> OutlinedButton(
+        ButtonVariant.Default -> OutlinedButton(
             onClick = onClick, enabled = enabled, modifier = modifier, shape = shape,
             border = if (enabled) BorderStroke(borderWidth, SolidColor(ButtonStopBorder)) else disabledBorder,
             colors = ButtonDefaults.outlinedButtonColors(
@@ -46,15 +46,7 @@ fun ActionButton(
             ),
         ) { Text(text, style = textStyle) }
 
-        ButtonVariant.Stop -> OutlinedButton(
-            onClick = onClick, enabled = enabled, modifier = modifier, shape = shape,
-            border = if (enabled) BorderStroke(borderWidth, SolidColor(ButtonStopBorder)) else disabledBorder,
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = ButtonStopText, disabledContentColor = ButtonDisabledText,
-            ),
-        ) { Text(text, style = textStyle) }
-
-        ButtonVariant.Kill -> OutlinedButton(
+        ButtonVariant.Muted -> OutlinedButton(
             onClick = onClick, enabled = enabled, modifier = modifier, shape = shape,
             border = if (enabled) BorderStroke(borderWidth, SolidColor(ButtonKillBorder)) else disabledBorder,
             colors = ButtonDefaults.outlinedButtonColors(
@@ -70,7 +62,7 @@ fun ActionButton(
             ),
         ) { Text(text, style = textStyle) }
 
-        ButtonVariant.Warning -> OutlinedButton(
+        ButtonVariant.Attention -> OutlinedButton(
             onClick = onClick, enabled = enabled, modifier = modifier, shape = shape,
             border = if (enabled) BorderStroke(borderWidth, SolidColor(ButtonWarningBorder)) else disabledBorder,
             colors = ButtonDefaults.outlinedButtonColors(
@@ -86,6 +78,7 @@ fun InstanceActionButtons(
     isActionInProgress: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    onRestart: () -> Unit,
     onKill: () -> Unit,
     onDelete: () -> Unit,
     onCancel: () -> Unit,
@@ -94,33 +87,34 @@ fun InstanceActionButtons(
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         when (state) {
             InstanceState.STOPPED -> {
-                ActionButton("Start", ButtonVariant.Primary, onStart, enabled = !isActionInProgress)
+                ActionButton("Start", ButtonVariant.Success, onStart, enabled = !isActionInProgress)
                 Spacer(Modifier.weight(1f))
                 ActionButton("Delete", ButtonVariant.Danger, onDelete, enabled = !isActionInProgress)
             }
             InstanceState.STARTING -> {
-                ActionButton("Stop", ButtonVariant.Stop, onStop, enabled = false)
-                ActionButton("Kill", ButtonVariant.Kill, onKill, enabled = false)
+                ActionButton("Stop", ButtonVariant.Default, onStop, enabled = false)
+                ActionButton("Kill", ButtonVariant.Muted, onKill, enabled = false)
                 Spacer(Modifier.weight(1f))
-                ActionButton("Cancel", ButtonVariant.Warning, onCancel, enabled = !isActionInProgress)
+                ActionButton("Cancel", ButtonVariant.Attention, onCancel, enabled = !isActionInProgress)
             }
             InstanceState.RUNNING -> {
-                ActionButton("Stop", ButtonVariant.Stop, onStop, enabled = !isActionInProgress)
-                ActionButton("Kill", ButtonVariant.Kill, onKill, enabled = !isActionInProgress)
+                ActionButton("Restart", ButtonVariant.Success, onRestart, enabled = !isActionInProgress)
+                ActionButton("Stop", ButtonVariant.Default, onStop, enabled = !isActionInProgress)
+                ActionButton("Kill", ButtonVariant.Muted, onKill, enabled = !isActionInProgress)
             }
             InstanceState.STOPPING -> {
-                ActionButton("Stop", ButtonVariant.Stop, onStop, enabled = false)
-                ActionButton("Kill", ButtonVariant.Kill, onKill, enabled = !isActionInProgress)
+                ActionButton("Stop", ButtonVariant.Default, onStop, enabled = false)
+                ActionButton("Kill", ButtonVariant.Muted, onKill, enabled = !isActionInProgress)
             }
             InstanceState.CRASHED -> {
-                ActionButton("Start", ButtonVariant.Primary, onStart, enabled = !isActionInProgress)
-                ActionButton("Kill", ButtonVariant.Kill, onKill, enabled = !isActionInProgress)
+                ActionButton("Start", ButtonVariant.Success, onStart, enabled = !isActionInProgress)
+                ActionButton("Kill", ButtonVariant.Muted, onKill, enabled = !isActionInProgress)
                 Spacer(Modifier.weight(1f))
                 ActionButton("Delete", ButtonVariant.Danger, onDelete, enabled = !isActionInProgress)
             }
             InstanceState.INITIALIZING -> {
                 Spacer(Modifier.weight(1f))
-                ActionButton("Cancel", ButtonVariant.Warning, onCancel, enabled = !isActionInProgress)
+                ActionButton("Cancel", ButtonVariant.Attention, onCancel, enabled = !isActionInProgress)
             }
         }
     }

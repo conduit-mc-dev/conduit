@@ -47,8 +47,8 @@ fun DaemonUnreachableScreen(connectionState: WsConnectionState, daemonName: Stri
                 style = MaterialTheme.typography.bodyMedium, color = TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 340.dp))
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionButton("Retry Connection", ButtonVariant.Secondary, onClick = onRetry)
-                ActionButton("Edit Address", ButtonVariant.Secondary, onClick = onEdit)
+                ActionButton("Retry Connection", ButtonVariant.Default, onClick = onRetry)
+                ActionButton("Edit Address", ButtonVariant.Default, onClick = onEdit)
             }
         }
     }
