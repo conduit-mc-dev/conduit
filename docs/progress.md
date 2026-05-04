@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-04（UI 视觉对齐 — 15/16 gap 闭合，#15 推迟到 v0.2+）
+> 最新更新：2026-05-04（路由规范对齐 — 3 BLOCKING 修复，10/10 gap 闭合 5 个）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -54,6 +54,14 @@
 ---
 
 ## Done
+
+- [x] **路由规范对齐 — 3 BLOCKING 修复 + 5 gap 闭合**（2026-05-04）
+  - **默认模式**：`AppMode.LAUNCHER` → `AppMode.MANAGE`，启动时进入 Servers 模式
+  - **模式切换状态保留**：移除 `selectedInstanceId = null` 和 `popUpTo(0)`，改用 `popUpTo<RootRoute>` + `launchSingleTop`；MANAGE 模式用 `popBackStack` 恢复已有返回栈
+  - **自动选中第一个实例**：`InstanceListRoute` 改为自适应——`LaunchedEffect(allInstances, selectedInstanceId)` 有实例时自动导航到 `InstanceDetailRoute`（优先恢复已选实例），无实例时显示 `PairedEmptyScreen`
+  - **已闭合 gap**：#4 NavRail 可见性、#7 Gear Disconnect、#8 ReconnectBanner Edit、#9 状态保留、#10 自动选中
+  - 剩余 gap：#1 Forget 确认、#2 未保存警告、#3 路由语义、#5 DaemonForm 合并、#6 空态文字
+  - 改动文件：1 Kotlin（Main.kt）+ 2 docs（routing-spec.md、progress.md）
 
 - [x] **UI 视觉对齐 — #13 对话框重写 + #23 Gear 菜单 + 删除死代码测试**（2026-05-04）
   - **#13 ConduitDialog 基础组件重写**：替换 Material3 AlertDialog 为自定义 `Dialog` composable

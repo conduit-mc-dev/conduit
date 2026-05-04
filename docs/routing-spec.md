@@ -221,10 +221,10 @@ DaemonForm — 配对模式（S01 未配对时 / re-pair）
 1. **Forget 确认对话框缺失**（S22）：当前直接执行 forget 操作，无二次确认
 2. **未保存更改警告缺失**（S18）：Config tab 离开时无保存提示
 3. **Instance List 路由语义模糊**：S02（空状态）和 S03（有实例）共用同一 route，由数据决定显示内容
-4. **NavigationRail 可见性未对齐**：当前实现 `!isPaired` 时隐藏 NavigationRail，规范要求始终显示
+4. ~~**NavigationRail 可见性未对齐**~~ ✅ 2026-05-04
 5. **PairScreen + EditDaemonScreen 需合并**：当前是两个独立 screen，规范要求合并为 DaemonForm（配对码按需显示）
-6. **InstanceListPanel 空态未对齐**：S01 要求未配对时也显示 InstanceListPanel（"No servers" 空态），当前未配对时整个第二栏隐藏
-7. **Gear menu Disconnect 需移除**：只保留 Edit 和 Forget
-8. **Reconnect Banner 缺 Edit 按钮**：S20 重连横幅应提供"Edit"快速入口跳转编辑 daemon
-9. **模式切换状态保留未对齐**：当前实现每次切换模式清空 selectedInstanceId 和返回栈，规范要求全部保留
-10. **自动选中未实现**：已配对且有实例时，进入 Servers 模式应自动选中第一个实例并显示 Instance Detail；当前实现显示 PairedEmptyScreen（"No servers yet"），语义错误
+6. ~~**InstanceListPanel 空态未对齐**~~ ✅ 2026-05-04（面板已可见，空态文字待补充）
+7. ~~**Gear menu Disconnect 需移除**~~ ✅ 2026-05-04
+8. ~~**Reconnect Banner 缺 Edit 按钮**~~ ✅ 2026-05-04
+9. ~~**模式切换状态保留未对齐**~~ ✅ 2026-05-04
+10. ~~**自动选中未实现**~~ ✅ 2026-05-04
