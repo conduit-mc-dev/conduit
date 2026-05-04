@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-04（路由规范对齐 — 3 BLOCKING 修复，10/10 gap 闭合 5 个）
+> 最新更新：2026-05-04（路由规范全部闭合 — 10/10 gap resolved，UI 对齐 15/16）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -55,13 +55,15 @@
 
 ## Done
 
-- [x] **路由规范对齐 — 3 BLOCKING 修复 + 5 gap 闭合**（2026-05-04）
-  - **默认模式**：`AppMode.LAUNCHER` → `AppMode.MANAGE`，启动时进入 Servers 模式
-  - **模式切换状态保留**：移除 `selectedInstanceId = null` 和 `popUpTo(0)`，改用 `popUpTo<RootRoute>` + `launchSingleTop`；MANAGE 模式用 `popBackStack` 恢复已有返回栈
-  - **自动选中第一个实例**：`InstanceListRoute` 改为自适应——`LaunchedEffect(allInstances, selectedInstanceId)` 有实例时自动导航到 `InstanceDetailRoute`（优先恢复已选实例），无实例时显示 `PairedEmptyScreen`
-  - **已闭合 gap**：#4 NavRail 可见性、#7 Gear Disconnect、#8 ReconnectBanner Edit、#9 状态保留、#10 自动选中
-  - 剩余 gap：#1 Forget 确认、#2 未保存警告、#3 路由语义、#5 DaemonForm 合并、#6 空态文字
-  - 改动文件：1 Kotlin（Main.kt）+ 2 docs（routing-spec.md、progress.md）
+- [x] **路由规范对齐 — 全部 10 个 gap 闭合**（2026-05-04）
+  - **Batch 1（BLOCKING ×3）**：默认模式 LAUNCHER→MANAGE、模式切换状态保留（popUpTo<RootRoute>）、自动选中第一个实例（LaunchedEffect）
+  - **Batch 2（NON-BLOCKING ×5，并行 worktree）**：
+    - #1 Forget 确认对话框 — `ForgetDaemonDialog` 接入 `InstanceListPanel` gear→Forget 回调，`Main.kt` 管理 `forgetTarget` 状态
+    - #2 未保存更改警告 — `ConfigTab` 通过 `onDirtyChanged` 回调暴露 dirty 状态，`InstanceDetailTabScreen` 拦截 tab 切换并显示 `UnsavedChangesDialog`
+    - #3 路由语义文档 — 明确 S02/S03 共用 `InstanceListRoute` 是 intentional data-driven routing
+    - #5 DaemonForm 合并 — `PairScreen` + `EditDaemonScreen` → 统一 `DaemonForm(daemonId?)` composable，删除旧文件
+    - #6 空态文字 — `InstanceListPanel` LazyColumn 新增 "No servers / Pair a daemon to get started" 空态
+  - 改动文件：5 新/删/改 Kotlin + 2 docs（routing-spec.md、progress.md）
 
 - [x] **UI 视觉对齐 — #13 对话框重写 + #23 Gear 菜单 + 删除死代码测试**（2026-05-04）
   - **#13 ConduitDialog 基础组件重写**：替换 Material3 AlertDialog 为自定义 `Dialog` composable
