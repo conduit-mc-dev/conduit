@@ -55,7 +55,22 @@ fun InstanceDetailTabScreen(
     val isDaemonReconnecting = connectionState == WsConnectionState.RECONNECTING || connectionState == WsConnectionState.CONNECTING
     if (state.showDeleteDialog) {
         state.instance?.let {
-            DeleteInstanceDialog(it.name, onConfirm = onConfirmDelete, onDismiss = onDismissDelete)
+            val loader = it.loader
+            val loaderLabel = when (loader?.type) {
+                dev.conduit.core.model.LoaderType.FORGE -> "Forge"
+                dev.conduit.core.model.LoaderType.NEOFORGE -> "NeoForge"
+                dev.conduit.core.model.LoaderType.FABRIC -> "Fabric"
+                dev.conduit.core.model.LoaderType.QUILT -> "Quilt"
+                null -> "Vanilla"
+            }
+            val info = if (loader != null) "$loaderLabel ${loader.version}" else "$loaderLabel ${it.mcVersion}"
+            DeleteInstanceDialog(
+                instanceName = it.name,
+                instanceInfo = info,
+                instanceState = it.state,
+                onConfirm = onConfirmDelete,
+                onDismiss = onDismissDelete,
+            )
         }
     }
 

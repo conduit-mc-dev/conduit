@@ -176,7 +176,7 @@ Baseline: mockup commits through `28e57f8`, code commits through `22b3a4a`
 
 ---
 
-## 13. Dialogs (S17, S18, S22) — Using Material3 AlertDialog Instead of Custom Dialog
+## ~~13. Dialogs (S17, S18, S22) — Using Material3 AlertDialog Instead of Custom Dialog~~ ✅ 2026-05-04
 
 **Mockup (S17, S18, S22):** Custom dialog with:
 - Icon in a 40x40dp rounded box with tinted background (`rgba(248,81,73,0.1)` + `border: 1px solid rgba(248,81,73,0.2)`)
@@ -210,7 +210,7 @@ Baseline: mockup commits through `28e57f8`, code commits through `22b3a4a`
 
 ---
 
-## 15. PlayerCard — Missing Player Detail Line
+## 15. PlayerCard — Missing Player Detail Line → 推迟到 v0.2+
 
 **Mockup (S07):** Player cards show "Connected since 12:35" detail text
 - `.player-detail { font-size: 11px; color: #8b949e; margin-top: 2px; }`
@@ -218,9 +218,11 @@ Baseline: mockup commits through `28e57f8`, code commits through `22b3a4a`
 **Code:** `PlayerCard` only shows name, no detail text
 - `PlayersTab.kt:129-134`: Only renders `name` as `bodyMedium`, no secondary detail line
 
-**Fix:** Add a secondary text line below the player name showing connection time or other detail (requires API data).
+**Fix:** 需要 API 返回连接时间数据。SLP Ping 只返回玩家名+UUID，无连接时间。方案：在内存追踪玩家首次出现时间（精度 ±30s），或等 RCON 基础设施。
 
-**Priority:** P2 (data-dependent)
+**Decision:** 推迟到 v0.2+，依赖更精确的数据源
+
+**Priority:** P2 → v0.2+
 
 ---
 
@@ -322,19 +324,16 @@ Baseline: mockup commits through `28e57f8`, code commits through `22b3a4a`
 
 ---
 
-## 23. Gear Dropdown Menu — Missing Disconnect Item
+## ~~23. Gear Dropdown Menu — Missing Disconnect Item~~ ✅ 2026-05-04
 
 **Mockup (S19-0):** Gear dropdown only shows Edit and Forget
 - Edit item + separator + Forget item (danger)
 
-**Code:** Gear dropdown shows Edit, Disconnect, and Forget
-- `InstanceListPanel.kt:161-179`: Three items with dividers
+**Code:** ~~Gear dropdown shows Edit, Disconnect, and Forget~~ → 已删除 Disconnect，对齐 mockup
 
-**Gap:** The mockup does not show a "Disconnect" option. The code adds it.
+**Decision:** MVP 单 daemon 场景下 Disconnect 无意义，删除对齐 mockup
 
-**Note:** This may be an intentional code addition not yet reflected in mockups. Flag for design review.
-
-**Priority:** P2 (design decision, not visual bug)
+**Priority:** ~~P2~~ ✅
 
 ---
 
@@ -397,10 +396,9 @@ Baseline: mockup commits through `28e57f8`, code commits through `22b3a4a`
 | Priority | Count | Items |
 |----------|-------|-------|
 | ~~P0~~   | ~~2~~ | ~~#2/#3 ActionButton style E~~ ✅ 2026-05-04 |
-| P1       | 1     | #13 Dialogs (功能正确，视觉细节待优化) |
-| ~~P1~~   | ~~6~~ | ~~#1, #4, #6, #8, #10, #27~~ ✅ 2026-05-04 |
-| P2       | 3     | #15 Player detail (data-dependent), #23 Gear menu (design decision) |
-| ~~P2~~   | ~~8~~ | ~~#5, #7, #9, #11, #12, #16, #18, #19, #20, #22, #24~~ ✅ 2026-05-04 |
+| ~~P1~~   | ~~7~~ | ~~#1, #4, #6, #8, #10, #13, #27~~ ✅ 2026-05-04 (×2) |
+| ~~P2~~   | ~~10~~ | ~~#5, #7, #9, #11, #12, #16, #18, #19, #20, #22, #23, #24~~ ✅ 2026-05-04 (×2) |
+| P2→v0.2  | 1     | #15 Player detail (data-dependent, 推迟到 v0.2+) |
 | P3       | 1     | #26 CrashBanner title weight (acceptable deviation) |
 
-**Total: 16 actionable gaps** (excluding already-correct items and P3).
+**Total: 16 actionable gaps → 15 closed, 1 deferred (#15).**

@@ -47,7 +47,6 @@ fun InstanceListPanel(
     onCreateInstance: (daemonId: String) -> Unit,
     onPairDaemon: () -> Unit,
     onDaemonEdit: (daemonId: String) -> Unit,
-    onDaemonDisconnect: (daemonId: String) -> Unit,
     onDaemonForget: (daemonId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -69,7 +68,6 @@ fun InstanceListPanel(
                     DaemonGroupHeader(
                         group = group,
                         onEdit = { onDaemonEdit(group.daemonId) },
-                        onDisconnect = { onDaemonDisconnect(group.daemonId) },
                         onForget = { onDaemonForget(group.daemonId) },
                     )
                 }
@@ -121,7 +119,6 @@ fun InstanceListPanel(
 private fun DaemonGroupHeader(
     group: DaemonGroup,
     onEdit: () -> Unit,
-    onDisconnect: () -> Unit,
     onForget: () -> Unit,
 ) {
     var dropdownExpanded by remember { mutableStateOf(false) }
@@ -165,12 +162,6 @@ private fun DaemonGroupHeader(
                     modifier = Modifier.clip(RoundedCornerShape(6.dp)),
                 )
                 HorizontalDivider(color = Border, modifier = Modifier.padding(vertical = 2.dp))
-                DropdownMenuItem(
-                    text = { Text("Disconnect", style = MaterialTheme.typography.bodySmall, color = TextPrimary) },
-                    onClick = { dropdownExpanded = false; onDisconnect() },
-                    leadingIcon = { Icon(Icons.Default.Close, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp)) },
-                    modifier = Modifier.clip(RoundedCornerShape(6.dp)),
-                )
                 DropdownMenuItem(
                     text = { Text("Forget", style = MaterialTheme.typography.bodySmall, color = ButtonDanger) },
                     onClick = { dropdownExpanded = false; onForget() },

@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-04（UI 视觉对齐 — P0/P1/P2 修复，13/16 gap 闭合）
+> 最新更新：2026-05-04（UI 视觉对齐 — 15/16 gap 闭合，#15 推迟到 v0.2+）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -11,9 +11,10 @@
 
 ## Now（进行中）
 
-**UI 视觉对齐 — 剩余 3 项**（13/16 已闭合）：
-- P1：#13 对话框自定义样式（功能正确，视觉细节待优化）
-- P2：#15 玩家详情行（依赖 API 数据）、#23 Gear 菜单项（设计决策）
+**UI 视觉对齐 — 完成**（15/16 gap 闭合）：
+- ✅ P1：#13 对话框自定义样式 — ConduitDialog 基础组件重写（自定义 Dialog + 图标盒 + 参考卡片 + 警告块 + 实底按钮）
+- ✅ P2：#23 Gear 菜单 — 删除 Disconnect 项，对齐 mockup
+- ⏭️ P2→v0.2+：#15 玩家详情行 — 推迟（SLP Ping 无连接时间数据）
 - P3：#26 CrashBanner 标题字重（可接受偏差）
 - 详见 `docs/ui-alignment-remaining-gaps.md`
 
@@ -28,7 +29,7 @@
 - [x] shared-core `ConduitWsClient` 重连逻辑 + 5 个测试用例（→ 实际 8 个）
 - [x] Desktop MVP 迭代 4 剩余：实例删除 + 玩家列表 + UI 打磨
 - [x] Desktop MVP 迭代 4 收尾：UI 打磨
-- [ ] UI 视觉对齐：P0/P1/P2 剩余 gap 修复（详见 `docs/ui-alignment-remaining-gaps.md`）
+- [x] UI 视觉对齐：P0/P1/P2 剩余 gap 修复（详见 `docs/ui-alignment-remaining-gaps.md`）— 15/16 闭合，#15 推迟 v0.2+
 - [x] 持久化审计 + TokenStore 磁盘持久化（2026-05-02）
 - [x] 修复：实例列表自动刷新（WebSocket 事件）
 - [x] 修复：控制台输出跨界面持久化（SessionManager）
@@ -36,6 +37,7 @@
 
 ### 延迟项（MVP 后 / v0.2+）
 
+- [ ] 玩家详情行（#15）— 需 API 返回连接时间数据；方案：内存追踪玩家首次出现（±30s）或等 RCON
 - [ ] Memory/TPS 监控 — 需 RCON 基础设施，实现 `memory`/`tps` 字段和 `server.stats` WS 事件
 - [ ] Mod 依赖解析 — `architecture-notes.md §2` 决定 MVP 不做；Desktop 启动器需要时参考 Prism `GetModDependenciesTask.cpp` 递归 + 去重算法
 - [ ] UI/UX 设计参考文档 — 独立文件，参考 GDLauncher + MCSManager/Pelican 面板布局
@@ -52,6 +54,23 @@
 ---
 
 ## Done
+
+- [x] **UI 视觉对齐 — #13 对话框重写 + #23 Gear 菜单 + 删除死代码测试**（2026-05-04）
+  - **#13 ConduitDialog 基础组件重写**：替换 Material3 AlertDialog 为自定义 `Dialog` composable
+    - `ConduitDialog` 通用壳：14px 圆角容器 + 40x40 着色图标盒（红/橙 tint）+ 28dp padding
+    - `DialogRefCard`：服务器/Daemon 参考卡片（8dp 圆角 + 状态点 + 名称 + 信息）
+    - `DialogWarningBox`：红色警告块（`StateCrashed.copy(0.06)` 背景 + `0.15` 边框）
+    - `DialogChangesList`：变更列表（monospace key → bold value 格式化）
+    - `DialogButton`：实底按钮（与 Header 的 Style E OutlinedButton 区分——对话框需要高对比操作确认）
+    - `DeleteInstanceDialog`（S17）：服务器参考卡片（状态色点 + loader 类型 + MC 版本 + 运行状态）+ 警告块
+    - `UnsavedChangesDialog`（S18）：橙色图标 + 变更列表 + 三按钮（Discard/Cancel/Save & Leave）
+    - `ForgetDaemonDialog`（S22）：Daemon 参考卡片（地址 + 服务器数）+ 警告块
+  - **#23 Gear 菜单**：删除 Disconnect 项（MVP 单 daemon 场景无意义），对齐 mockup S19-0
+    - 移除 `InstanceListPanel`/`DaemonGroupHeader` 的 `onDisconnect` 参数
+    - 移除 `Main.kt` 的 `onDaemonDisconnect` 接线
+  - **死代码清理**：删除 `PairViewModelTest.kt`（引用已不存在的 `PairStep`/`PairViewModel` 类，阻塞全部 desktop 测试编译）
+  - **#15 推迟**：玩家详情行依赖 API 返回连接时间数据，SLP Ping 只有名字+UUID，标记为 v0.2+
+  - 改动文件：3 Kotlin（ConduitDialog.kt 重写、InstanceDetailTabScreen.kt、InstanceListPanel.kt）+ 1 Kotlin 删除（PairViewModelTest.kt）+ 2 docs
 
 - [x] **UI 视觉对齐 — P0/P1/P2 修复，13/16 gap 闭合**（2026-05-04）
   - **P0 ActionButton Style E**（2 项）：所有按钮改为 OutlinedButton（transparent bg + status-color border），新增 Stop/Kill 变体。Primary=绿色边框、Secondary=灰色边框、Danger=红色边框、Warning=橙色边框、Disabled=统一灰色

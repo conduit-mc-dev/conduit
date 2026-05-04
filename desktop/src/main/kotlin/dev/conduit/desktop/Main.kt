@@ -132,9 +132,6 @@ fun main() {
                                 onDaemonEdit = { daemonId ->
                                     navController.navigate(DaemonEditRoute(daemonId))
                                 },
-                                onDaemonDisconnect = { daemonId ->
-                                    daemonVm.disconnect(daemonId)
-                                },
                                 onDaemonForget = { daemonId ->
                                     daemonVm.forget(daemonId)
                                 },
