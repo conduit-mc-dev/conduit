@@ -24,11 +24,10 @@ import dev.conduit.desktop.session.DaemonManager
 import dev.conduit.desktop.ui.components.*
 import dev.conduit.core.model.WsConnectionState
 import dev.conduit.desktop.ui.daemon.DaemonViewModel
-import dev.conduit.desktop.ui.daemon.EditDaemonScreen
 import dev.conduit.desktop.ui.instance.*
 import dev.conduit.desktop.ui.launch.LaunchEmptyScreen
 import dev.conduit.desktop.ui.launch.PairedEmptyScreen
-import dev.conduit.desktop.ui.pair.PairScreen
+import dev.conduit.desktop.ui.pair.DaemonForm
 import dev.conduit.desktop.ui.theme.ConduitTheme
 import dev.conduit.desktop.ui.theme.TextSecondary
 import org.koin.compose.KoinApplication
@@ -151,8 +150,9 @@ fun main() {
                                 },
                             ) {
                                 composable<PairRoute> {
-                                    PairScreen(
-                                        onPaired = { daemonId ->
+                                    DaemonForm(
+                                        daemonId = null,
+                                        onDone = { daemonId ->
                                             currentDaemonId = daemonId
                                             currentMode = AppMode.MANAGE
                                             navController.navigate(InstanceListRoute) {
@@ -228,8 +228,9 @@ fun main() {
                                 }
                                 composable<DaemonEditRoute> { backStackEntry ->
                                     val route = backStackEntry.toRoute<DaemonEditRoute>()
-                                    EditDaemonScreen(
+                                    DaemonForm(
                                         daemonId = route.daemonId,
+                                        onDone = { navController.popBackStack() },
                                         onBack = { navController.popBackStack() },
                                     )
                                 }
