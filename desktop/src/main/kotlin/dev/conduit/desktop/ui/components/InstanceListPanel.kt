@@ -47,7 +47,7 @@ fun InstanceListPanel(
     onCreateInstance: (daemonId: String) -> Unit,
     onPairDaemon: () -> Unit,
     onDaemonEdit: (daemonId: String) -> Unit,
-    onDaemonForget: (daemonId: String) -> Unit,
+    onDaemonForget: (daemonId: String, daemonName: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -68,7 +68,7 @@ fun InstanceListPanel(
                     DaemonGroupHeader(
                         group = group,
                         onEdit = { onDaemonEdit(group.daemonId) },
-                        onForget = { onDaemonForget(group.daemonId) },
+                        onForget = { onDaemonForget(group.daemonId, group.daemonName) },
                     )
                 }
                 val filtered = if (searchQuery.isBlank()) group.instances

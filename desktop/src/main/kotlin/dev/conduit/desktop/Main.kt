@@ -108,6 +108,16 @@ fun main() {
                             val listVm: InstanceListViewModel = koinViewModel()
                             val listState by listVm.state.collectAsState()
                             val daemonVm: DaemonViewModel = koinViewModel()
+                            var forgetTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
+                            forgetTarget?.let { (id, name) ->
+                                ForgetDaemonDialog(
+                                    daemonName = name,
+                                    daemonAddress = daemonManager.getSession(id)?.daemonUrl ?: "",
+                                    serverCount = listState.daemonGroups.find { it.daemonId == id }?.instances?.size ?: 0,
+                                    onConfirm = { daemonVm.forget(id); forgetTarget = null },
+                                    onDismiss = { forgetTarget = null },
+                                )
+                            }
 
                             InstanceListPanel(
                                 daemonGroups = listState.daemonGroups,
@@ -132,8 +142,8 @@ fun main() {
                                 onDaemonEdit = { daemonId ->
                                     navController.navigate(DaemonEditRoute(daemonId))
                                 },
-                                onDaemonForget = { daemonId ->
-                                    daemonVm.forget(daemonId)
+                                onDaemonForget = { daemonId, daemonName ->
+                                    forgetTarget = daemonId to daemonName
                                 },
                             )
                         }
