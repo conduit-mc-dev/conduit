@@ -19,9 +19,6 @@ import androidx.compose.ui.unit.dp
 import dev.conduit.desktop.ui.theme.*
 import kotlinx.coroutines.delay
 
-enum class ToastType { Success, Error, Warning }
-data class ToastMessage(val type: ToastType, val text: String, val id: Long = System.currentTimeMillis())
-
 @Composable
 fun ToastHost(currentToast: ToastMessage?, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     LaunchedEffect(currentToast) {
