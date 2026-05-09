@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-10（Daemon 功能完整性 7 gap 全部闭合，247+ tests 全绿）
+> 最新更新：2026-05-10（Desktop MVP 迭代 5 推进中：任务 1-5 完成，shared-core 55 / desktop 35 / daemon 247 全绿）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -18,7 +18,15 @@
 - ✅ 测试 ×7 + RunningMcServer 辅助 mock：247 tests 全绿（+7 新）
 - Desktop CrashBanner 现在可以正常触发
 
-**Desktop MVP 迭代 5 — 即将开始**（依赖 daemon 修复完成后推进）
+**Desktop MVP 迭代 5 — 进行中**（5/8 完成，2026-05-10）：
+- ✅ API client 补齐 `cancelTask(taskId)` + `writeFile()` — shared-core +6 tests
+- ✅ InstallProgressScreen 对接 WS `task.progress` — 真实进度百分比 + 错误态
+- ✅ ConduitCard 进度条对接真实数据 — 去硬编码 `0.5f`，从 InstanceListViewModel 取
+- ✅ InstanceDetailViewModel 处理 `task.progress` / `task.completed` — desktop +3 tests
+- ✅ 任务取消：接入 `POST /tasks/{id}/cancel` — desktop +1 test
+- [ ] Toast 全局通知：监听 task.completed / 错误事件自动弹出
+- [ ] FilesTab Upload / New Folder 按钮对接 daemon 文件 API
+- [ ] routing-spec S13 改为 done
 
 **UI 视觉对齐 — 完成**（16/16 gap 闭合）：
 - ✅ P1：#13 对话框自定义样式 — ConduitDialog 基础组件重写（自定义 Dialog + 图标盒 + 参考卡片 + 警告块 + 实底按钮）
@@ -43,13 +51,13 @@
 
 ## Next（下一步）
 
-### Desktop MVP 迭代 5（当前阶段）
+### Desktop MVP 迭代 5（当前阶段，5/8 完成）
 
-- [ ] API client 补齐：`cancelTask(taskId)` / `uploadFile()`
-- [ ] InstallProgressScreen 对接 WS `task.progress` 事件（当前静态占位）
-- [ ] ConduitCard 进度条对接真实数据（`TODO: wire real progress`）
-- [ ] InstanceDetailViewModel 处理 `task.progress` / `task.completed` 事件
-- [ ] 任务取消：InstanceDetailViewModel 接入 `POST /tasks/{id}/cancel`
+- [x] API client 补齐：`cancelTask(taskId)` / `writeFile()` — commit `d41135b`
+- [x] InstallProgressScreen 对接 WS `task.progress` 事件
+- [x] ConduitCard 进度条对接真实数据
+- [x] InstanceDetailViewModel 处理 `task.progress` / `task.completed` 事件
+- [x] 任务取消：InstanceDetailViewModel 接入 `POST /tasks/{id}/cancel`
 - [ ] Toast 全局通知：监听 task.completed / 错误事件自动弹出
 - [ ] FilesTab Upload / New Folder 按钮对接 daemon 文件 API
 - [ ] routing-spec S13 改为 done
@@ -109,6 +117,15 @@
 ---
 
 ## Done
+
+- [x] **Desktop MVP 迭代 5 任务 1-5 — install progress + task cancellation**（2026-05-10，commit `d41135b`）
+  - **Task 1 — API client 补齐**：`CancelTaskResponse` 模型 + `cancelTask(taskId)` / `writeFile()` 方法。shared-core +6 tests（MockEngine），覆盖 happy path + 404/409/422 错误路径
+  - **Task 2 — InstallProgressScreen 对接**：新增 `installProgress`/`installMessage`/`installError` 参数，百分比展示 + 错误态（红色边框 + 错误消息）
+  - **Task 3 — ConduitCard 进度条**：新增 `progress` 参数，去硬编码 `0.5f`。`InstanceListViewModel` 新增 `_installProgress` map 追踪每实例进度，通过 `DaemonGroup.installProgress` 传递
+  - **Task 4 — InstanceDetailViewModel WS 事件**：处理 `TASK_PROGRESS`（更新进度 + 消息 + taskId）/ `TASK_COMPLETED`（成功清空 / 失败设 installError）。desktop +3 tests
+  - **Task 5 — 任务取消**：新增 `currentTaskId` 追踪（由 TASK_PROGRESS 设置），`cancelTask()` 调 `POST /api/v1/tasks/{id}/cancel`。desktop +1 test
+  - **TDD 纪律**：每个任务先写 RED 测试（编译失败 / 断言超时），再实现 GREEN，最后 REFACTOR
+  - **零回归**：shared-core 55 (+6) / desktop 35 (+4) / daemon 247 全绿。改动 10 files (+484/-14)
 
 - [x] **Restart 按钮 — API client + ViewModel + UI 全链路**（2026-05-04）
   - **设计决策**：仅 RUNNING 状态显示，使用 Primary 绿色风格（与 Start 同色），布局 Stop → Restart → Kill
