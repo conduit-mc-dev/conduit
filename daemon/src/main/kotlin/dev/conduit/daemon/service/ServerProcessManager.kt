@@ -96,8 +96,12 @@ class ServerProcessManager(
                 defaultJavaPath = daemonConfigStore?.get()?.defaultJavaPath,
             )
             val launchTarget = resolveLaunchTarget(instanceStore.getLoader(instanceId))
-            instanceStore.transitionState(instanceId, InstanceState.STOPPED, InstanceState.STARTING)
-            broadcastStateChanged(instanceId, InstanceState.STOPPED, InstanceState.STARTING)
+            val currentState = instanceStore.get(instanceId).state
+            if (currentState != InstanceState.STOPPED && currentState != InstanceState.CRASHED) {
+                throw ApiException(HttpStatusCode.Conflict, "INVALID_STATE", "Cannot start from $currentState")
+            }
+            instanceStore.transitionState(instanceId, currentState, InstanceState.STARTING)
+            broadcastStateChanged(instanceId, currentState, InstanceState.STARTING)
 
             serverPropertiesService.update(instanceId, mapOf("server-port" to config.mcPort.toString()))
 
@@ -191,18 +195,21 @@ class ServerProcessManager(
                 val shouldRecover = shouldAutoRestart(oldState, intentional, timedOut)
                 val recoveryDecision = if (shouldRecover) decideCrashRecovery(instanceId) else CrashRecoveryDecision.NoOp
 
+                val crashed = exitCode != 0 && !intentional && !timedOut
+                val newState = if (crashed) InstanceState.CRASHED else InstanceState.STOPPED
+
                 val statusMessage = when {
                     existingMessage?.startsWith("Initialization failed") == true -> existingMessage
                     timedOut -> "Startup timed out after ${STARTUP_TIMEOUT_SECONDS}s"
                     recoveryDecision is CrashRecoveryDecision.GiveUp ->
                         "Crash loop detected (${recoveryDecision.count} crashes in ${recoveryDecision.windowSeconds}s); auto-restart disabled. Last exit code: $exitCode"
-                    exitCode != 0 -> "Process exited with code $exitCode"
+                    crashed -> "Process exited with code $exitCode"
                     intentional -> null
                     else -> "Process exited unexpectedly (code $exitCode)"
                 }
 
-                instanceStore.forceState(instanceId, InstanceState.STOPPED, statusMessage)
-                broadcastStateChanged(instanceId, oldState, InstanceState.STOPPED)
+                instanceStore.forceState(instanceId, newState, statusMessage)
+                broadcastStateChanged(instanceId, oldState, newState)
                 log.info("Instance {} process exited with code {}", instanceId, exitCode)
 
                 // Auto-restart AFTER STOPPED is published — subscribers see STOPPED briefly then STARTING.
@@ -260,7 +267,6 @@ class ServerProcessManager(
                 log.info("Cancelled pending auto-restart for instance {} (user stop)", instanceId)
                 return  // state is already STOPPED (from monitorJob before the restart was scheduled)
             }
-            processes[instanceId]?.startupTimeoutJob?.cancel()
             processes[instanceId]?.intentionalExit = true
             val current = instanceStore.get(instanceId).state
             when (current) {
@@ -300,23 +306,33 @@ class ServerProcessManager(
     }
 
     fun kill(instanceId: String) {
-        pendingRestart.remove(instanceId)?.let {
-            it.cancel()
-            log.info("Cancelled pending auto-restart for instance {} (user kill)", instanceId)
-            return  // state is already STOPPED; caller wanted "kill", we preempted the restart
+        val lock = lockFor(instanceId)
+        if (!lock.tryLock()) {
+            throw ApiException(HttpStatusCode.Conflict, "POWER_LOCKED", "Another power action is in progress")
         }
-        val managed = processes[instanceId]
-        if (managed == null) {
-            val current = instanceStore.get(instanceId).state
-            if (current == InstanceState.STOPPED) {
-                throw ApiException(HttpStatusCode.Conflict, "SERVER_NOT_RUNNING", "Server is not running")
+        try {
+            pendingRestart.remove(instanceId)?.let {
+                it.cancel()
+                log.info("Cancelled pending auto-restart for instance {} (user kill)", instanceId)
+                return  // state is already STOPPED; caller wanted "kill", we preempted the restart
             }
-            instanceStore.forceState(instanceId, InstanceState.STOPPED)
-            return
+            val managed = processes[instanceId]
+            if (managed == null) {
+                val current = instanceStore.get(instanceId).state
+                if (current == InstanceState.STOPPED || current == InstanceState.CRASHED) {
+                    throw ApiException(HttpStatusCode.Conflict, "SERVER_NOT_RUNNING", "Server is not running")
+                }
+                val oldState = current
+                instanceStore.forceState(instanceId, InstanceState.STOPPED)
+                broadcastStateChanged(instanceId, oldState, InstanceState.STOPPED)
+                return
+            }
+            managed.intentionalExit = true
+            managed.process.destroyForcibly()
+            // monitorJob 会处理后续状态清理
+        } finally {
+            lock.unlock()
         }
-        managed.intentionalExit = true
-        managed.process.destroyForcibly()
-        // monitorJob 会处理后续状态清理
     }
 
     fun sendCommand(instanceId: String, command: String) {
@@ -353,7 +369,7 @@ class ServerProcessManager(
             }
         }
 
-        scope.launch {
+        scope.launch(NonCancellable) {
             delay(10.seconds)
             for ((instanceId, managed) in processes) {
                 if (managed.process.isAlive) {

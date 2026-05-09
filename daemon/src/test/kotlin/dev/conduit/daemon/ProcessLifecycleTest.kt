@@ -15,7 +15,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
 import java.nio.file.Files
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.*
 
@@ -296,7 +298,7 @@ class ProcessLifecycleTest {
                 }
 
                 val final = store.get(inst.id)
-                assertEquals(InstanceState.STOPPED, final.state)
+                assertEquals(InstanceState.CRASHED, final.state)
                 assertFalse(sawRestart, "autoRestart=false should not restart crashed process")
                 assertNotNull(final.statusMessage)
                 assertTrue(
@@ -433,7 +435,7 @@ class ProcessLifecycleTest {
                 var finalMsg: String? = null
                 while (System.currentTimeMillis() < deadline) {
                     val s = store.get(inst.id)
-                    if (s.state == InstanceState.STOPPED &&
+                    if (s.state == InstanceState.CRASHED &&
                         s.statusMessage?.contains("Crash loop", ignoreCase = true) == true) {
                         finalMsg = s.statusMessage
                         break
@@ -550,7 +552,7 @@ class ProcessLifecycleTest {
                 val giveUpDeadline = System.currentTimeMillis() + 20_000
                 while (System.currentTimeMillis() < giveUpDeadline) {
                     val s = store.get(inst.id)
-                    if (s.state == InstanceState.STOPPED &&
+                    if (s.state == InstanceState.CRASHED &&
                         s.statusMessage?.contains("Crash loop", ignoreCase = true) == true) break
                     delay(200)
                 }
@@ -583,7 +585,7 @@ class ProcessLifecycleTest {
                 var afterFirstManualCrash: InstanceSummary? = null
                 while (System.currentTimeMillis() < crashAgainDeadline) {
                     val s = store.get(inst.id)
-                    if (s.state == InstanceState.STOPPED && s.statusMessage != afterGiveUp.statusMessage) {
+                    if (s.state == InstanceState.CRASHED && s.statusMessage != afterGiveUp.statusMessage) {
                         afterFirstManualCrash = s
                         break
                     }
@@ -662,4 +664,379 @@ class ProcessLifecycleTest {
             tempDir.toFile().deleteRecursively()
         }
     }
+
+    // -----------------------------------------------------------------------
+    // Post-bugfix tests (daemon functional completeness audit, 2026-05-10)
+    // -----------------------------------------------------------------------
+
+    private fun runningServerJvmConfig(): Pair<String, List<String>> {
+        val javaPath = ProcessHandle.current().info().command().orElse("java")
+        val classpath = System.getProperty("java.class.path")
+        return Pair(javaPath, listOf("-cp", classpath, RunningMcServer::class.qualifiedName!!))
+    }
+
+    @Test
+    fun `kill RUNNING server transitions to STOPPED`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-kill-running")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val (javaPath, jvmArgs) = runningServerJvmConfig()
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "Kill Running", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+                client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                val runDeadline = System.currentTimeMillis() + 10_000
+                while (store.get(inst.id).state != InstanceState.RUNNING &&
+                    System.currentTimeMillis() < runDeadline) delay(100)
+                assertEquals(InstanceState.RUNNING, store.get(inst.id).state)
+
+                client.post("/api/v1/instances/${inst.id}/server/kill") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                val stopDeadline = System.currentTimeMillis() + 10_000
+                while (store.get(inst.id).state != InstanceState.STOPPED &&
+                    System.currentTimeMillis() < stopDeadline) delay(100)
+                assertEquals(InstanceState.STOPPED, store.get(inst.id).state)
+                assertNull(store.get(inst.id).statusMessage,
+                    "Intentional kill should not leave a statusMessage")
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `kill POWER_LOCKED when start holds the lock`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-kill-during-start")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val scope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val broadcaster = dev.conduit.daemon.service.WsBroadcaster(AppJson)
+            val manager = dev.conduit.daemon.service.ServerProcessManager(
+                store, DataDirectory(tempDir), broadcaster, scope, json = AppJson
+            )
+
+            val inst = store.create(CreateInstanceRequest(name = "KillDuringStart", mcVersion = "1.20.4"))
+            store.markInitialized(inst.id)
+            val (javaPath, jvmArgs) = stuckServerJvmConfig()
+            store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+            val powerLocksField = manager.javaClass.getDeclaredField("powerLocks").apply { isAccessible = true }
+            @Suppress("UNCHECKED_CAST")
+            val powerLocks = powerLocksField.get(manager) as ConcurrentHashMap<String, Mutex>
+            val lock = powerLocks.computeIfAbsent(inst.id) { Mutex() }
+            assertTrue(lock.tryLock(), "precondition: test must acquire lock before calling manager.kill()")
+
+            try {
+                val ex = assertFailsWith<ApiException> { manager.kill(inst.id) }
+                assertEquals("POWER_LOCKED", ex.code)
+            } finally {
+                lock.unlock()
+            }
+
+            scope.cancel()
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `restart RUNNING server stops then starts`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-restart")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val (javaPath, jvmArgs) = runningServerJvmConfig()
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "Restart", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+                client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                val runDeadline = System.currentTimeMillis() + 10_000
+                while (store.get(inst.id).state != InstanceState.RUNNING &&
+                    System.currentTimeMillis() < runDeadline) delay(100)
+                assertEquals(InstanceState.RUNNING, store.get(inst.id).state)
+
+                val resp = client.post("/api/v1/instances/${inst.id}/server/restart") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+                assertEquals(HttpStatusCode.OK, resp.status)
+
+                val restartDeadline = System.currentTimeMillis() + 15_000
+                var sawRunning = false
+                while (System.currentTimeMillis() < restartDeadline) {
+                    if (store.get(inst.id).state == InstanceState.RUNNING) {
+                        sawRunning = true
+                        break
+                    }
+                    delay(200)
+                }
+                assertTrue(sawRunning, "Server should reach RUNNING after restart")
+
+                runCatching {
+                    client.post("/api/v1/instances/${inst.id}/server/kill") {
+                        header(HttpHeaders.Authorization, "Bearer $token")
+                    }
+                }
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `shutdownAll stops all running instances`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-shutdown")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val scope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val broadcaster = dev.conduit.daemon.service.WsBroadcaster(AppJson)
+            val manager = dev.conduit.daemon.service.ServerProcessManager(
+                store, DataDirectory(tempDir), broadcaster, scope, json = AppJson
+            )
+            val (javaPath, jvmArgs) = runningServerJvmConfig()
+
+            val instances = (1..2).map { i ->
+                val inst = store.create(CreateInstanceRequest(name = "Shutdown$i", mcVersion = "1.20.4"))
+                store.markInitialized(inst.id)
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+                manager.start(inst.id)
+                inst
+            }
+
+            val runDeadline = System.currentTimeMillis() + 15_000
+            while (System.currentTimeMillis() < runDeadline) {
+                val allRunning = instances.all { store.get(it.id).state == InstanceState.RUNNING }
+                if (allRunning) break
+                delay(200)
+            }
+            instances.forEach {
+                assertEquals(InstanceState.RUNNING, store.get(it.id).state,
+                    "Instance ${it.id} should be RUNNING before shutdownAll")
+            }
+
+            manager.shutdownAll()
+
+            val stopDeadline = System.currentTimeMillis() + 15_000
+            while (System.currentTimeMillis() < stopDeadline) {
+                val allStopped = instances.all { store.get(it.id).state == InstanceState.STOPPED }
+                if (allStopped) break
+                delay(200)
+            }
+            instances.forEach {
+                assertEquals(InstanceState.STOPPED, store.get(it.id).state,
+                    "Instance ${it.id} should be STOPPED after shutdownAll")
+                assertFalse(manager.isRunning(it.id))
+            }
+
+            scope.cancel()
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `kill CRASHED instance returns SERVER_NOT_RUNNING`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-kill-crashed")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val javaPath = ProcessHandle.current().info().command().orElse("java")
+            val classpath = System.getProperty("java.class.path")
+            val jvmArgs = listOf("-cp", classpath, CrashExitMcServer::class.qualifiedName!!)
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "KillCrashed", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+
+                client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                val crashDeadline = System.currentTimeMillis() + 10_000
+                while (store.get(inst.id).state != InstanceState.CRASHED &&
+                    System.currentTimeMillis() < crashDeadline) delay(100)
+                assertEquals(InstanceState.CRASHED, store.get(inst.id).state)
+
+                val killResp = client.post("/api/v1/instances/${inst.id}/server/kill") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+                assertEquals(HttpStatusCode.Conflict, killResp.status)
+                val error = killResp.body<ErrorResponse>()
+                assertEquals("SERVER_NOT_RUNNING", error.error.code)
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `start from CRASHED succeeds after switching to stable binary`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-start-crashed")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val javaPath = ProcessHandle.current().info().command().orElse("java")
+            val classpath = System.getProperty("java.class.path")
+            val crashJvmArgs = listOf("-cp", classpath, CrashExitMcServer::class.qualifiedName!!)
+            val runJvmArgs = listOf("-cp", classpath, RunningMcServer::class.qualifiedName!!)
+
+            runTestApplication {
+                application { module(dataDirectory = dataDir, instanceStore = store, mojangClient = createMockMojangClient()) }
+                val client = jsonClient()
+                val token = pairAndGetToken(client)
+
+                val inst = client.post("/api/v1/instances") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(CreateInstanceRequest(name = "StartCrashed", mcVersion = "1.20.4"))
+                }.body<InstanceSummary>()
+
+                val initDeadline = System.currentTimeMillis() + 5_000
+                while (store.get(inst.id).state == InstanceState.INITIALIZING &&
+                    System.currentTimeMillis() < initDeadline) delay(100)
+
+                client.put("/api/v1/instances/${inst.id}/server/eula") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                    contentType(ContentType.Application.Json)
+                    setBody(AcceptEulaRequest(accepted = true))
+                }
+                store.updateJvmConfig(inst.id, true, crashJvmArgs, true, javaPath)
+                client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+
+                val crashDeadline = System.currentTimeMillis() + 10_000
+                while (store.get(inst.id).state != InstanceState.CRASHED &&
+                    System.currentTimeMillis() < crashDeadline) delay(100)
+                assertEquals(InstanceState.CRASHED, store.get(inst.id).state)
+
+                store.updateJvmConfig(inst.id, true, runJvmArgs, true, javaPath)
+                val startResp = client.post("/api/v1/instances/${inst.id}/server/start") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+                assertEquals(HttpStatusCode.OK, startResp.status)
+
+                val runDeadline = System.currentTimeMillis() + 10_000
+                while (store.get(inst.id).state != InstanceState.RUNNING &&
+                    System.currentTimeMillis() < runDeadline) delay(100)
+                assertEquals(InstanceState.RUNNING, store.get(inst.id).state)
+
+                client.post("/api/v1/instances/${inst.id}/server/kill") {
+                    header(HttpHeaders.Authorization, "Bearer $token")
+                }
+            }
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `concurrent start and kill only one acquires lock`() = runBlocking {
+        val tempDir = Files.createTempDirectory("conduit-start-kill-race")
+        try {
+            val dataDir = DataDirectory(tempDir)
+            val store = InstanceStore(dataDir)
+            val scope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val broadcaster = dev.conduit.daemon.service.WsBroadcaster(AppJson)
+            val manager = dev.conduit.daemon.service.ServerProcessManager(
+                store, DataDirectory(tempDir), broadcaster, scope, json = AppJson
+            )
+            val (javaPath, jvmArgs) = runningServerJvmConfig()
+
+            val inst = store.create(CreateInstanceRequest(name = "StartKill", mcVersion = "1.20.4"))
+            store.markInitialized(inst.id)
+            store.updateJvmConfig(inst.id, true, jvmArgs, true, javaPath)
+            manager.start(inst.id)
+
+            val runDeadline = System.currentTimeMillis() + 10_000
+            while (!manager.isRunning(inst.id) && System.currentTimeMillis() < runDeadline) delay(100)
+            assertTrue(manager.isRunning(inst.id))
+
+            val startResult = async { runCatching { manager.start(inst.id) } }
+            val killResult = async { runCatching { manager.kill(inst.id) } }
+
+            val startEx = startResult.await().exceptionOrNull()
+            killResult.await().getOrThrow()
+
+            assertNotNull(startEx, "Concurrent start should be rejected")
+            assertTrue(
+                (startEx as? ApiException)?.code in listOf("POWER_LOCKED", "SERVER_ALREADY_RUNNING"),
+                "Expected POWER_LOCKED or SERVER_ALREADY_RUNNING, got: ${(startEx as? ApiException)?.code}"
+            )
+
+            manager.awaitProcessExit(inst.id)
+            scope.cancel()
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
+
 }
