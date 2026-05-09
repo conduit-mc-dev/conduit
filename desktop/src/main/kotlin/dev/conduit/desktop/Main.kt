@@ -22,6 +22,13 @@ import dev.conduit.desktop.di.appModule
 import dev.conduit.desktop.navigation.*
 import dev.conduit.desktop.session.DaemonManager
 import dev.conduit.desktop.ui.components.*
+import dev.conduit.core.model.WsMessage
+import dev.conduit.core.model.TaskCompletedPayload
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.serialization.json.Json
 import dev.conduit.core.model.WsConnectionState
 import dev.conduit.desktop.ui.daemon.DaemonViewModel
 import dev.conduit.desktop.ui.instance.*
@@ -53,6 +60,7 @@ fun main() {
             KoinApplication(koinConfiguration { modules(appModule) }) {
                 val koin = KoinPlatformTools.defaultContext().get()
                 val daemonManager: DaemonManager = koin.get()
+                val toastManager: ToastManager = koin.get()
 
                 val savedSession = daemonManager.loadSavedSession()
                 var currentDaemonId by remember { mutableStateOf(savedSession?.daemonId ?: "") }
@@ -74,7 +82,8 @@ fun main() {
                     var selectedInstanceId by remember { mutableStateOf<String?>(null) }
                     val navController = rememberNavController()
 
-                    Row(modifier = Modifier.fillMaxSize()) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Row(modifier = Modifier.fillMaxSize()) {
                         // Column 1: NavigationRail (always visible)
                         NavigationRail(
                             currentMode = currentMode,
@@ -271,6 +280,30 @@ fun main() {
                                             color = TextSecondary,
                                         )
                                     }
+                                }
+                            }
+                        }
+                    }
+
+                        val toasts by toastManager.toasts.collectAsState()
+                        ToastHost(toasts = toasts, onDismiss = toastManager::dismiss)
+
+                        @OptIn(ExperimentalCoroutinesApi::class)
+                        LaunchedEffect(Unit) {
+                            val json = Json { ignoreUnknownKeys = true }
+                            daemonManager.sessions.flatMapLatest { sessions ->
+                                val flows = sessions.map { it.wsClient.messages }
+                                if (flows.isEmpty()) emptyFlow()
+                                else merge(*flows.toTypedArray())
+                            }.collect { msg ->
+                                if (msg.type == WsMessage.TASK_COMPLETED) {
+                                    try {
+                                        val payload = json.decodeFromJsonElement(TaskCompletedPayload.serializer(), msg.payload)
+                                        toastManager.show(
+                                            if (payload.success) ToastType.Success else ToastType.Error,
+                                            payload.message,
+                                        )
+                                    } catch (_: Exception) {}
                                 }
                             }
                         }
