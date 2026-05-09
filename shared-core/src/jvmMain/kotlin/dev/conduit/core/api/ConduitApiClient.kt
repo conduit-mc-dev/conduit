@@ -221,6 +221,17 @@ class ConduitApiClient(
     suspend fun deleteFile(instanceId: String, path: String): Unit =
         request(HttpMethod.Delete, "/api/v1/instances/$instanceId/files/content?path=$path")
 
+    suspend fun writeFile(instanceId: String, path: String, content: ByteArray): FileWriteResponse =
+        request(HttpMethod.Put, "/api/v1/instances/$instanceId/files/content?path=$path") {
+            contentType(ContentType.Application.OctetStream)
+            setBody(content)
+        }
+
+    // --- 任务管理 ---
+
+    suspend fun cancelTask(taskId: String): CancelTaskResponse =
+        post("/api/v1/tasks/$taskId/cancel")
+
     // --- 内部 HTTP helpers ---
 
     private suspend inline fun <reified T> get(

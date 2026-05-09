@@ -38,6 +38,7 @@ data class DaemonGroup(
     val daemonName: String,
     val connectionState: WsConnectionState,
     val instances: List<InstanceSummary>,
+    val installProgress: Map<String, Double> = emptyMap(),
 )
 
 @Composable
@@ -80,6 +81,7 @@ fun InstanceListPanel(
                         isSelected = instance.id == selectedInstanceId,
                         onClick = { onInstanceClick(group.daemonId, instance.id) },
                         dimmed = group.connectionState != WsConnectionState.CONNECTED,
+                        progress = group.installProgress[instance.id],
                     )
                 }
                 item(key = "tail-${group.daemonId}") {

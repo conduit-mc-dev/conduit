@@ -404,4 +404,221 @@ class InstanceDetailViewModelTest {
 
         assertEquals(listOf("old line"), vm.state.value.consoleLines)
     }
+
+    @Test
+    fun `TASK_PROGRESS updates installProgress and installMessage`() = runBlocking {
+        val wsMessages = MutableSharedFlow<WsMessage>(extraBufferCapacity = 16)
+        val httpClient = mockHttpClient { request ->
+            when (request.url.encodedPath) {
+                "/api/v1/instances/test-inst" -> respond(
+                    mockJsonBody(
+                        InstanceSummary(
+                            id = "test-inst", name = "My Server", state = InstanceState.INITIALIZING,
+                            mcVersion = "1.20.4", mcPort = 25565, playerCount = 0, maxPlayers = 20,
+                            createdAt = Instant.fromEpochMilliseconds(0),
+                        )
+                    ),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                "/api/v1/instances/test-inst/server/eula" -> respond(
+                    mockJsonBody(EulaResponse(accepted = true)),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val manager = mockDaemonManager(client, wsMessages)
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, manager)
+        vm.awaitLoad()
+
+        assertEquals(null, vm.state.value.installProgress)
+
+        val progressPayload = TestJson.encodeToJsonElement(
+            TaskProgressPayload(taskId = "task-1", progress = 0.42, message = "Downloading...")
+        )
+        wsMessages.emit(
+            WsMessage(
+                type = WsMessage.TASK_PROGRESS,
+                instanceId = "test-inst",
+                payload = progressPayload,
+                timestamp = Instant.fromEpochMilliseconds(0),
+            )
+        )
+
+        waitFor { vm.state.value.installProgress != null }
+        assertEquals(0.42, vm.state.value.installProgress)
+        assertEquals("Downloading...", vm.state.value.installMessage)
+    }
+
+    @Test
+    fun `TASK_COMPLETED success clears installProgress`() = runBlocking {
+        val wsMessages = MutableSharedFlow<WsMessage>(extraBufferCapacity = 16)
+        val httpClient = mockHttpClient { request ->
+            when (request.url.encodedPath) {
+                "/api/v1/instances/test-inst" -> respond(
+                    mockJsonBody(
+                        InstanceSummary(
+                            id = "test-inst", name = "My Server", state = InstanceState.INITIALIZING,
+                            mcVersion = "1.20.4", mcPort = 25565, playerCount = 0, maxPlayers = 20,
+                            createdAt = Instant.fromEpochMilliseconds(0),
+                        )
+                    ),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                "/api/v1/instances/test-inst/server/eula" -> respond(
+                    mockJsonBody(EulaResponse(accepted = true)),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val manager = mockDaemonManager(client, wsMessages)
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, manager)
+        vm.awaitLoad()
+
+        // First set progress
+        val progressPayload = TestJson.encodeToJsonElement(
+            TaskProgressPayload(taskId = "task-1", progress = 0.8, message = "Installing...")
+        )
+        wsMessages.emit(
+            WsMessage(
+                type = WsMessage.TASK_PROGRESS,
+                instanceId = "test-inst",
+                payload = progressPayload,
+                timestamp = Instant.fromEpochMilliseconds(0),
+            )
+        )
+        waitFor { vm.state.value.installProgress == 0.8 }
+
+        // Then task completes
+        val completedPayload = TestJson.encodeToJsonElement(
+            TaskCompletedPayload(taskId = "task-1", success = true, message = "Done")
+        )
+        wsMessages.emit(
+            WsMessage(
+                type = WsMessage.TASK_COMPLETED,
+                instanceId = "test-inst",
+                payload = completedPayload,
+                timestamp = Instant.fromEpochMilliseconds(0),
+            )
+        )
+
+        waitFor { vm.state.value.installProgress == null }
+        assertNull(vm.state.value.installProgress)
+        assertNull(vm.state.value.installMessage)
+    }
+
+    @Test
+    fun `TASK_COMPLETED failure sets installError`() = runBlocking {
+        val wsMessages = MutableSharedFlow<WsMessage>(extraBufferCapacity = 16)
+        val httpClient = mockHttpClient { request ->
+            when (request.url.encodedPath) {
+                "/api/v1/instances/test-inst" -> respond(
+                    mockJsonBody(
+                        InstanceSummary(
+                            id = "test-inst", name = "My Server", state = InstanceState.INITIALIZING,
+                            mcVersion = "1.20.4", mcPort = 25565, playerCount = 0, maxPlayers = 20,
+                            createdAt = Instant.fromEpochMilliseconds(0),
+                        )
+                    ),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                "/api/v1/instances/test-inst/server/eula" -> respond(
+                    mockJsonBody(EulaResponse(accepted = true)),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val manager = mockDaemonManager(client, wsMessages)
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, manager)
+        vm.awaitLoad()
+
+        val progressPayload = TestJson.encodeToJsonElement(
+            TaskProgressPayload(taskId = "task-1", progress = 0.3, message = "Downloading...")
+        )
+        wsMessages.emit(
+            WsMessage(
+                type = WsMessage.TASK_PROGRESS,
+                instanceId = "test-inst",
+                payload = progressPayload,
+                timestamp = Instant.fromEpochMilliseconds(0),
+            )
+        )
+        waitFor { vm.state.value.installProgress == 0.3 }
+
+        val completedPayload = TestJson.encodeToJsonElement(
+            TaskCompletedPayload(taskId = "task-1", success = false, message = "Download failed: 404")
+        )
+        wsMessages.emit(
+            WsMessage(
+                type = WsMessage.TASK_COMPLETED,
+                instanceId = "test-inst",
+                payload = completedPayload,
+                timestamp = Instant.fromEpochMilliseconds(0),
+            )
+        )
+
+        waitFor { vm.state.value.installError != null }
+        assertEquals("Download failed: 404", vm.state.value.installError)
+        assertNull(vm.state.value.installProgress)
+    }
+
+    @Test
+    fun `cancelTask calls API with tracked taskId`() = runBlocking {
+        val wsMessages = MutableSharedFlow<WsMessage>(extraBufferCapacity = 16)
+        var cancelCalled = false
+        val httpClient = mockHttpClient { request ->
+            when {
+                request.url.encodedPath == "/api/v1/instances/test-inst" -> respond(
+                    mockJsonBody(
+                        InstanceSummary(
+                            id = "test-inst", name = "My Server", state = InstanceState.INITIALIZING,
+                            mcVersion = "1.20.4", mcPort = 25565, playerCount = 0, maxPlayers = 20,
+                            createdAt = Instant.fromEpochMilliseconds(0),
+                        )
+                    ),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                request.url.encodedPath == "/api/v1/instances/test-inst/server/eula" -> respond(
+                    mockJsonBody(EulaResponse(accepted = true)),
+                    headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                request.method == HttpMethod.Post && request.url.encodedPath == "/api/v1/tasks/task-1/cancel" -> {
+                    cancelCalled = true
+                    respond(
+                        """{"cancelled":true}""",
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val manager = mockDaemonManager(client, wsMessages)
+        val vm = InstanceDetailViewModel("test-inst", TEST_DAEMON_ID, manager)
+        vm.awaitLoad()
+
+        // Emit TASK_PROGRESS to establish taskId
+        val progressPayload = TestJson.encodeToJsonElement(
+            TaskProgressPayload(taskId = "task-1", progress = 0.5, message = "Downloading...")
+        )
+        wsMessages.emit(
+            WsMessage(
+                type = WsMessage.TASK_PROGRESS,
+                instanceId = "test-inst",
+                payload = progressPayload,
+                timestamp = Instant.fromEpochMilliseconds(0),
+            )
+        )
+        waitFor { vm.state.value.installProgress == 0.5 }
+
+        vm.cancelTask()
+
+        waitFor { cancelCalled }
+        assertTrue(cancelCalled, "Expected POST /api/v1/tasks/task-1/cancel to be called")
+    }
 }

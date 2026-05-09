@@ -27,6 +27,10 @@ data class InstanceDetailUiState(
     val eulaAccepted: Boolean? = null,
     val showEulaDialog: Boolean = false,
     val hasUnsavedConfig: Boolean = false,
+    val installProgress: Double? = null,
+    val installMessage: String? = null,
+    val installError: String? = null,
+    val currentTaskId: String? = null,
 )
 
 class InstanceDetailViewModel(
@@ -128,6 +132,38 @@ class InstanceDetailViewModel(
                             )
                         } catch (_: Exception) {}
                     }
+
+                    WsMessage.TASK_PROGRESS -> {
+                        try {
+                            val payload = json.decodeFromJsonElement<TaskProgressPayload>(msg.payload)
+                            _state.value = _state.value.copy(
+                                installProgress = payload.progress,
+                                installMessage = payload.message,
+                                installError = null,
+                                currentTaskId = payload.taskId,
+                            )
+                        } catch (_: Exception) {}
+                    }
+
+                    WsMessage.TASK_COMPLETED -> {
+                        try {
+                            val payload = json.decodeFromJsonElement<TaskCompletedPayload>(msg.payload)
+                            if (payload.success) {
+                                _state.value = _state.value.copy(
+                                    installProgress = null,
+                                    installMessage = null,
+                                    currentTaskId = null,
+                                )
+                            } else {
+                                _state.value = _state.value.copy(
+                                    installProgress = null,
+                                    installMessage = null,
+                                    installError = payload.message,
+                                    currentTaskId = null,
+                                )
+                            }
+                        } catch (_: Exception) {}
+                    }
                 }
             }
         }
@@ -214,7 +250,19 @@ class InstanceDetailViewModel(
     }
 
     fun cancelTask() {
-        // TODO: wire up when task cancellation API is available
+        val taskId = _state.value.currentTaskId ?: return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isActionInProgress = true, error = null)
+            try {
+                apiClient.cancelTask(taskId)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    error = "Cancel failed: ${e.message}",
+                )
+            } finally {
+                _state.value = _state.value.copy(isActionInProgress = false)
+            }
+        }
     }
 
     fun setShowDeleteDialog(show: Boolean) {

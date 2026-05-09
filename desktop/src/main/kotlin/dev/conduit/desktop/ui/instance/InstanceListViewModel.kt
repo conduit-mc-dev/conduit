@@ -18,6 +18,7 @@ data class InstanceListUiState(
     val daemonGroups: List<DaemonGroup> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
+    val installProgress: Map<String, Double> = emptyMap(),
 )
 
 class InstanceListViewModel(
@@ -28,6 +29,7 @@ class InstanceListViewModel(
     private val _isLoading = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
     private val _daemonInstances = MutableStateFlow<Map<String, List<InstanceSummary>>>(emptyMap())
+    private val _installProgress = MutableStateFlow<Map<String, Double>>(emptyMap())
 
     init {
         refresh()
@@ -35,17 +37,18 @@ class InstanceListViewModel(
     }
 
     val state: StateFlow<InstanceListUiState> = combine(
-        _daemonInstances, daemonManager.sessions, _isLoading, _error
-    ) { instances, sessions, loading, error ->
+        _daemonInstances, daemonManager.sessions, _isLoading, _error, _installProgress
+    ) { instances, sessions, loading, error, progress ->
         val groups = sessions.map { session ->
             DaemonGroup(
                 daemonId = session.daemonId,
                 daemonName = session.daemonName,
                 connectionState = session.connectionState.value,
                 instances = instances[session.daemonId] ?: emptyList(),
+                installProgress = progress,
             )
         }
-        InstanceListUiState(daemonGroups = groups, isLoading = loading, error = error)
+        InstanceListUiState(daemonGroups = groups, isLoading = loading, error = error, installProgress = progress)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), InstanceListUiState())
 
     fun refresh() {
@@ -77,6 +80,29 @@ class InstanceListViewModel(
                                     _daemonInstances.value = _daemonInstances.value.toMutableMap().apply {
                                         val current = get(session.daemonId) ?: return@apply
                                         put(session.daemonId, current.map { if (it.id == msg.instanceId) it.copy(state = payload.newState) else it })
+                                    }
+                                } catch (_: Exception) {}
+                            }
+
+                            WsMessage.TASK_PROGRESS -> {
+                                try {
+                                    val payload = json.decodeFromJsonElement<TaskProgressPayload>(msg.payload)
+                                    val instId = msg.instanceId
+                                    if (instId != null) {
+                                        _installProgress.value = _installProgress.value.toMutableMap().apply {
+                                            put(instId, payload.progress)
+                                        }
+                                    }
+                                } catch (_: Exception) {}
+                            }
+
+                            WsMessage.TASK_COMPLETED -> {
+                                try {
+                                    val instId = msg.instanceId
+                                    if (instId != null) {
+                                        _installProgress.value = _installProgress.value.toMutableMap().apply {
+                                            remove(instId)
+                                        }
                                     }
                                 } catch (_: Exception) {}
                             }

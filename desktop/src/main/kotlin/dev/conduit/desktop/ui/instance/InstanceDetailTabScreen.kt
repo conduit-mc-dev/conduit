@@ -132,7 +132,14 @@ fun InstanceDetailTabScreen(
                     )
                     StaleContent(daemonName = daemonName)
                 } else if (inst.state == InstanceState.INITIALIZING) {
-                    InstallProgressScreen(instanceId = instanceId, daemonId = daemonId)
+                    InstallProgressScreen(
+                        instanceId = instanceId,
+                        daemonId = daemonId,
+                        progress = state.installProgress,
+                        message = state.installMessage,
+                        error = state.installError,
+                        onCancel = onCancel,
+                    )
                 } else {
                     if (inst.state == InstanceState.CRASHED) {
                         CrashBanner(error = state.error)

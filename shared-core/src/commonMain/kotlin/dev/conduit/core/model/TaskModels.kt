@@ -22,3 +22,8 @@ data class TaskCompletedPayload(
     val success: Boolean,
     val message: String,
 )
+
+@Serializable
+data class CancelTaskResponse(
+    val cancelled: Boolean,
+)

@@ -31,6 +31,7 @@ fun ConduitCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     dimmed: Boolean = false,
+    progress: Double? = null,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
@@ -95,7 +96,7 @@ fun ConduitCard(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .fillMaxWidth(0.5f) // TODO: wire real progress
+                    .fillMaxWidth((progress ?: 0.0).toFloat().coerceIn(0f, 1f))
                     .height(3.dp)
                     .background(StateInstalling),
             )

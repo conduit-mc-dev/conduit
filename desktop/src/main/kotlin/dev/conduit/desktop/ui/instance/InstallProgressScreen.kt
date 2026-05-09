@@ -20,8 +20,16 @@ import dev.conduit.desktop.ui.theme.*
 fun InstallProgressScreen(
     instanceId: String,
     daemonId: String,
+    progress: Double? = null,
+    message: String? = null,
+    error: String? = null,
+    onCancel: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val progressPercent = ((progress ?: 0.0) * 100).toInt()
+    val displayMessage = error ?: message ?: "Waiting for progress..."
+    val isError = error != null
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -37,19 +45,23 @@ fun InstallProgressScreen(
                 .widthIn(max = 480.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(Surface)
-                .border(1.dp, Border, RoundedCornerShape(14.dp))
+                .border(1.dp, if (isError) StateCrashed.copy(alpha = 0.3f) else Border, RoundedCornerShape(14.dp))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text("Installing Server", style = MaterialTheme.typography.headlineMedium, color = TextPrimary)
+            Text(
+                if (isError) "Installation Failed" else "Installing Server",
+                style = MaterialTheme.typography.headlineMedium,
+                color = if (isError) StateCrashed else TextPrimary,
+            )
 
             Text(
-                "0%",
+                "$progressPercent%",
                 style = MaterialTheme.typography.headlineLarge.copy(
                     fontSize = MaterialTheme.typography.headlineLarge.fontSize * 2,
                 ),
-                color = StateInstalling,
+                color = if (isError) StateCrashed else StateInstalling,
             )
 
             // Progress bar
@@ -62,20 +74,29 @@ fun InstallProgressScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(0f)
+                        .fillMaxWidth(progress?.toFloat() ?: 0f)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(4.dp))
                         .background(
-                            Brush.horizontalGradient(
+                            if (isError) androidx.compose.ui.graphics.SolidColor(StateCrashed)
+                            else Brush.horizontalGradient(
                                 listOf(ProgressInstallingStart, ProgressInstallingEnd),
                             ),
                         ),
                 )
             }
 
-            Text("Waiting for progress...", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+            Text(
+                displayMessage,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isError) StateCrashed else TextMuted,
+            )
         }
 
-        ActionButton("Cancel", ButtonVariant.Attention, onClick = { /* TODO */ })
+        ActionButton(
+            if (isError) "Close" else "Cancel",
+            ButtonVariant.Attention,
+            onClick = onCancel,
+        )
     }
 }
