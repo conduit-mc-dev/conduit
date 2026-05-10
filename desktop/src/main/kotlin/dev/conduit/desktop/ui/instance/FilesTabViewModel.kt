@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.conduit.core.model.FileEntry
 import dev.conduit.desktop.session.DaemonManager
+import dev.conduit.desktop.ui.components.ToastManager
+import dev.conduit.desktop.ui.components.ToastType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -19,6 +21,7 @@ class FilesTabViewModel(
     private val instanceId: String,
     private val daemonId: String,
     private val daemonManager: DaemonManager,
+    private val toastManager: ToastManager,
 ) : ViewModel() {
 
     private val apiClient
@@ -82,6 +85,34 @@ class FilesTabViewModel(
                 loadFiles(_state.value.currentPath)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(error = "Delete failed: ${e.message}")
+            }
+        }
+    }
+
+    fun uploadFile(name: String, bytes: ByteArray) {
+        val path = if (_state.value.currentPath.isEmpty()) name
+        else "${_state.value.currentPath}/$name"
+        viewModelScope.launch {
+            try {
+                apiClient.writeFile(instanceId, path, bytes)
+                loadFiles(_state.value.currentPath)
+                toastManager.show(ToastType.Success, "Uploaded $name")
+            } catch (e: Exception) {
+                toastManager.show(ToastType.Error, "Upload failed: ${e.message}")
+            }
+        }
+    }
+
+    fun createFolder(name: String) {
+        val dirPath = if (_state.value.currentPath.isEmpty()) name
+        else "${_state.value.currentPath}/$name"
+        viewModelScope.launch {
+            try {
+                apiClient.writeFile(instanceId, "$dirPath/.keep", byteArrayOf())
+                loadFiles(_state.value.currentPath)
+                toastManager.show(ToastType.Success, "Folder created: $name")
+            } catch (e: Exception) {
+                toastManager.show(ToastType.Error, "Create folder failed: ${e.message}")
             }
         }
     }
