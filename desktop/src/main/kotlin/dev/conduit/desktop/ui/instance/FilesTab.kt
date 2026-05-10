@@ -23,6 +23,9 @@ import dev.conduit.desktop.ui.components.*
 import dev.conduit.desktop.ui.theme.*
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import java.awt.FileDialog
+import java.awt.Frame
+import java.io.File
 
 private val PROTECTED = setOf("server.jar", "libraries", "versions")
 
@@ -33,6 +36,59 @@ fun FilesTab(
     viewModel: FilesTabViewModel = koinViewModel { parametersOf(instanceId, daemonId) },
 ) {
     val state by viewModel.state.collectAsState()
+    var showNewFolderDialog by remember { mutableStateOf(false) }
+    var newFolderName by remember { mutableStateOf("") }
+
+    // New Folder dialog
+    if (showNewFolderDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showNewFolderDialog = false
+                newFolderName = ""
+            },
+            title = { Text("New Folder", style = MaterialTheme.typography.titleSmall, color = TextPrimary) },
+            text = {
+                OutlinedTextField(
+                    value = newFolderName,
+                    onValueChange = { newFolderName = it },
+                    label = { Text("Folder name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        cursorColor = AccentBlue,
+                        focusedBorderColor = AccentBlue,
+                        unfocusedBorderColor = Border,
+                        focusedLabelColor = AccentBlue,
+                        unfocusedLabelColor = TextSecondary,
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val name = newFolderName.trim()
+                        if (name.isNotEmpty()) {
+                            viewModel.createFolder(name)
+                            showNewFolderDialog = false
+                            newFolderName = ""
+                        }
+                    },
+                    enabled = newFolderName.isNotBlank(),
+                ) { Text("Create", color = if (newFolderName.isNotBlank()) AccentBlue else TextMuted) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showNewFolderDialog = false
+                    newFolderName = ""
+                }) { Text("Cancel", color = TextSecondary) }
+            },
+            containerColor = Surface,
+            shape = RoundedCornerShape(14.dp),
+            tonalElevation = 0.dp,
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(Background).padding(16.dp)) {
         // Breadcrumb + actions
@@ -68,8 +124,20 @@ fun FilesTab(
                 }
             }
             Spacer(Modifier.weight(1f))
-            ActionButton("Upload", ButtonVariant.Default, onClick = { /* TODO */ })
-            ActionButton("New Folder", ButtonVariant.Default, onClick = { /* TODO */ })
+            ActionButton("Upload", ButtonVariant.Default, onClick = {
+                val dialog = FileDialog(null as Frame?, "Select file to upload", FileDialog.LOAD)
+                dialog.isVisible = true
+                val dir = dialog.directory
+                val file = dialog.file
+                if (dir != null && file != null) {
+                    val bytes = File(dir, file).readBytes()
+                    viewModel.uploadFile(file, bytes)
+                }
+            })
+            ActionButton("New Folder", ButtonVariant.Default, onClick = {
+                showNewFolderDialog = true
+                newFolderName = ""
+            })
         }
         Spacer(Modifier.height(12.dp))
 
