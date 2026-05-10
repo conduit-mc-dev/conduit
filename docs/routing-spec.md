@@ -69,7 +69,7 @@
 | screen-s05 | 实例启动中 | Instance Detail + state == STARTING | state | done |
 | screen-s11 | 实例停止中 | Instance Detail + state == STOPPING | state | done |
 | screen-s12 | 实例崩溃 | Instance Detail + state == CRASHED | state | done |
-| screen-s13 | 安装中 | Instance Detail + state == INITIALIZING | state（替换整个内容区为 InstallProgressScreen） | partial（功能缺口：需对接 WS task.progress，属迭代 5） |
+| screen-s13 | 安装中 | Instance Detail + state == INITIALIZING | state（替换整个内容区为 InstallProgressScreen） | done |
 
 > 注：RUNNING 状态没有独立 mockup，复用当前 tab 内容（Console/Mods/Players/Config/Files）。
 

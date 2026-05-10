@@ -1,6 +1,6 @@
 # Conduit MC — Progress
 
-> 最新更新：2026-05-10（Desktop MVP 迭代 5 推进中：任务 1-5 完成，shared-core 55 / desktop 35 / daemon 247 全绿）
+> 最新更新：2026-05-10（Desktop MVP 迭代 5 完成：8/8，路由规范 Bug/Gap 全部闭合）
 > 版本里程碑（v0.1 / v0.2 / ...）见 [README Roadmap](../README.md#roadmap)。
 > 项目约束见根目录 `CLAUDE.md`。
 
@@ -18,15 +18,15 @@
 - ✅ 测试 ×7 + RunningMcServer 辅助 mock：247 tests 全绿（+7 新）
 - Desktop CrashBanner 现在可以正常触发
 
-**Desktop MVP 迭代 5 — 进行中**（5/8 完成，2026-05-10）：
+**Desktop MVP 迭代 5 — 完成**（8/8 完成，2026-05-10）：
 - ✅ API client 补齐 `cancelTask(taskId)` + `writeFile()` — shared-core +6 tests
 - ✅ InstallProgressScreen 对接 WS `task.progress` — 真实进度百分比 + 错误态
 - ✅ ConduitCard 进度条对接真实数据 — 去硬编码 `0.5f`，从 InstanceListViewModel 取
 - ✅ InstanceDetailViewModel 处理 `task.progress` / `task.completed` — desktop +3 tests
 - ✅ 任务取消：接入 `POST /tasks/{id}/cancel` — desktop +1 test
-- [ ] Toast 全局通知：监听 task.completed / 错误事件自动弹出
-- [ ] FilesTab Upload / New Folder 按钮对接 daemon 文件 API
-- [ ] routing-spec S13 改为 done
+- ✅ Toast 全局通知：ToastHost + WS `TASK_COMPLETED` 监听器自动弹出成功/错误提示
+- ✅ FilesTab Upload / New Folder 按钮对接 daemon 文件 API — FilesTabViewModel + tests
+- ✅ routing-spec S13 改为 done — WS task.progress 数据流验证完整
 
 **UI 视觉对齐 — 完成**（16/16 gap 闭合）：
 - ✅ P1：#13 对话框自定义样式 — ConduitDialog 基础组件重写（自定义 Dialog + 图标盒 + 参考卡片 + 警告块 + 实底按钮）
@@ -51,16 +51,21 @@
 
 ## Next（下一步）
 
-### Desktop MVP 迭代 5（当前阶段，5/8 完成）
+### Desktop MVP 迭代 5（当前阶段，8/8 完成 ✅）
 
 - [x] API client 补齐：`cancelTask(taskId)` / `writeFile()` — commit `d41135b`
 - [x] InstallProgressScreen 对接 WS `task.progress` 事件
 - [x] ConduitCard 进度条对接真实数据
 - [x] InstanceDetailViewModel 处理 `task.progress` / `task.completed` 事件
 - [x] 任务取消：InstanceDetailViewModel 接入 `POST /tasks/{id}/cancel`
-- [ ] Toast 全局通知：监听 task.completed / 错误事件自动弹出
-- [ ] FilesTab Upload / New Folder 按钮对接 daemon 文件 API
-- [ ] routing-spec S13 改为 done
+- [x] Toast 全局通知：ToastHost + WS `TASK_COMPLETED` 监听器自动弹出
+- [x] FilesTab Upload / New Folder 按钮对接 daemon 文件 API
+- [x] routing-spec S13 改为 done
+- [x] **追修**：路由审查 Bug/Gap 闭合 (2026-05-10, commit `60b40f3`)
+  - Bug 1 — `isPaired` 响应式派生：从 `daemonManager.sessions` StateFlow 派生，配对新 daemon 后无需重启
+  - Bug 2 — Forget daemon 导航修复：Forget 后自动切到下一个 daemon 或回到配对页；`clearSession()` 仅在无剩余 daemon 时调用
+  - Gap 1 — S18 全局覆盖：`navigateSafely` guard + 全局 `UnsavedChangesDialog`，保护模式切换/server 切换/Pair Daemon 等 4 个入口
+  - Gap 2 — S13 数据流验证：确认 daemon TaskStore → WS → InstanceDetailViewModel → InstallProgressScreen 完整链路
 
 ### Desktop MVP 迭代 6
 
