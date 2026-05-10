@@ -40,6 +40,11 @@ class DaemonViewModel(private val daemonManager: DaemonManager) : ViewModel() {
     }
 
     fun disconnect(daemonId: String) { daemonManager.removeDaemon(daemonId) }
-    fun forget(daemonId: String) { daemonManager.removeDaemon(daemonId); daemonManager.clearSession() }
+    fun forget(daemonId: String) {
+        daemonManager.removeDaemon(daemonId)
+        if (daemonManager.sessions.value.isEmpty()) {
+            daemonManager.clearSession()
+        }
+    }
     fun retry(daemonId: String) { daemonManager.getSession(daemonId)?.let { it.stop() /* WS auto-reconnect handles retry */ } }
 }

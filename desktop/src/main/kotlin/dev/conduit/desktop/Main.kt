@@ -64,7 +64,8 @@ fun main() {
 
                 val savedSession = daemonManager.loadSavedSession()
                 var currentDaemonId by remember { mutableStateOf(savedSession?.daemonId ?: "") }
-                val isPaired = savedSession != null
+                val sessions by daemonManager.sessions.collectAsState()
+                val isPaired = savedSession != null || sessions.isNotEmpty()
 
                 LaunchedEffect(Unit) {
                     if (savedSession != null && daemonManager.getSession(savedSession.daemonId) == null) {
@@ -81,6 +82,16 @@ fun main() {
                     var currentMode by remember { mutableStateOf(AppMode.MANAGE) }
                     var selectedInstanceId by remember { mutableStateOf<String?>(null) }
                     val navController = rememberNavController()
+                    var hasUnsavedConfig by remember { mutableStateOf(false) }
+                    var pendingNavigation by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+                    fun navigateSafely(block: () -> Unit) {
+                        if (hasUnsavedConfig) {
+                            pendingNavigation = block
+                        } else {
+                            block()
+                        }
+                    }
 
                     Box(modifier = Modifier.fillMaxSize()) {
                         Row(modifier = Modifier.fillMaxSize()) {
@@ -91,9 +102,11 @@ fun main() {
                                 currentMode = newMode
                                 when (newMode) {
                                     AppMode.LAUNCHER -> {
-                                        navController.navigate(LauncherRoute) {
-                                            popUpTo<LauncherRoute> { inclusive = false }
-                                            launchSingleTop = true
+                                        navigateSafely {
+                                            navController.navigate(LauncherRoute) {
+                                                popUpTo<LauncherRoute> { inclusive = false }
+                                                launchSingleTop = true
+                                            }
                                         }
                                     }
                                     AppMode.MANAGE -> {
@@ -103,9 +116,11 @@ fun main() {
                                         }
                                     }
                                     AppMode.SETTINGS -> {
-                                        navController.navigate(SettingsRoute) {
-                                            popUpTo<SettingsRoute> { inclusive = false }
-                                            launchSingleTop = true
+                                        navigateSafely {
+                                            navController.navigate(SettingsRoute) {
+                                                popUpTo<SettingsRoute> { inclusive = false }
+                                                launchSingleTop = true
+                                            }
                                         }
                                     }
                                 }
@@ -123,7 +138,24 @@ fun main() {
                                     daemonName = name,
                                     daemonAddress = daemonManager.getSession(id)?.daemonUrl ?: "",
                                     serverCount = listState.daemonGroups.find { it.daemonId == id }?.instances?.size ?: 0,
-                                    onConfirm = { daemonVm.forget(id); forgetTarget = null },
+                                    onConfirm = {
+                                        daemonVm.forget(id)
+                                        val remaining = daemonManager.sessions.value
+                                        if (remaining.isNotEmpty()) {
+                                            currentDaemonId = remaining.first().daemonId
+                                            selectedInstanceId = null
+                                            navController.navigate(InstanceListRoute) {
+                                                popUpTo(0) { inclusive = true }
+                                            }
+                                        } else {
+                                            currentDaemonId = ""
+                                            selectedInstanceId = null
+                                            navController.navigate(PairRoute) {
+                                                popUpTo(0) { inclusive = true }
+                                            }
+                                        }
+                                        forgetTarget = null
+                                    },
                                     onDismiss = { forgetTarget = null },
                                 )
                             }
@@ -132,20 +164,26 @@ fun main() {
                                 daemonGroups = listState.daemonGroups,
                                 selectedInstanceId = selectedInstanceId,
                                 onInstanceClick = { daemonId, instanceId ->
-                                    selectedInstanceId = instanceId
-                                    currentDaemonId = daemonId
-                                    navController.navigate(
-                                        InstanceDetailRoute(instanceId, daemonId),
-                                    ) {
-                                        popUpTo<InstanceListRoute> { inclusive = false }
+                                    navigateSafely {
+                                        selectedInstanceId = instanceId
+                                        currentDaemonId = daemonId
+                                        navController.navigate(
+                                            InstanceDetailRoute(instanceId, daemonId),
+                                        ) {
+                                            popUpTo<InstanceListRoute> { inclusive = false }
+                                        }
                                     }
                                 },
                                 onCreateInstance = { daemonId ->
-                                    navController.navigate(CreateInstanceRoute(daemonId))
+                                    navigateSafely {
+                                        navController.navigate(CreateInstanceRoute(daemonId))
+                                    }
                                 },
                                 onPairDaemon = {
-                                    navController.navigate(PairRoute) {
-                                        popUpTo(0) { inclusive = true }
+                                    navigateSafely {
+                                        navController.navigate(PairRoute) {
+                                            popUpTo(0) { inclusive = true }
+                                        }
                                     }
                                 },
                                 onDaemonEdit = { daemonId ->
@@ -244,7 +282,10 @@ fun main() {
                                         onEditDaemon = { navController.navigate(DaemonEditRoute(route.daemonId)) },
                                         onUpdateCommand = detailVm::updateCommandInput,
                                         onSendCommand = detailVm::sendCommand,
-                                        onConfigDirtyChanged = { isDirty -> detailVm.setHasUnsavedConfig(isDirty) },
+                                        onConfigDirtyChanged = { isDirty ->
+                                            detailVm.setHasUnsavedConfig(isDirty)
+                                            hasUnsavedConfig = isDirty
+                                        },
                                     )
                                 }
                                 composable<DaemonEditRoute> { backStackEntry ->
@@ -287,6 +328,23 @@ fun main() {
 
                         val toasts by toastManager.toasts.collectAsState()
                         ToastHost(toasts = toasts, onDismiss = toastManager::dismiss)
+
+                        pendingNavigation?.let { nav ->
+                            UnsavedChangesDialog(
+                                changes = emptyList(),
+                                onDiscard = {
+                                    hasUnsavedConfig = false
+                                    pendingNavigation = null
+                                    nav()
+                                },
+                                onCancel = { pendingNavigation = null },
+                                onSaveAndLeave = {
+                                    hasUnsavedConfig = false
+                                    pendingNavigation = null
+                                    nav()
+                                },
+                            )
+                        }
 
                         @OptIn(ExperimentalCoroutinesApi::class)
                         LaunchedEffect(Unit) {
