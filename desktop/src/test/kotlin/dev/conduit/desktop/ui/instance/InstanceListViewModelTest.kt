@@ -2,6 +2,7 @@ package dev.conduit.desktop.ui.instance
 
 import dev.conduit.core.model.*
 import dev.conduit.desktop.*
+import dev.conduit.desktop.session.DaemonManager
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
@@ -9,6 +10,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.test.*
 import kotlin.time.Instant
+import kotlin.io.path.createTempDirectory
 
 class InstanceListViewModelTest {
 
@@ -113,6 +115,15 @@ class InstanceListViewModelTest {
         ))
         vm.awaitState { it.allInstances().size == 1 }
         assertEquals("a", vm.state.value.allInstances()[0].id)
+    }
+
+    @Test
+    fun `empty sessions does not stall loading`() = runBlocking {
+        val tempDir = createTempDirectory("conduit-test-empty")
+        val manager = DaemonManager(configDir = tempDir)
+        val vm = InstanceListViewModel(manager)
+        val s = vm.awaitState { !it.isLoading }
+        assertTrue(s.daemonGroups.isEmpty())
     }
 
     @Test

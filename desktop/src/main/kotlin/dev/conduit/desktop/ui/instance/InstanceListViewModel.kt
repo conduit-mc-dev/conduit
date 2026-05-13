@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dev.conduit.core.model.*
 import dev.conduit.desktop.session.DaemonManager
 import dev.conduit.desktop.ui.components.DaemonGroup
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -54,13 +55,18 @@ class InstanceListViewModel(
         InstanceListUiState(daemonGroups = groups, isLoading = loading, error = error, installProgress = progress)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), InstanceListUiState())
 
+    private var connStateJob: Job? = null
+
     private fun observeConnectionStates() {
         viewModelScope.launch {
             daemonManager.sessions.collect { sessions ->
-                sessions.forEach { session ->
-                    launch {
-                        session.connectionState.collect {
-                            _connTrigger.value = _connTrigger.value + 1
+                connStateJob?.cancel()
+                connStateJob = launch {
+                    sessions.forEach { session ->
+                        launch {
+                            session.connectionState.collect {
+                                _connTrigger.value = _connTrigger.value + 1
+                            }
                         }
                     }
                 }
@@ -73,7 +79,10 @@ class InstanceListViewModel(
         viewModelScope.launch {
             try {
                 val sessions = daemonManager.sessions.value
-                if (sessions.isEmpty()) return@launch
+                if (sessions.isEmpty()) {
+                    _isLoading.value = false
+                    return@launch
+                }
                 sessions.forEach { session ->
                     val instances = session.getApi().listInstances()
                     _daemonInstances.value = _daemonInstances.value.toMutableMap().apply { put(session.daemonId, instances) }
@@ -86,46 +95,51 @@ class InstanceListViewModel(
         }
     }
 
+    private var wsCollectorJob: Job? = null
+
     private fun observeWebSockets() {
         viewModelScope.launch {
             daemonManager.sessions.collect { sessions ->
+                wsCollectorJob?.cancel()
                 if (sessions.isNotEmpty()) refresh()
-                sessions.forEach { session ->
-                    launch {
-                        session.wsClient.messages.collect { msg ->
-                            when (msg.type) {
-                                WsMessage.INSTANCE_CREATED, WsMessage.INSTANCE_DELETED -> refresh()
-                                WsMessage.STATE_CHANGED -> {
-                                    try {
-                                        val payload = json.decodeFromJsonElement<StateChangedPayload>(msg.payload)
-                                        _daemonInstances.value = _daemonInstances.value.toMutableMap().apply {
-                                            val current = get(session.daemonId) ?: return@apply
-                                            put(session.daemonId, current.map { if (it.id == msg.instanceId) it.copy(state = payload.newState) else it })
-                                        }
-                                    } catch (_: Exception) {}
-                                }
-
-                                WsMessage.TASK_PROGRESS -> {
-                                    try {
-                                        val payload = json.decodeFromJsonElement<TaskProgressPayload>(msg.payload)
-                                        val instId = msg.instanceId
-                                        if (instId != null) {
-                                            _installProgress.value = _installProgress.value.toMutableMap().apply {
-                                                put(instId, payload.progress)
+                wsCollectorJob = launch {
+                    sessions.forEach { session ->
+                        launch {
+                            session.wsClient.messages.collect { msg ->
+                                when (msg.type) {
+                                    WsMessage.INSTANCE_CREATED, WsMessage.INSTANCE_DELETED -> refresh()
+                                    WsMessage.STATE_CHANGED -> {
+                                        try {
+                                            val payload = json.decodeFromJsonElement<StateChangedPayload>(msg.payload)
+                                            _daemonInstances.value = _daemonInstances.value.toMutableMap().apply {
+                                                val current = get(session.daemonId) ?: return@apply
+                                                put(session.daemonId, current.map { if (it.id == msg.instanceId) it.copy(state = payload.newState) else it })
                                             }
-                                        }
-                                    } catch (_: Exception) {}
-                                }
+                                        } catch (_: Exception) {}
+                                    }
 
-                                WsMessage.TASK_COMPLETED -> {
-                                    try {
-                                        val instId = msg.instanceId
-                                        if (instId != null) {
-                                            _installProgress.value = _installProgress.value.toMutableMap().apply {
-                                                remove(instId)
+                                    WsMessage.TASK_PROGRESS -> {
+                                        try {
+                                            val payload = json.decodeFromJsonElement<TaskProgressPayload>(msg.payload)
+                                            val instId = msg.instanceId
+                                            if (instId != null) {
+                                                _installProgress.value = _installProgress.value.toMutableMap().apply {
+                                                    put(instId, payload.progress)
+                                                }
                                             }
-                                        }
-                                    } catch (_: Exception) {}
+                                        } catch (_: Exception) {}
+                                    }
+
+                                    WsMessage.TASK_COMPLETED -> {
+                                        try {
+                                            val instId = msg.instanceId
+                                            if (instId != null) {
+                                                _installProgress.value = _installProgress.value.toMutableMap().apply {
+                                                    remove(instId)
+                                                }
+                                            }
+                                        } catch (_: Exception) {}
+                                    }
                                 }
                             }
                         }
