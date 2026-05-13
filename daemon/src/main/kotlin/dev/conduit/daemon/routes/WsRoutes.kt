@@ -28,14 +28,17 @@ fun Route.wsRoutes(
     webSocket("/api/v1/ws") {
         val token = call.request.queryParameters["token"]
         if (token == null || tokenStore.validateToken(token) == null) {
+            log.warn("WS auth failed: token missing or invalid")
             close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthorized"))
             return@webSocket
         }
 
+        log.info("WS session opened")
         broadcaster.addSession(this)
         try {
             for (frame in incoming) {
-                if (frame is Frame.Text) {
+                when (frame) {
+                    is Frame.Text -> {
                     try {
                         val text = frame.readText()
                         val msg = json.parseToJsonElement(text).jsonObject
@@ -75,9 +78,19 @@ fun Route.wsRoutes(
                         log.debug("Failed to parse WS message", e)
                     }
                 }
+                is Frame.Close -> {
+                    val reason = frame.readReason()
+                    log.info("WS close frame from client: code={}, message={}", reason?.code, reason?.message)
+                }
+                else -> {
+                    // PING/PONG handled by Ktor engine
+                }
             }
+            }
+            log.info("WS session incoming loop ended")
         } finally {
             broadcaster.removeSession(this)
+            log.info("WS session closed")
         }
     }
 }

@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlin.time.Clock
 import org.slf4j.LoggerFactory
 import java.io.Closeable
 import kotlin.math.min
@@ -30,7 +32,9 @@ class ConduitWsClient(
     private val log = LoggerFactory.getLogger(ConduitWsClient::class.java)
 
     private val client = HttpClient(CIO) {
-        install(WebSockets)
+        install(WebSockets) {
+            pingIntervalMillis = 10_000
+        }
     }
 
     private val _messages = MutableSharedFlow<WsMessage>(extraBufferCapacity = 256)
@@ -54,58 +58,91 @@ class ConduitWsClient(
         connectionJob?.cancel()
         connectionJob = scope.launch {
             val wsUrl = baseUrl.replace("http://", "ws://").replace("https://", "wss://")
+            val maskedToken = if (token.length <= 8) token else token.take(4) + "..." + token.takeLast(4)
+            log.info("WS connect() starting, url={}, token={}", wsUrl, maskedToken)
             var attempt = 0
 
             while (isActive) {
-                _connectionState.value = if (attempt == 0) {
-                    WsConnectionState.CONNECTING
-                } else {
-                    WsConnectionState.RECONNECTING
-                }
+                val state = if (attempt == 0) WsConnectionState.CONNECTING else WsConnectionState.RECONNECTING
+                _connectionState.value = state
+                log.info("WS state -> {} (attempt {})", state, attempt)
 
                 try {
                     client.webSocket("$wsUrl/api/v1/ws?token=$token") {
                         session = this
                         _connectionState.value = WsConnectionState.CONNECTED
+                        log.info("WS connected successfully")
                         attempt = 0
 
                         replaySubscriptions()
 
-                        for (frame in incoming) {
-                            if (frame is Frame.Text) {
+                        val pingJob = launch {
+                            while (isActive) {
+                                delay(10_000)
                                 try {
-                                    val msg = json.decodeFromString<WsMessage>(frame.readText())
-                                    _messages.emit(msg)
+                                    val pingMsg = WsMessage(
+                                        type = WsMessage.PING,
+                                        payload = buildJsonObject {},
+                                        timestamp = Clock.System.now(),
+                                    )
+                                    send(Frame.Text(json.encodeToString(WsMessage.serializer(), pingMsg)))
                                 } catch (e: Exception) {
-                                    log.warn("Failed to parse WS message", e)
+                                    log.warn("WS ping send failed: {}", e.message)
                                 }
                             }
                         }
+
+                        for (frame in incoming) {
+                            when (frame) {
+                                is Frame.Text -> {
+                                    try {
+                                        val msg = json.decodeFromString<WsMessage>(frame.readText())
+                                        _messages.emit(msg)
+                                    } catch (e: Exception) {
+                                        log.warn("Failed to parse WS message: type={}", e.message)
+                                    }
+                                }
+                                is Frame.Close -> {
+                                    val reason = frame.readReason()
+                                    log.warn("WS close frame received: code={}, message={}", reason?.code, reason?.message)
+                                }
+                                else -> {
+                                    // PING/PONG handled by Ktor engine
+                                }
+                            }
+                        }
+
+                        log.warn("WS incoming channel closed (server disconnected)")
+                        pingJob.cancel()
                     }
                 } catch (e: CancellationException) {
+                    log.info("WS connection job cancelled")
                     throw e
                 } catch (e: Exception) {
                     if (attempt == 0) {
-                        log.error("WebSocket connection failed", e)
+                        log.error("WS connection failed: {}", e.message, e)
                     } else {
-                        log.warn("WebSocket reconnect attempt {} failed: {}", attempt, e.message)
+                        log.warn("WS reconnect attempt {} failed: {}", attempt, e.message)
                     }
                 } finally {
                     session = null
                 }
 
-                if (!isActive) break
+                if (!isActive) {
+                    log.info("WS connect loop exiting (scope cancelled)")
+                    break
+                }
 
                 _connectionState.value = WsConnectionState.DISCONNECTED
 
-                // Exponential backoff: 1s, 2s, 4s, 8s, 16s, 30s cap
                 attempt++
                 val delayMs = min(1_000L * 2.0.pow(attempt - 1).toLong(), 30_000L)
-                log.info("Reconnecting in {}ms (attempt {})", delayMs, attempt)
+                log.info("WS reconnecting in {}ms (attempt {})", delayMs, attempt)
                 delay(delayMs)
             }
 
             _connectionState.value = WsConnectionState.DISCONNECTED
+            log.info("WS connect() ended (scope done)")
         }
     }
 
