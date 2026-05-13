@@ -3,6 +3,7 @@ package dev.conduit.desktop.ui.instance
 import dev.conduit.core.model.*
 import dev.conduit.desktop.*
 import dev.conduit.desktop.session.DaemonManager
+import dev.conduit.desktop.session.DaemonSession
 import io.ktor.client.engine.mock.*
 import io.ktor.http.*
 import kotlinx.coroutines.*
@@ -149,5 +150,35 @@ class InstanceListViewModelTest {
         vm.awaitState { it.allInstances().find { i -> i.id == "a" }?.state == InstanceState.RUNNING }
         assertEquals(InstanceState.RUNNING, vm.state.value.allInstances().find { it.id == "a" }?.state)
         assertEquals(InstanceState.STOPPED, vm.state.value.allInstances().find { it.id == "b" }?.state)
+    }
+
+    @Test
+    fun `connectionState change triggers DaemonGroup recomposition`() = runBlocking {
+        val inst = sampleInstance("a", "Server A")
+        val httpClient = mockHttpClient { request ->
+            when (request.url.encodedPath) {
+                "/api/v1/instances" -> respond(listJson(inst), headers = headersOf(HttpHeaders.ContentType, "application/json"))
+                else -> respondError(HttpStatusCode.NotFound)
+            }
+        }
+        val client = mockApiClient(httpClient)
+        val manager = mockDaemonManager(client)
+
+        // Replace DaemonSession._connectionState with a controllable flow before ViewModel creation
+        val connStateFlow = MutableStateFlow(WsConnectionState.DISCONNECTED)
+        val session = manager.getSession(TEST_DAEMON_ID)!!
+        val connField = DaemonSession::class.java.getDeclaredField("_connectionState")
+        connField.isAccessible = true
+        connField.set(session, connStateFlow)
+
+        val vm = InstanceListViewModel(manager)
+        vm.awaitState { !it.isLoading && it.daemonGroups.isNotEmpty() }
+        assertEquals(WsConnectionState.DISCONNECTED, vm.state.value.daemonGroups[0].connectionState)
+
+        connStateFlow.value = WsConnectionState.CONNECTED
+        vm.awaitState { it.daemonGroups[0].connectionState == WsConnectionState.CONNECTED }
+
+        connStateFlow.value = WsConnectionState.RECONNECTING
+        vm.awaitState { it.daemonGroups[0].connectionState == WsConnectionState.RECONNECTING }
     }
 }

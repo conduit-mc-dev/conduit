@@ -76,9 +76,13 @@ class ConduitWsClient(
 
                         replaySubscriptions()
 
+                        // Application-level PING validates end-to-end message delivery
+                        // (Ktor-level pingIntervalMillis only checks TCP liveness).
+                        // Interval is intentionally longer than the transport keepalive
+                        // to avoid redundant noise on the SharedFlow.
                         val pingJob = launch {
                             while (isActive) {
-                                delay(10_000)
+                                delay(30_000)
                                 try {
                                     val pingMsg = WsMessage(
                                         type = WsMessage.PING,
