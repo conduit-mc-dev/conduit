@@ -99,9 +99,11 @@ class InstanceListViewModel(
 
     private fun observeWebSockets() {
         viewModelScope.launch {
+            var firstEmission = true
             daemonManager.sessions.collect { sessions ->
                 wsCollectorJob?.cancel()
-                if (sessions.isNotEmpty()) refresh()
+                if (!firstEmission && sessions.isNotEmpty()) refresh()
+                firstEmission = false
                 wsCollectorJob = launch {
                     sessions.forEach { session ->
                         launch {
