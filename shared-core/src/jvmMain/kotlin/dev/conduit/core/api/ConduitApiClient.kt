@@ -85,6 +85,26 @@ class ConduitApiClient(
     suspend fun listMinecraftVersions(): MinecraftVersionsResponse =
         get("/api/v1/minecraft/versions")
 
+    // --- Loader 管理 ---
+
+    suspend fun listAvailableLoadersByMcVersion(mcVersion: String): List<AvailableLoader> =
+        get("/api/v1/minecraft/$mcVersion/loaders")
+
+    suspend fun listAvailableLoaders(instanceId: String): List<AvailableLoader> =
+        get("/api/v1/instances/$instanceId/loader/available")
+
+    suspend fun getLoader(instanceId: String): LoaderInfo? =
+        get("/api/v1/instances/$instanceId/loader")
+
+    suspend fun installLoader(instanceId: String, request: InstallLoaderRequest): TaskResponse =
+        post("/api/v1/instances/$instanceId/loader/install") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }
+
+    suspend fun uninstallLoader(instanceId: String): Unit =
+        request(HttpMethod.Delete, "/api/v1/instances/$instanceId/loader")
+
     // --- 服务器生命周期 ---
 
     suspend fun getServerStatus(id: String): ServerStatusResponse =

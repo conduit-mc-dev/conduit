@@ -32,6 +32,7 @@ data class CreateInstanceRequest(
     val mcVersion: String,
     val description: String? = null,
     val mcPort: Int? = null,
+    val maxPlayers: Int? = null,
     val jvmArgs: List<String>? = null,
     val javaPath: String? = null,
 )

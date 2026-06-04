@@ -14,6 +14,14 @@ fun Route.loaderRoutes(
     instanceStore: InstanceStore,
     loaderService: LoaderService,
 ) {
+    // Standalone endpoint: get available loaders by MC version (no instance required)
+    get("/api/v1/minecraft/{mcVersion}/loaders") {
+        val mcVersion = call.parameters["mcVersion"]
+            ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("error" to "mcVersion parameter required"))
+        val available = loaderService.getAvailableLoaders(mcVersion)
+        call.respond(available)
+    }
+
     route("/api/v1/instances/{id}/loader") {
         get {
             val id = call.requireInstanceId()

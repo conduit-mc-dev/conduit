@@ -104,6 +104,7 @@ class InstanceStore(
 
         val id = generateUniqueId()
         val taskId = IdGenerator.generateTaskId()
+        val maxPlayers = request.maxPlayers ?: 20
         val instance = Instance(
             id = id,
             name = request.name,
@@ -112,6 +113,7 @@ class InstanceStore(
             mcVersion = request.mcVersion,
             loader = null,
             mcPort = port,
+            maxPlayers = maxPlayers,
             jvmArgs = request.jvmArgs,
             javaPath = request.javaPath,
             publicEndpointEnabled = true,
@@ -122,6 +124,10 @@ class InstanceStore(
         instances[id] = instance
         dataDirectory?.instanceDir(id)?.createDirectories()
         persist(instance)
+        // Write max-players to server.properties so it's ready when the server starts
+        dataDirectory?.instanceDir(id)?.let { dir ->
+            writeServerProperty(dir, "max-players", maxPlayers.toString())
+        }
         return instance.toSummary()
     }
 
@@ -358,6 +364,20 @@ class InstanceStore(
             props.getProperty("max-players")?.toIntOrNull()
         } catch (_: Exception) {
             null
+        }
+    }
+
+    private fun writeServerProperty(instanceDir: java.nio.file.Path, key: String, value: String) {
+        val propsPath = instanceDir.resolve("server.properties")
+        try {
+            val props = java.util.Properties()
+            if (propsPath.exists()) {
+                propsPath.inputStream().use { props.load(it) }
+            }
+            props.setProperty(key, value)
+            propsPath.outputStream().use { props.store(it, null) }
+        } catch (e: Exception) {
+            log.warn("Failed to write {} to server.properties in {}", key, instanceDir, e)
         }
     }
 
