@@ -69,6 +69,26 @@
 
 ### Desktop MVP 迭代 6
 
+- [x] **Create Instance Screen S16 对齐**（2026-06-04）
+  - **UI 重写**：`CreateInstanceScreen` 完全重写匹配设计稿 S16
+    - Header：图标盒（44dp）+ "Create Server" + 副标题 "on {daemonName}"
+    - Minecraft Version：`VersionSelectField` 组件（下拉选择器 + 版本芯片快速选择）
+    - Mod Loader：标签页选择器（NeoForge/Fabric/Quilt/Forge/Vanilla）+ 版本下拉 + 提示文字
+    - Server Port + Max Players 并排布局
+    - 分节分隔线、按钮文案 "Create Server"
+  - **新组件**：`VersionSelectField` — 可复用版本选择器（下拉菜单 + quick-select chips）
+  - **ViewModel 重写**：`CreateInstanceViewModel` 状态扩展（mcVersions、loaderType、loaderVersion、maxPlayers、daemonName）
+    - Init 自动加载 MC 版本 + 可用 loader 版本
+    - 两步创建流程：create instance → install loader（如非 Vanilla）
+  - **Backend 改动**：
+    - `CreateInstanceRequest` 新增 `maxPlayers: Int?` 字段
+    - `InstanceStore.create()` 接受并持久化 maxPlayers 到 `server.properties`
+    - `LoaderRoutes` 新增 `GET /api/v1/minecraft/{mcVersion}/loaders` 独立端点（无需 instance ID）
+    - `ConduitApiClient` 新增 `listAvailableLoadersByMcVersion()`、`listAvailableLoaders()`、`installLoader()`、`getLoader()`、`uninstallLoader()`
+  - **测试**：desktop 54 tests（不变），daemon 249 tests（+2 E2E），shared-core 不变
+  - **E2E 数据流测试**（2，daemon 模块）：启动真实 daemon → 配对 → 获取版本 → 获取 loader → 创建实例 → 验证 server.properties → 安装 loader
+  - 文件：7 改/2 新 Kotlin + 1 docs
+
 - [ ] JVM 配置 UI：getJvmConfig / updateJvmConfig 编辑界面
 - [ ] 实例编辑（重命名等）：API client `updateInstance()` + UI
 - [ ] Settings 页面：替换 "coming soon" 占位

@@ -21,7 +21,7 @@ class FileRoutesTest {
     // --- server.properties ---
 
     @Test
-    fun `get server-properties returns empty when file missing`() = testApplication {
+    fun `get server-properties returns max-players set during creation`() = testApplication {
         val (tempDir) = setupTestModule()
         val client = jsonClient()
         val token = pairAndGetToken(client)
@@ -32,7 +32,7 @@ class FileRoutesTest {
         }
         assertEquals(HttpStatusCode.OK, response.status)
         val props = response.body<JsonObject>()
-        assertTrue(props.isEmpty())
+        assertEquals("20", props["max-players"]?.jsonPrimitive?.content)
     }
 
     @Test
