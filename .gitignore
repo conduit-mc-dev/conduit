@@ -76,3 +76,4 @@ docs/superpowers/
 # ---- CodeBuddy / editor local state (safe to ignore, not the whole .codebuddy folder) ----
 .codebuddy/cache/
 .codebuddy/teams/
+screenshots/
