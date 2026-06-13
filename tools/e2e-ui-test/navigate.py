@@ -20,6 +20,7 @@ from config import (
     MOCKUP_S16,
     MOCKUP_DIR,
     APP_WINDOW_TITLE,
+    SCREENSHOT_DIR,
 )
 from screenshot import capture_app_window, capture_screen
 from vision_api import identify_elements, describe_screenshot
