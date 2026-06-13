@@ -7,6 +7,7 @@ Windows 平台实现 — FindWindowW + PrintWindow + PostMessage。
 from __future__ import annotations
 
 import ctypes
+import ctypes.wintypes
 import time
 from pathlib import Path
 from typing import Optional, Tuple
