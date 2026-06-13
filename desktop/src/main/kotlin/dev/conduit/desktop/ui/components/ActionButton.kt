@@ -84,7 +84,7 @@ fun InstanceActionButtons(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         when (state) {
             InstanceState.STOPPED -> {
                 ActionButton("Start", ButtonVariant.Success, onStart, enabled = !isActionInProgress)
