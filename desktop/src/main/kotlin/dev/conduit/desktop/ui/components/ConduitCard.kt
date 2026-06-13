@@ -73,8 +73,9 @@ fun ConduitCard(
                 StatusDot(instance.state, StatusDotSize.Small)
             }
             val infoText = buildString {
-                instance.loader?.let { append("${it.type.name.lowercase().replaceFirstChar { c -> c.uppercase() }} ") }
-                append(instance.mcVersion)
+                val loaderName = instance.loader?.type?.name?.lowercase()?.replaceFirstChar { c -> c.uppercase() }
+                append(loaderName ?: "Vanilla")
+                append(" ${instance.mcVersion}")
                 if (instance.state == InstanceState.RUNNING) append(" · ${instance.playerCount}/${instance.maxPlayers}")
             }
             Text(
