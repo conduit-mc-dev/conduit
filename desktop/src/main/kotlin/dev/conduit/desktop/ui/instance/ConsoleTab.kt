@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,12 +58,45 @@ fun ConsoleTab(
             }
             if (lines.isEmpty()) {
                 item {
-                    Text(
-                        "No console output yet.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextMuted,
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    if (!isRunning) {
+                        // Server stopped — show informative empty state with icon
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Computer,
+                                    contentDescription = null,
+                                    tint = TextMuted,
+                                    modifier = Modifier.size(40.dp),
+                                )
+                                Text(
+                                    "Server is stopped",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextSecondary,
+                                )
+                                Text(
+                                    "Start the server to see console output",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextMuted,
+                                )
+                            }
+                        }
+                    } else {
+                        // Running but no output yet
+                        Text(
+                            "No console output yet.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMuted,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
                 }
             }
         }
