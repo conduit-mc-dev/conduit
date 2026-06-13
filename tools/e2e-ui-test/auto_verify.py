@@ -20,6 +20,12 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
+# Windows GBK 兼容：确保 stdout 不因 emoji 崩溃
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
 # 确保可以 import 同目录模块
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR))
@@ -62,22 +68,29 @@ def start_daemon():
         return False
 
     log("  启动 Daemon...")
-    subprocess.Popen(
-        [gradlew, ":daemon:run", "--quiet"],
-        cwd=str(SCRIPT_DIR.parent.parent),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    time.sleep(8)
-
     try:
-        import requests
-        r = requests.get("http://127.0.0.1:9147/", timeout=3)
-        log("  ✅ Daemon 已启动")
-        return True
-    except Exception:
-        log("  ⚠️  Daemon 启动超时，继续...")
+        subprocess.Popen(
+            [gradlew, ":daemon:run", "--quiet"],
+            cwd=str(SCRIPT_DIR.parent.parent),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as e:
+        log(f"  Daemon 启动失败: {e}")
         return False
+    # Gradle 首次下载可能很慢，等 30 秒
+    log("  等待 Daemon 启动 (最长 30s)...")
+    for i in range(15):
+        time.sleep(2)
+        try:
+            import requests
+            r = requests.get("http://127.0.0.1:9147/", timeout=2)
+            log("  Daemon 已启动")
+            return True
+        except Exception:
+            pass
+    log("  Daemon 启动超时，继续...")
+    return False
 
 
 def start_desktop():
@@ -95,23 +108,28 @@ def start_desktop():
         return False
 
     log("  启动 Desktop...")
-    subprocess.Popen(
-        [gradlew, ":desktop:run", "--quiet"],
-        cwd=str(SCRIPT_DIR.parent.parent),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    try:
+        subprocess.Popen(
+            [gradlew, ":desktop:run", "--quiet"],
+            cwd=str(SCRIPT_DIR.parent.parent),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as e:
+        log(f"  Desktop 启动失败: {e}")
+        return False
 
-    # 等待窗口出现
-    for i in range(20):
+    # 等待窗口出现（Gradle 首次编译可能需要 60s+）
+    log("  等待 Desktop 启动 (最长 120s)...")
+    for i in range(60):
         time.sleep(2)
         h = find_app_window("Conduit MC")
         if h:
-            log(f"  ✅ Desktop 已启动 ({i*2}s)")
-            time.sleep(3)  # 额外等待渲染
+            log(f"  Desktop 已启动 ({i*2}s)")
+            time.sleep(3)
             return True
 
-    log("  ❌ Desktop 启动超时")
+    log("  Desktop 启动超时")
     return False
 
 
