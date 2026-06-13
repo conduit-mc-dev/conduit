@@ -87,24 +87,83 @@ def _timestamp() -> str:
     return datetime.now().strftime("%Y%m%d_%H%M%S")
 
 
+def _win32_grab_screen() -> Optional[Image.Image]:
+    """
+    Windows 降级截图：用 ctypes 调用 Win32 GDI API。
+    比 ImageGrab.grab() 更底层，在 PsExec/SSH 环境中可能可用。
+    """
+    if sys.platform != 'win32':
+        return None
+    try:
+        import ctypes
+        import ctypes.wintypes
+
+        user32 = ctypes.windll.user32
+        gdi32 = ctypes.windll.gdi32
+
+        SM_CXSCREEN, SM_CYSCREEN = 0, 1
+        w = user32.GetSystemMetrics(SM_CXSCREEN)
+        h = user32.GetSystemMetrics(SM_CYSCREEN)
+
+        hdesktop = user32.GetDC(0)
+        hdc = gdi32.CreateCompatibleDC(hdesktop)
+        hbmp = gdi32.CreateCompatibleBitmap(hdesktop, w, h)
+        gdi32.SelectObject(hdc, hbmp)
+
+        SRCCOPY = 0x00CC0020
+        gdi32.BitBlt(hdc, 0, 0, w, h, hdesktop, 0, 0, SRCCOPY)
+
+        # 从 bitmap 创建 PIL Image
+        bmp_info = ctypes.wintypes.BITMAPINFOHEADER()
+        bmp_info.biSize = ctypes.sizeof(ctypes.wintypes.BITMAPINFOHEADER)
+        bmp_info.biWidth = w
+        bmp_info.biHeight = -h  # top-down
+        bmp_info.biPlanes = 1
+        bmp_info.biBitCount = 32
+        bmp_info.biCompression = 0  # BI_RGB
+
+        buf = ctypes.create_string_buffer(w * h * 4)
+        gdi32.GetDIBits(hdc, hbmp, 0, h, buf, ctypes.byref(bmp_info), 0)
+
+        img = Image.frombuffer('RGBA', (w, h), buf, 'raw', 'BGRA', 0, 1)
+        img = img.convert('RGB')
+
+        gdi32.DeleteObject(hbmp)
+        gdi32.DeleteDC(hdc)
+        user32.ReleaseDC(0, hdesktop)
+
+        # 检查是否全黑
+        pixels = list(img.getdata())[:100]
+        if all(p == (0, 0, 0) for p in pixels):
+            return None  # 全黑 = 无法访问桌面
+
+        return img
+    except Exception:
+        return None
+
+
 # ── 基础截图（全屏 / 区域）────────────────────────
 
 
 def capture_screen(output_path: Optional[Path] = None) -> Path:
     """
-    全屏截图（ImageGrab.grab）。
-    这是最可靠的截图方式，在所有平台上都能工作。
+    全屏截图。优先 ImageGrab.grab()，Windows 失败时用 Win32 API 降级。
     """
     try:
         img = ImageGrab.grab()
     except Exception as e:
-        if 'could not create image from display' in str(e).lower() or 'CalledProcessError' in type(e).__name__:
-            raise ScreenCaptureError(
-                "屏幕录制权限未授予。\n"
-                "macOS: 系统设置 → 隐私与安全 → 屏幕录制 → 添加终端\n"
-                f"原始错误: {e}"
-            )
-        raise ScreenCaptureError(f"全屏截图失败: {e}")
+        if sys.platform == 'win32':
+            img = _win32_grab_screen()
+            if img is None:
+                raise ScreenCaptureError(f"全屏截图失败 (ImageGrab + Win32 均失败): {e}")
+        else:
+            if 'could not create image from display' in str(e).lower() or 'CalledProcessError' in type(e).__name__:
+                raise ScreenCaptureError(
+                    "屏幕录制权限未授予。\n"
+                    "macOS: 系统设置 → 隐私与安全 → 屏幕录制 → 添加终端\n"
+                    f"原始错误: {e}"
+                )
+            raise ScreenCaptureError(f"全屏截图失败: {e}")
 
     if output_path is None:
         output_path = SCREENSHOT_DIR / f"screen_{_timestamp()}.png"
